@@ -7,8 +7,8 @@ from driver.service import NVMeshCSIDriverService
 
 
 class ServiceManager(object):
-	def __init__(self):
-		self.server = NVMeshCSIDriverService()
+	def __init__(self, logger):
+		self.server = NVMeshCSIDriverService(logger)
 		self.process = Process(target=self.server.serve)
 
 	def start(self):
