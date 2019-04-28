@@ -8,21 +8,28 @@ from managementClient.ManagementClientWrapper import ManagementClientWrapper
 
 
 class NVMeshControllerService(ControllerServicer):
-	def __init__(self):
+	def __init__(self, logger):
 		ControllerServicer.__init__(self)
+		self.logger = logger
 		self.mgmtClient = ManagementClientWrapper()
 
 	def CreateVolume(self, request, context):
-		capacity = str(request.capacity_range.required_bytes / 1024) + "K"
+		name = request.name
+		capacity = request.capacity_range.required_bytes
+		volume_capabilities = request.volume_capabilities
+		parameters = request.parameters
+		secrets = request.secrets
+		volume_content_source = request.volume_content_source
+		accessibility_requirements = request.accessibility_requirements
 
 		volume = {
-			'name': request.name,
+			'name': name,
 			'description': 'created from K8s CSI',
-			'RAIDLevel': ManagementClientConsts.RAIDLevels.LVM_JBOD,
+			'RAIDLevel': ManagementClientConsts.RAIDLevels.CONCATENATED,
 			'capacity': capacity
 		}
 		mgmtResponse = self.mgmtClient.createVolume(volume)[1]
-		print(mgmtResponse)
+		self.logger.debug(mgmtResponse)
 
 		createResult = mgmtResponse['create'][0]
 		if not createResult['success']:
@@ -35,10 +42,12 @@ class NVMeshControllerService(ControllerServicer):
 		return CreateVolumeResponse(volume=volume)
 
 	def DeleteVolume(self, request, context):
-		print(request)
+		volume_id = request.volume_id
+		secrets = request.secrets
+		self.logger.debug(request)
 
 		err, out = self.mgmtClient.removeVolume({ '_id': request.volume_id })
-		print(err, out)
+		self.logger.debug(err, out)
 
 		if err:
 			context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
@@ -54,7 +63,7 @@ class NVMeshControllerService(ControllerServicer):
 		return DeleteVolumeResponse()
 
 	def _create_volume_from_mgmt_res(self, vol_name, mgmtResponse):
-		print(mgmtResponse)
+		self.logger.debug(mgmtResponse)
 		vol = Volume(volume_id=vol_name)
 		return vol
 

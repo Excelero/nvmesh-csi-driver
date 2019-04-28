@@ -7,7 +7,7 @@ from packaging import version
 
 import Consts, LoggerUtils
 from Consts import VolumeAttachmentStatus
-from infraClient.utils.unitConverter import convertUnitToBytes
+from managementClient.unitConverter import convertUnitToBytes
 
 urllib3.disable_warnings()
 class ManagementClientError(Exception):
@@ -270,6 +270,7 @@ class ManagementClient(object):
 
 		else:
 			if 'capacity' in arguments:
+				self.logger.debug('capacity = %s' % arguments['capacity'])
 				payload['capacity'] = convertUnitToBytes(arguments['capacity'])
 
 

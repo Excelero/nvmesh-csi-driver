@@ -11,12 +11,11 @@ from driver.node_service import NVMeshNodeService
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
 class NVMeshCSIDriverServer(object):
-
-	def __init__(self, logger):
-		self.identity_service = NVMeshIdentityService()
-		self.controller_service = NVMeshControllerService()
-		self.node_service = NVMeshNodeService()
-		self.logger = logger
+	def __init__(self):
+		self.logger = DriverLogger()
+		self.identity_service = NVMeshIdentityService(self.logger)
+		self.controller_service = NVMeshControllerService(self.logger)
+		self.node_service = NVMeshNodeService(self.logger)
 
 	def serve(self):
 		logging_interceptor = ServerLoggingInterceptor(self.logger)
@@ -33,6 +32,5 @@ class NVMeshCSIDriverServer(object):
 			server.stop(0)
 
 if __name__ == '__main__':
-	logger = DriverLogger()
-	driver = NVMeshCSIDriverServer(logger)
+	driver = NVMeshCSIDriverServer()
 	driver.serve()

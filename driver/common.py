@@ -5,6 +5,7 @@ import sys
 
 
 class Consts(object):
+	CONFIG_FILE_PATH = "/etc/opt/NVMesh/csi-driver-config.yml"
 	IDENTITY_NAME = "com.excelero.csi.nvmesh"
 	SERVICE_VERSION = "0.01"
 

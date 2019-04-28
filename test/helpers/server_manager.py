@@ -1,4 +1,3 @@
-import logging
 from multiprocessing import Process
 
 import os
@@ -9,10 +8,8 @@ from driver.server import NVMeshCSIDriverServer
 
 
 class ServerManager(object):
-	def __init__(self, logger=None):
-		if not logger:
-			logger = logging.getLogger("NVMeshCSIDriverServer")
-		self.server = NVMeshCSIDriverServer(logger)
+	def __init__(self):
+		self.server = NVMeshCSIDriverServer()
 		self.process = Process(target=self.server.serve)
 
 	def start(self):
@@ -33,7 +30,7 @@ class ServerManager(object):
 		return int(self.process.pid or 0)
 
 	def __del__(self):
-		if self.process:
+		if hasattr(self, 'process') and self.process:
 			self.stop()
 
 if __name__ == "__main__":

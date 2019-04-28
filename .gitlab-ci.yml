@@ -1,12 +1,13 @@
-before_script:
-    - echo "Starting CI"
-    - whoami
+variables:
+  CONFIG_FILE_PATH: "deploy/csi-driver-config.yml"
 
 ci:
-    script:
+  before_script:
     - pwd
-    - echo $CI_PROJECT_DIR
+
+  script:
+    - echo $CONFIG_FILE_PATH
     - pip2 install -r requirements.txt
-    - ./run_all_tests.sh
+    - sudo ./run_all_tests.sh $CONFIG_FILE_PATH
     - exit $?
 

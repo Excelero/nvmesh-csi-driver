@@ -1,0 +1,13 @@
+
+management:
+  protocol: https
+  addresses:
+    - localhost:4001
+    - nvme115:4001
+
+  credentials:
+    username: admin@excelero.com
+    password: admin
+
+defaults:
+  vpg: my_vpg

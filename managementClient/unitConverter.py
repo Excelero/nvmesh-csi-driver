@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 
 def convertUnitToBytes(unit):
+	if isinstance(unit, int) or isinstance(unit, long):
+		return unit
+
 	if str.isdigit(unit):
-		return int(unit)
+		return long(unit)
 
 	unitChar = unit[-1:]
 	unit = unit[:-1]

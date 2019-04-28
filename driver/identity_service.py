@@ -6,6 +6,10 @@ from driver.csi.csi_pb2_grpc import IdentityServicer
 
 
 class NVMeshIdentityService(IdentityServicer):
+	def __init__(self, logger):
+		IdentityServicer.__init__(self)
+		self.logger = logger
+
 	def GetPluginInfo(self, request, context):
 		name = Consts.IDENTITY_NAME
 		vendor_version = Consts.SERVICE_VERSION

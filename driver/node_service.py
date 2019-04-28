@@ -7,8 +7,9 @@ from managementClient.ManagementClientWrapper import ManagementClientWrapper
 
 
 class NVMeshNodeService(NodeServicer):
-	def __init__(self):
+	def __init__(self, logger):
 		NodeServicer.__init__(self)
+		self.logger = logger
 		self.mgmtClient = ManagementClientWrapper()
 
 	def NodeStageVolume(self, request, context):
