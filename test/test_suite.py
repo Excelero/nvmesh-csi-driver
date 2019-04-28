@@ -1,12 +1,12 @@
 import unittest
 from unittest import TestSuite
-
 import time
 
 from driver.common import DriverLogger
 from test.helpers.service_manager import ServiceManager
 from test.test_controller import TestControllerService
 from test.test_identity import TestIdentityService
+from test.test_node import TestNodeService
 
 logger = DriverLogger()
 
@@ -41,7 +41,8 @@ def create_suite(testCases=[]):
 def create_suite_with_all_test():
 	all_test_cases = [
 		TestIdentityService,
-		TestControllerService
+		TestControllerService,
+		TestNodeService
 	]
 	suite = create_suite(all_test_cases)
 	return suite

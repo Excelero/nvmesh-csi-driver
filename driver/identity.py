@@ -1,7 +1,7 @@
 import google as google
 
 from driver.common import Consts
-from driver.csi.csi_pb2 import GetPluginInfoResponse, ProbeResponse, GetPluginCapabilitiesResponse
+from driver.csi.csi_pb2 import GetPluginInfoResponse, ProbeResponse, GetPluginCapabilitiesResponse, PluginCapability
 from driver.csi.csi_pb2_grpc import IdentityServicer
 
 
@@ -13,7 +13,12 @@ class NVMeshIdentity(IdentityServicer):
 		return GetPluginInfoResponse(name=name, vendor_version=vendor_version)
 
 	def GetPluginCapabilities(self, request, context):
-		capabilities = []
+		controller_capabilitiy = PluginCapability(PluginCapability.Service.Type.CONTROLLER_SERVICE)
+
+		capabilities = [
+			controller_capabilitiy
+		]
+
 		return GetPluginCapabilitiesResponse(capabilities=capabilities)
 
 	def Probe(self, request, context):

@@ -1,4 +1,3 @@
-import inspect
 import logging
 
 import grpc
@@ -9,8 +8,8 @@ class Consts(object):
 	IDENTITY_NAME = "com.excelero.csi.nvmesh"
 	SERVICE_VERSION = "0.01"
 
-	UDS_PATH = "[::]:50051"
-	UDS_PATH_ = "/tmp/test.sock"
+	UDS_PATH_ = "[::]:50051"
+	UDS_PATH = "unix:///tmp/test.sock"
 
 class ServerLoggingInterceptor(grpc.ServerInterceptor):
 	def __init__(self, logger):

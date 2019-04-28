@@ -2,13 +2,13 @@ import socket
 
 from driver.csi.csi_pb2 import NodeGetInfoResponse
 from driver.csi.csi_pb2_grpc import NodeServicer
-from managementClient.ManagementClient import ManagementClient
+from managementClient.ManagementClientWrapper import ManagementClientWrapper
 
 
 class NVMeshNode(NodeServicer):
 	def __init__(self):
 		NodeServicer.__init__(self)
-		self.mgmtClient = ManagementClient()
+		self.mgmtClient = ManagementClientWrapper()
 
 	def NodeStageVolume(self, request, context):
 		raise NotImplementedError('Method not implemented!')

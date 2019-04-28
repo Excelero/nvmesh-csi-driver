@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 def convertUnitToBytes(unit):
+	if str.isdigit(unit):
+		return int(unit)
+
 	unitChar = unit[-1:]
 	unit = unit[:-1]
 

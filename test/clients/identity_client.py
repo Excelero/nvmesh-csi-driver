@@ -22,10 +22,3 @@ class IdentityClient(BaseClient):
 
 	def Probe(self):
 		return self.client.Probe(ProbeRequest())
-
-	def close(self):
-		self.channel.close()
-
-	def __del__(self):
-		self.close()
-

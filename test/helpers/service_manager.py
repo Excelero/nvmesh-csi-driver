@@ -17,8 +17,11 @@ class ServiceManager(object):
 
 	def stop(self):
 		if self.get_pid():
-			os.kill(self.get_pid(), signal.SIGTERM)
-			self.process.join()
+			try:
+				os.kill(self.get_pid(), signal.SIGTERM)
+				self.process.join()
+			except OSError:
+				pass
 
 	def get_pid(self):
 		return int(self.process.pid or 0)
