@@ -33,7 +33,8 @@ class ServerManager(object):
 		return int(self.process.pid or 0)
 
 	def __del__(self):
-		self.stop()
+		if self.process:
+			self.stop()
 
 if __name__ == "__main__":
 	mgr = ServerManager()

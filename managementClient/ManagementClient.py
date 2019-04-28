@@ -71,7 +71,7 @@ class ManagementClient(object):
 		try:
 			err, out = self.get('/isAlive')
 			return True if not err else False
-		except ManagementLoginFailed as ex:
+		except ManagementTimeout as ex:
 			return False
 
 	def getDiskByID(self, diskID):
@@ -573,7 +573,7 @@ class ManagementClient(object):
 				# put it as last
 				self.managementServers.append(self.managementServers.pop(0))
 
-		raise ManagementTimeout(route, "Timeout from all Management Servers")
+		raise ManagementTimeout(route, "Timeout from all Management Servers ({})".format(', '.join(self.managementServers)))
 
 	def do_request(self, method, route, payload=None, numberOfRetries=0):
 		res = None

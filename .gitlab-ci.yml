@@ -1,0 +1,13 @@
+before_script:
+    - echo "Starting CI"
+    - whoami
+    - export TEST_WITH_BRANCH="master"
+
+ci:
+    script:
+    - pwd
+    - echo $CI_PROJECT_DIR
+    - export CURDATE=$(date +%Y-%m-%d_%H-%M-%S)
+    - ./run_all_tests.sh
+    - exit $?
+
