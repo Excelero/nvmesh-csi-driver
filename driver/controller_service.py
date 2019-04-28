@@ -7,7 +7,7 @@ from managementClient import Consts as ManagementClientConsts
 from managementClient.ManagementClientWrapper import ManagementClientWrapper
 
 
-class NVMeshController(ControllerServicer):
+class NVMeshControllerService(ControllerServicer):
 	def __init__(self):
 		ControllerServicer.__init__(self)
 		self.mgmtClient = ManagementClientWrapper()

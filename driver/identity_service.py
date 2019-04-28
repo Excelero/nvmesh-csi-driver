@@ -5,7 +5,7 @@ from driver.csi.csi_pb2 import GetPluginInfoResponse, ProbeResponse, GetPluginCa
 from driver.csi.csi_pb2_grpc import IdentityServicer
 
 
-class NVMeshIdentity(IdentityServicer):
+class NVMeshIdentityService(IdentityServicer):
 	def GetPluginInfo(self, request, context):
 		name = Consts.IDENTITY_NAME
 		vendor_version = Consts.SERVICE_VERSION
@@ -13,10 +13,11 @@ class NVMeshIdentity(IdentityServicer):
 		return GetPluginInfoResponse(name=name, vendor_version=vendor_version)
 
 	def GetPluginCapabilities(self, request, context):
-		controller_capabilitiy = PluginCapability(PluginCapability.Service.Type.CONTROLLER_SERVICE)
+		ctrl_service = PluginCapability.Service(type=PluginCapability.Service.CONTROLLER_SERVICE)
+		plugin_capability = PluginCapability(service=ctrl_service)
 
 		capabilities = [
-			controller_capabilitiy
+			plugin_capability
 		]
 
 		return GetPluginCapabilitiesResponse(capabilities=capabilities)
