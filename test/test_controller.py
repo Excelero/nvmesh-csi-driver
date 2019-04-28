@@ -20,8 +20,8 @@ def handleGRPCError(action, grpcError):
 		raise(grpcError)
 
 class CatchRequestErrors(object):
-	def __init__(self, actionName):
-		self.action_name = actionName
+	def __init__(self, action_name):
+		self.action_name = action_name
 
 	def __enter__(self):
 		pass
