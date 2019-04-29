@@ -1,12 +1,12 @@
 import grpc
 
-from driver.common import CatchServerErrors
+from driver.common import CatchServerErrors, DriverError
 from driver.csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ControllerPublishVolumeResponse, ControllerUnpublishVolumeResponse, \
 	ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse
 from driver.csi.csi_pb2_grpc import ControllerServicer
 from managementClient import Consts as ManagementClientConsts
 from managementClient.ManagementClientWrapper import ManagementClientWrapper
-
+from grpc import StatusCode
 
 class NVMeshControllerService(ControllerServicer):
 	def __init__(self, logger):
@@ -33,12 +33,12 @@ class NVMeshControllerService(ControllerServicer):
 			err, mgmtResponse = self.mgmtClient.createVolume(volume)
 			self.logger.debug(mgmtResponse)
 
-			createResult = mgmtResponse['create'][0]
+			if err:
+				raise DriverError(StatusCode.INVALID_ARGUMENT, err)
 
+			createResult = mgmtResponse['create'][0]
 			if not createResult['success']:
-				context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
-				context.set_details(createResult['err'])
-				return None
+				raise DriverError(StatusCode.RESOURCE_EXHAUSTED, createResult['err'])
 			else:
 				# volume created successfully
 				csiVolume = self._create_volume_from_mgmt_res(volume['name'])
@@ -56,15 +56,12 @@ class NVMeshControllerService(ControllerServicer):
 		self.logger.debug(out)
 
 		if err:
-			context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-			context.set_details(str(err))
-		else:
+			raise DriverError(StatusCode.INVALID_ARGUMENT, err)
 
-			if not out['remove'][0]['success']:
-				removeResult = out['remove'][0]
-				err = removeResult['ex'] if 'ex' in removeResult else 'err'
-				context.set_code(grpc.StatusCode.FAILED_PRECONDITION)
-				context.set_details(err)
+		if not out['remove'][0]['success']:
+			removeResult = out['remove'][0]
+			err = removeResult['ex'] if 'ex' in removeResult else 'err'
+			raise DriverError(StatusCode.FAILED_PRECONDITION, err)
 
 		return DeleteVolumeResponse()
 
@@ -78,8 +75,7 @@ class NVMeshControllerService(ControllerServicer):
 		err, out = self.mgmtClient.attachVolume(nodeID=request.node_id,volumeID=request.volume_id)
 
 		if err:
-			context.set_code(grpc.StatusCode.FAILED_PRECONDITION)
-			context.set_details(err)
+			raise DriverError(StatusCode.FAILED_PRECONDITION, err)
 
 		return ControllerPublishVolumeResponse()
 
@@ -89,8 +85,7 @@ class NVMeshControllerService(ControllerServicer):
 		err, out = self.mgmtClient.detachVolume(nodeID=request.node_id,volumeID=request.volume_id)
 
 		if err:
-			context.set_code(grpc.StatusCode.FAILED_PRECONDITION)
-			context.set_details(err)
+			raise DriverError(StatusCode.FAILED_PRECONDITION, err)
 
 		return ControllerUnpublishVolumeResponse()
 
@@ -113,8 +108,7 @@ class NVMeshControllerService(ControllerServicer):
 
 		err, out = self.mgmtClient.getVolumes(page=page, count=max_entries, filterObject=None, sortObject=None, projectionObject=projection)
 		if err:
-			context.set_code(grpc.StatusCode.FAILED_PRECONDITION)
-			context.set_details(err)
+			raise DriverError(StatusCode.FAILED_PRECONDITION, err)
 
 		def createEntry(item):
 			vol = Volume(volume_id=item['_id'], capacity_bytes=item['capacity'])
@@ -169,8 +163,7 @@ class NVMeshControllerService(ControllerServicer):
 
 		err, out = self.mgmtClient.editVolume(editObj)
 		if err:
-			context.set_code(grpc.StatusCode.NOT_FOUND)
-			context.set_details(err)
+			raise DriverError(StatusCode.NOT_FOUND, err)
 
 		node_expansion_required = False
 		return ControllerExpandVolumeResponse(capacity_bytes=capacity_in_bytes, node_expansion_required=node_expansion_required)

@@ -53,6 +53,11 @@ def CatchServerErrors(func):
 	def func_wrapper(self, request, context):
 		try:
 			return func(self, request, context)
+		except DriverError as drvErr:
+			context.set_code(drvErr.code)
+			context.set_details(str(drvErr.message))
+			return None
+
 		except Exception as ex:
 			exc_type, exc_obj, exc_tb = sys.exc_info()
 			exc_tb = exc_tb.tb_next
@@ -63,3 +68,8 @@ def CatchServerErrors(func):
 			return None
 
 	return func_wrapper
+
+class DriverError(Exception):
+	def __init__(self, code, message):
+		Exception.__init__(self, message)
+		self.code = code
