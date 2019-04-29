@@ -10,16 +10,18 @@ project_path = path.dirname(path.dirname(path.abspath(__file__)))
 sys.path.append(project_path)
 
 def runAllTests():
-	suite = unittest.TestLoader().discover(start_dir='.')
-	res = unittest.TextTestRunner(verbosity=2).run(suite)
-	return res
+	loader = unittest.TestLoader()
+	loader.sortTestMethodsUsing = None
+	suite = loader.discover(start_dir='.')
+	result = unittest.TextTestRunner(verbosity=2).run(suite)
+	return result
 
 def verifyServerIsRunning():
 	try:
 		identityClient = IdentityClient()
 		msg = identityClient.Probe()
 		return msg.ready
-	except Exception as ex:
+	except Exception:
 		print("Error starting driver gRPC server")
 		exit(1)
 
@@ -29,9 +31,9 @@ if __name__ == "__main__":
 
 	verifyServerIsRunning()
 
-	res = runAllTests()
+	result = runAllTests()
 
 	driver_server.stop()
 
-	if res.errors:
+	if result.errors:
 		exit(1)

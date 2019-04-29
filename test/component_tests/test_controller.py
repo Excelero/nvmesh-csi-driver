@@ -7,6 +7,7 @@ from test.helpers.test_case_with_server import TestCaseWithServerRunning
 
 GB = 1024*1024*1024
 VOL_ID="vol_1"
+VOL_FOR_EXTENSION="vol_to_extend"
 NODE_ID="Gil-Laptop"
 
 class TestControllerService(TestCaseWithServerRunning):
@@ -17,11 +18,7 @@ class TestControllerService(TestCaseWithServerRunning):
 	@CatchRequestErrors
 	def test_create_volume(self):
 		msg = self.ctrl_client.CreateVolume(name=VOL_ID, capacity_in_bytes=5*GB)
-
-	@CatchRequestErrors
-	def test_delete_volume(self):
-		msg = self.ctrl_client.DeleteVolume(volume_id=VOL_ID)
-		print(msg)
+		self.assertEquals(msg.volume.volume_id, VOL_ID)
 
 	@CatchRequestErrors
 	def test_publish_volume(self):
@@ -64,9 +61,18 @@ class TestControllerService(TestCaseWithServerRunning):
 
 	@CatchRequestErrors
 	def test_controller_expand_volume(self):
-		msg = self.ctrl_client.ControllerExpandVolume(volume_id=VOL_ID, new_capacity_in_bytes=10*GB)
-		print(msg)
+		original_size = 5*GB
+		new_size = 10*GB
+		self.ctrl_client.CreateVolume(name=VOL_FOR_EXTENSION, capacity_in_bytes=original_size)
+		msg = self.ctrl_client.ControllerExpandVolume(volume_id=VOL_FOR_EXTENSION, new_capacity_in_bytes=new_size)
+		self.ctrl_client.DeleteVolume(volume_id=VOL_FOR_EXTENSION)
 
+		self.assertEquals(msg.capacity_bytes, new_size)
+
+	@CatchRequestErrors
+	def test_delete_volume(self):
+		msg = self.ctrl_client.DeleteVolume(volume_id=VOL_ID)
+		print(msg)
 
 if __name__ == '__main__':
 	unittest.main()

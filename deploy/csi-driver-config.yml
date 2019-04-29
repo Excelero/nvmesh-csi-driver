@@ -2,11 +2,11 @@
 management:
   protocol: https
   addresses:
-    - localhost:4001
-    - nvme115:4001
+    - localhost:4000
+    - nvme115:4000
 
   credentials:
-    username: admin@excelero.com
+    username: ci@excelero.com
     password: admin
 
 defaults:

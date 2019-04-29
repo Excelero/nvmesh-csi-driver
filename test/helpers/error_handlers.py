@@ -16,6 +16,7 @@ def handleGRPCError(action, grpcError):
 			action=action,
 			code=grpcError._state.code,
 			details=grpcError._state.details))
+		raise grpcError
 
 def CatchRequestErrors(func):
 	def func_wrapper(*args, **kwargs):

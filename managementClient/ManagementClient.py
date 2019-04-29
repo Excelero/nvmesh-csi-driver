@@ -71,7 +71,7 @@ class ManagementClient(object):
 		try:
 			err, out = self.get('/isAlive')
 			return True if not err else False
-		except ManagementTimeout as ex:
+		except (ManagementTimeout, ManagementLoginFailed) as ex:
 			return False
 
 	def getDiskByID(self, diskID):

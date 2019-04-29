@@ -10,15 +10,16 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 class ManagementClientWrapper(ManagementClient):
 	def __init__(self, *args, **kwargs):
-		if Config:
-			protocol = Config.management.protocol
-			management_servers = [ '{}://{}'.format(protocol, address) for address in Config.management.addresses ]
-			username = Config.management.credentials.username
-			password = Config.management.credentials.password
 
-			ManagementClient.__init__(self, managementServer=management_servers, user=username, password=password, **kwargs)
-		else:
-			ManagementClient.__init__(self, *args, **kwargs)
+		if Config:
+			protocol = Config.management.protocol or 'https'
+			kwargs['managementServer'] = [ '{}://{}'.format(protocol, address) for address in Config.management.addresses ]
+
+			if Config.management.credentials:
+				kwargs['user'] = Config.management.credentials.username
+				kwargs['password'] = Config.management.credentials.password
+
+		ManagementClient.__init__(self, *args, **kwargs)
 
 	def attachVolume(self, volumeID, nodeID):
 		requestObj = {"client": nodeID, "volumes": [ volumeID ] }
