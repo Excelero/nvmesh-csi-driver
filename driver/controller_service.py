@@ -38,11 +38,11 @@ class NVMeshControllerService(ControllerServicer):
 			if not createResult['success']:
 				context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
 				context.set_details(createResult['err'])
+				return None
 			else:
 				# volume created successfully
-				volume = self._create_volume_from_mgmt_res(volume['name'])
-
-			return CreateVolumeResponse(volume=volume)
+				csiVolume = self._create_volume_from_mgmt_res(volume['name'])
+				return CreateVolumeResponse(volume=csiVolume)
 
 	@CatchServerErrors
 	def DeleteVolume(self, request, context):

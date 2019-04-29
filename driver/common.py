@@ -52,9 +52,10 @@ class DriverLogger(logging.Logger):
 def CatchServerErrors(func):
 	def func_wrapper(self, request, context):
 		try:
-			func(self, request, context)
+			return func(self, request, context)
 		except Exception as ex:
 			exc_type, exc_obj, exc_tb = sys.exc_info()
+			exc_tb = exc_tb.tb_next
 			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 
 			context.set_code(grpc.StatusCode.INTERNAL)
