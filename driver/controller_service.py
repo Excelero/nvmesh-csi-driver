@@ -17,33 +17,41 @@ class NVMeshControllerService(ControllerServicer):
 		self.mgmtClient = ManagementClientWrapper()
 
 	def CreateVolume(self, request, context):
-		name = request.name
-		capacity = request.capacity_range.required_bytes
-		volume_capabilities = request.volume_capabilities
-		parameters = request.parameters
-		secrets = request.secrets
-		volume_content_source = request.volume_content_source
-		accessibility_requirements = request.accessibility_requirements
+		try:
+			name = request.name
+			capacity = request.capacity_range.required_bytes
+			volume_capabilities = request.volume_capabilities
+			parameters = request.parameters
+			secrets = request.secrets
+			volume_content_source = request.volume_content_source
+			accessibility_requirements = request.accessibility_requirements
 
-		volume = {
-			'name': name,
-			'description': 'created from K8s CSI',
-			'RAIDLevel': ManagementClientConsts.RAIDLevels.CONCATENATED,
-			'capacity': capacity
-		}
-		err, mgmtResponse = self.mgmtClient.createVolume(volume)
-		self.logger.debug(mgmtResponse)
+			volume = {
+				'name': name,
+				'description': 'created from K8s CSI',
+				'RAIDLevel': ManagementClientConsts.RAIDLevels.CONCATENATED,
+				'capacity': capacity
+			}
+			err, mgmtResponse = self.mgmtClient.createVolume(volume)
+			self.logger.debug(mgmtResponse)
 
-		createResult = mgmtResponse['create'][0]
+			createResult = mgmtResponse['create'][0]
 
-		if not createResult['success']:
-			context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
-			context.set_details(createResult['err'])
-		else:
-			# volume created successfully
-			volume = self._create_volume_from_mgmt_res(volume['name'])
+			if not createResult['success']:
+				context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
+				context.set_details(createResult['err'])
+			else:
+				# volume created successfully
+				volume = self._create_volume_from_mgmt_res(volume['name'])
 
-		return CreateVolumeResponse(volume=volume)
+			return CreateVolumeResponse(volume=volume)
+		except Exception as ex:
+			exc_type, exc_obj, exc_tb = sys.exc_info()
+			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+
+			context.set_code(grpc.StatusCode.INTERNAL)
+			context.set_details("{type}: {msg} {fname} on line: {lineno}".format(type=exc_type, msg=str(ex), fname=fname, lineno=exc_tb.tb_lineno))
+			return None
 
 	def DeleteVolume(self, request, context):
 		volume_id = request.volume_id
