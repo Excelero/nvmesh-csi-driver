@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 def convertUnitToBytes(unit):
+	print("4")
 	if isinstance(unit, int) or isinstance(unit, long):
 		return unit
 

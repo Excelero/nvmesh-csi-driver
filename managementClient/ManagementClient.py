@@ -278,16 +278,16 @@ class ManagementClient(object):
 
 	def createVolume(self, arguments):
 		volumePayload = {}
-
+		print("3")
 		payload = self.createVolumeVpgPayload(arguments)
-
+		print("5")
 		volumePayload['create'] = [payload]
 		volumePayload['remove'] = []
 		volumePayload['edit'] = []
 		err, out = self.post("/volumes/save", volumePayload)
 
 		self.logger.info(json.dumps(volumePayload))
-
+		print("6")
 		return err, out
 
 	def removeVolumesByIds(self, ids):

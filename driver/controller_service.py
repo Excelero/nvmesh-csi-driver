@@ -22,23 +22,34 @@ class NVMeshControllerService(ControllerServicer):
 		volume_content_source = request.volume_content_source
 		accessibility_requirements = request.accessibility_requirements
 
+		print("1")
+		print(capacity)
+
 		volume = {
 			'name': name,
 			'description': 'created from K8s CSI',
 			'RAIDLevel': ManagementClientConsts.RAIDLevels.CONCATENATED,
 			'capacity': capacity
 		}
-		mgmtResponse = self.mgmtClient.createVolume(volume)[1]
+		print("2")
+		err, mgmtResponse = self.mgmtClient.createVolume(volume)
+		print("7")
 		self.logger.debug(mgmtResponse)
+		print("8")
 
-		createResult = mgmtResponse['create'][0]
-		if not createResult['success']:
-			context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
-			context.set_details(createResult['err'])
-		else:
-			# volume created successfully
-			volume = self._create_volume_from_mgmt_res(volume['name'], mgmtResponse)
+		try:
+			createResult = mgmtResponse['create'][0]
 
+			if not createResult['success']:
+				context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
+				context.set_details(createResult['err'])
+			else:
+				# volume created successfully
+				volume = self._create_volume_from_mgmt_res(volume['name'], mgmtResponse)
+		except Exception as ex:
+			print("9")
+			print(str(ex))
+			
 		return CreateVolumeResponse(volume=volume)
 
 	def DeleteVolume(self, request, context):
