@@ -1,8 +1,6 @@
 import grpc
-import sys
 
-import os
-
+from driver.common import CatchServerErrors
 from driver.csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ControllerPublishVolumeResponse, ControllerUnpublishVolumeResponse, \
 	ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse
 from driver.csi.csi_pb2_grpc import ControllerServicer
@@ -16,8 +14,8 @@ class NVMeshControllerService(ControllerServicer):
 		self.logger = logger
 		self.mgmtClient = ManagementClientWrapper()
 
+	@CatchServerErrors
 	def CreateVolume(self, request, context):
-		try:
 			name = request.name
 			capacity = request.capacity_range.required_bytes
 			volume_capabilities = request.volume_capabilities
@@ -45,14 +43,8 @@ class NVMeshControllerService(ControllerServicer):
 				volume = self._create_volume_from_mgmt_res(volume['name'])
 
 			return CreateVolumeResponse(volume=volume)
-		except Exception as ex:
-			exc_type, exc_obj, exc_tb = sys.exc_info()
-			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 
-			context.set_code(grpc.StatusCode.INTERNAL)
-			context.set_details("{type}: {msg} {fname} on line: {lineno}".format(type=exc_type, msg=str(ex), fname=fname, lineno=exc_tb.tb_lineno))
-			return None
-
+	@CatchServerErrors
 	def DeleteVolume(self, request, context):
 		volume_id = request.volume_id
 		secrets = request.secrets
@@ -80,6 +72,7 @@ class NVMeshControllerService(ControllerServicer):
 		vol = Volume(volume_id=vol_name)
 		return vol
 
+	@CatchServerErrors
 	def ControllerPublishVolume(self, request, context):
 		# NVMesh Attach Volume
 		err, out = self.mgmtClient.attachVolume(nodeID=request.node_id,volumeID=request.volume_id)
@@ -90,6 +83,7 @@ class NVMeshControllerService(ControllerServicer):
 
 		return ControllerPublishVolumeResponse()
 
+	@CatchServerErrors
 	def ControllerUnpublishVolume(self, request, context):
 		# NVMesh Detach Volume
 		err, out = self.mgmtClient.detachVolume(nodeID=request.node_id,volumeID=request.volume_id)
@@ -100,11 +94,13 @@ class NVMeshControllerService(ControllerServicer):
 
 		return ControllerUnpublishVolumeResponse()
 
+	@CatchServerErrors
 	def ValidateVolumeCapabilities(self, request, context):
 		# TODO: implement Logic to test if the Volume indeed has the following capabilities
 		confirmed = ValidateVolumeCapabilitiesResponse.Confirmed(volume_capabilities=request.volume_capabilities)
 		return ValidateVolumeCapabilitiesResponse(confirmed=confirmed)
 
+	@CatchServerErrors
 	def ListVolumes(self, request, context):
 		max_entries = request.max_entries
 		starting_token = request.starting_token
@@ -128,9 +124,11 @@ class NVMeshControllerService(ControllerServicer):
 		next_token = str(page + 1)
 		return ListVolumesResponse(entries=entries, next_token=next_token)
 
+	@CatchServerErrors
 	def GetCapacity(self, request, context):
 		raise NotImplementedError('Method not implemented!')
 
+	@CatchServerErrors
 	def ControllerGetCapabilities(self, request, context):
 		def buildCapability(type):
 			return ControllerServiceCapability(rpc=ControllerServiceCapability.RPC(type=type))
@@ -149,15 +147,19 @@ class NVMeshControllerService(ControllerServicer):
 
 		return ControllerGetCapabilitiesResponse(capabilities=capabilities)
 
+	@CatchServerErrors
 	def CreateSnapshot(self, request, context):
 		raise NotImplementedError('Method not implemented!')
 
+	@CatchServerErrors
 	def DeleteSnapshot(self, request, context):
 		raise NotImplementedError('Method not implemented!')
 
+	@CatchServerErrors
 	def ListSnapshots(self, request, context):
 		raise NotImplementedError('Method not implemented!')
 
+	@CatchServerErrors
 	def ControllerExpandVolume(self, request, context):
 		capacity_in_bytes = request.capacity_range.required_bytes
 		editObj = {

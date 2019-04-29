@@ -3,6 +3,8 @@ import logging
 import grpc
 import sys
 
+import os
+
 
 class Consts(object):
 	CONFIG_FILE_PATH = "/etc/opt/NVMesh/csi-driver-config.yml"
@@ -46,3 +48,17 @@ class DriverLogger(logging.Logger):
 
 	def add_syslog_handler(self):
 		raise NotImplementedError()
+
+def CatchServerErrors(func):
+	def func_wrapper(self, request, context):
+		try:
+			func(self, request, context)
+		except Exception as ex:
+			exc_type, exc_obj, exc_tb = sys.exc_info()
+			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+
+			context.set_code(grpc.StatusCode.INTERNAL)
+			context.set_details("{type}: {msg} in {fname} on line: {lineno}".format(type=exc_type, msg=str(ex), fname=fname, lineno=exc_tb.tb_lineno))
+			return None
+
+	return func_wrapper
