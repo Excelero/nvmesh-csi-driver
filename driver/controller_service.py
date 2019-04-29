@@ -1,4 +1,7 @@
 import grpc
+import sys
+
+import os
 
 from driver.csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ControllerPublishVolumeResponse, ControllerUnpublishVolumeResponse, \
 	ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse
@@ -22,43 +25,35 @@ class NVMeshControllerService(ControllerServicer):
 		volume_content_source = request.volume_content_source
 		accessibility_requirements = request.accessibility_requirements
 
-		print("1")
-		print(capacity)
-
 		volume = {
 			'name': name,
 			'description': 'created from K8s CSI',
 			'RAIDLevel': ManagementClientConsts.RAIDLevels.CONCATENATED,
 			'capacity': capacity
 		}
-		print("2")
 		err, mgmtResponse = self.mgmtClient.createVolume(volume)
-		print("7")
 		self.logger.debug(mgmtResponse)
-		print("8")
 
-		try:
-			createResult = mgmtResponse['create'][0]
+		createResult = mgmtResponse['create'][0]
 
-			if not createResult['success']:
-				context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
-				context.set_details(createResult['err'])
-			else:
-				# volume created successfully
-				volume = self._create_volume_from_mgmt_res(volume['name'], mgmtResponse)
-		except Exception as ex:
-			print("9")
-			print(str(ex))
-			
+		if not createResult['success']:
+			context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
+			context.set_details(createResult['err'])
+		else:
+			# volume created successfully
+			volume = self._create_volume_from_mgmt_res(volume['name'])
+
 		return CreateVolumeResponse(volume=volume)
 
 	def DeleteVolume(self, request, context):
 		volume_id = request.volume_id
 		secrets = request.secrets
-		self.logger.debug(request)
 
 		err, out = self.mgmtClient.removeVolume({ '_id': request.volume_id })
-		self.logger.debug(err, out)
+		if err:
+			self.logger.error(err)
+
+		self.logger.debug(out)
 
 		if err:
 			context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
@@ -73,8 +68,7 @@ class NVMeshControllerService(ControllerServicer):
 
 		return DeleteVolumeResponse()
 
-	def _create_volume_from_mgmt_res(self, vol_name, mgmtResponse):
-		self.logger.debug(mgmtResponse)
+	def _create_volume_from_mgmt_res(self, vol_name):
 		vol = Volume(volume_id=vol_name)
 		return vol
 
