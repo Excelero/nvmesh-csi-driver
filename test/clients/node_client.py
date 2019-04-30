@@ -1,19 +1,13 @@
-import grpc
 
-from driver.common import Consts
-from driver.csi.csi_pb2 import NodeGetInfoRequest, NodeGetCapabilitiesResponse, NodeGetCapabilitiesRequest, NodePublishVolumeRequest, VolumeCapability, \
-	NodeUnpublishVolumeRequest
+from driver.csi.csi_pb2 import NodeGetInfoRequest, NodeGetCapabilitiesRequest, NodePublishVolumeRequest, VolumeCapability, NodeUnpublishVolumeRequest
 from driver.csi.csi_pb2_grpc import NodeStub
 from test.clients.base_client import BaseClient
-from test.clients.client_logging_interceptor import ClientLoggingInterceptor
 
 
 class NodeClient(BaseClient):
 
 	def __init__(self):
 		BaseClient.__init__(self)
-		self.channel = grpc.insecure_channel(Consts.UDS_PATH)
-		self.intercepted_channel = grpc.intercept_channel(self.channel, ClientLoggingInterceptor(self.logger))
 		self.client = NodeStub(self.intercepted_channel)
 
 	def NodeStageVolume(self):

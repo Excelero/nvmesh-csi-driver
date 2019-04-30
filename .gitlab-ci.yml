@@ -1,6 +1,6 @@
 variables:
   CONFIG_FILE_PATH: "deploy/csi-driver-config.yml"
-
+  MANAGEMENT_SERVERS: "nvme115"
 ci:
   before_script:
     - pwd

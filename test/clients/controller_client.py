@@ -1,11 +1,7 @@
-import grpc
-
-from driver.common import Consts
 from driver.csi.csi_pb2 import CreateVolumeRequest, DeleteVolumeRequest, VolumeCapability, CapacityRange, ControllerPublishVolumeRequest, \
 	ControllerUnpublishVolumeRequest, ValidateVolumeCapabilitiesRequest, ListVolumesRequest, ControllerGetCapabilitiesRequest, ControllerExpandVolumeRequest
 from driver.csi.csi_pb2_grpc import ControllerStub
 from test.clients.base_client import BaseClient
-from test.clients.client_logging_interceptor import ClientLoggingInterceptor
 
 AccessMode = VolumeCapability.AccessMode
 
@@ -14,8 +10,6 @@ class ControllerClient(BaseClient):
 
 	def __init__(self):
 		BaseClient.__init__(self)
-		self.channel = grpc.insecure_channel(Consts.UDS_PATH)
-		self.intercepted_channel = grpc.intercept_channel(self.channel, ClientLoggingInterceptor(self.logger))
 		self.client = ControllerStub(self.intercepted_channel)
 
 	def _getDefaultVolumeCapabilities(self):

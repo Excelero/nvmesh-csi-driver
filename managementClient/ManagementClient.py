@@ -37,7 +37,7 @@ class ManagementClient(object):
 		self.setManagementServer(managementServer)
 		self.user = user
 		self.password = password
-		self.logger = LoggerUtils.getInfraClientLogger('ManagementClient')
+		self.logger = LoggerUtils.getInfraClientLogger('ManagementClient', logToStdout=True, logToStderr=True, logToSysLog=False)
 		self.session = requests.session()
 		self.isAlive()
 
@@ -632,13 +632,16 @@ class ManagementClient(object):
 		if os.path.exists(self.configFile):
 			execfile(self.configFile , g, l)
 
-		if 'MANAGEMENT_PROTOCOL' in l:
-			protocol = l['MANAGEMENT_PROTOCOL']
+		return self.readConfigFromDict(l)
+
+	def readConfigFromDict(self, config):
+		if 'MANAGEMENT_PROTOCOL' in config:
+			protocol = config['MANAGEMENT_PROTOCOL']
 		else:
 			raise Exception('MANAGEMENT_PROTOCOL variable could not be found in: {0}'.format(self.configFile))
 
-		if 'MANAGEMENT_SERVERS' in l:
-			servers=l['MANAGEMENT_SERVERS'].replace('4001', '4000').split(',')
+		if 'MANAGEMENT_SERVERS' in config:
+			servers=config['MANAGEMENT_SERVERS'].replace('4001', '4000').split(',')
 		else:
 			raise Exception('MANAGEMENT_SERVERS variable could not be found in: {0}'.format(self.configFile))
 

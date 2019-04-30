@@ -1,18 +1,19 @@
 import logging
+from logging.handlers import SysLogHandler
 
 import grpc
 import sys
-
 import os
 
 
 class Consts(object):
-	CONFIG_FILE_PATH = "/etc/opt/NVMesh/csi-driver-config.yml"
-	IDENTITY_NAME = "com.excelero.csi.nvmesh"
-	SERVICE_VERSION = "0.01"
+	PLUGIN_NAME = "nvmesh-csi.excelero.com"
+	PLUGIN_VERSION = "0.01"
+	SPEC_VERSION = "1.0.0"
+	MIN_KUBERNETES_VERSION = "1.13"
 
-	UDS_PATH_ = "[::]:50051"
-	UDS_PATH = "unix:///tmp/test.sock"
+	DEFAULT_UDS_PATH = "unix:///tmp/csi.sock"
+	SYSLOG_PATH = "/dev/log"
 
 class ServerLoggingInterceptor(grpc.ServerInterceptor):
 	def __init__(self, logger):
@@ -27,6 +28,7 @@ class DriverLogger(logging.Logger):
 
 	def __init__(self, name="NVMeshCSIDriver", level=logging.DEBUG):
 		logging.Logger.__init__(self, name)
+		self.log_level = level
 		self.setLevel(level)
 		self.add_stdout_handler()
 
@@ -36,7 +38,7 @@ class DriverLogger(logging.Logger):
 		return formatter
 
 	def _add_handler(self, handler):
-		handler.setLevel(logging.DEBUG)
+		handler.setLevel(self.log_level)
 		formatter = DriverLogger._get_default_formatter()
 		handler.setFormatter(formatter)
 		self.addHandler(handler)
@@ -47,7 +49,9 @@ class DriverLogger(logging.Logger):
 		return handler
 
 	def add_syslog_handler(self):
-		raise NotImplementedError()
+		handler = SysLogHandler(address=Consts.SYSLOG_PATH)
+		self._add_handler(handler)
+		return handler
 
 def CatchServerErrors(func):
 	def func_wrapper(self, request, context):

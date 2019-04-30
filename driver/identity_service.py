@@ -11,8 +11,8 @@ class NVMeshIdentityService(IdentityServicer):
 		self.logger = logger
 
 	def GetPluginInfo(self, request, context):
-		name = Consts.IDENTITY_NAME
-		vendor_version = Consts.SERVICE_VERSION
+		name = Consts.PLUGIN_NAME
+		vendor_version = Consts.PLUGIN_VERSION
 		# OPTIONAL FIELD: map <string, string> manifest = 3;
 		return GetPluginInfoResponse(name=name, vendor_version=vendor_version)
 

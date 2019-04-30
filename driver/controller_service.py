@@ -1,4 +1,3 @@
-import grpc
 
 from driver.common import CatchServerErrors, DriverError
 from driver.csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ControllerPublishVolumeResponse, ControllerUnpublishVolumeResponse, \

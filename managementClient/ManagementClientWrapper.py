@@ -10,14 +10,10 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 class ManagementClientWrapper(ManagementClient):
 	def __init__(self, *args, **kwargs):
-
-		if Config:
-			protocol = Config.management.protocol or 'https'
-			kwargs['managementServer'] = [ '{}://{}'.format(protocol, address) for address in Config.management.addresses ]
-
-			if Config.management.credentials:
-				kwargs['user'] = Config.management.credentials.username
-				kwargs['password'] = Config.management.credentials.password
+		protocol = Config.MANAGEMENT_PROTOCOL
+		kwargs['managementServer'] = [ '{}://{}'.format(protocol, address.strip()) for address in Config.MANAGEMENT_SERVERS.split(',') ]
+		kwargs['user'] = Config.MANAGEMENT_USERNAME
+		kwargs['password'] = Config.MANAGEMENT_PASSWORD
 
 		ManagementClient.__init__(self, *args, **kwargs)
 

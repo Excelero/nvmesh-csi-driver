@@ -8,7 +8,7 @@ class ServerUnavailable(Exception):
 
 def handleGRPCError(action, grpcError):
 	if grpcError._state.code == StatusCode.UNAVAILABLE:
-		raise ServerUnavailable('The gRPC server is unavailable. did you forget to start the server ?', grpcError)
+		raise ServerUnavailable('The gRPC server is unavailable. is the server running ?', grpcError)
 	elif grpcError._state.code in [StatusCode.UNKNOWN, StatusCode.INTERNAL]:
 		raise grpcError
 	else:

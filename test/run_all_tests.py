@@ -1,22 +1,22 @@
 #!/usr/bin/env python2
 import unittest
-from os import path
+import os
 import sys
 
 from test.helpers.server_manager import ServerManager
 from test.clients.identity_client import IdentityClient
 
-project_path = path.dirname(path.dirname(path.abspath(__file__)))
+project_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(project_path)
 
-def runAllTests():
+def run_mgmt_integration_tests():
 	loader = unittest.TestLoader()
 	loader.sortTestMethodsUsing = None
 	suite = loader.discover(start_dir='.')
 	result = unittest.TextTestRunner(verbosity=2).run(suite)
 	return result
 
-def verifyServerIsRunning():
+def verify_server_is_running():
 	try:
 		identityClient = IdentityClient()
 		msg = identityClient.Probe()
@@ -26,12 +26,13 @@ def verifyServerIsRunning():
 		exit(1)
 
 if __name__ == "__main__":
+
 	driver_server = ServerManager()
 	driver_server.start()
 
-	verifyServerIsRunning()
+	verify_server_is_running()
 
-	result = runAllTests()
+	result = run_mgmt_integration_tests()
 
 	driver_server.stop()
 

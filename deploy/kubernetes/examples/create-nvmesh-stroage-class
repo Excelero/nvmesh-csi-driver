@@ -1,0 +1,8 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-raid1
+provisioner: nvmesh-csi.excelero.com
+parameters:
+  type: vpg
+  vpg: DEFAULT_VPG_RAID1

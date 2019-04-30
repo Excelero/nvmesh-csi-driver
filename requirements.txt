@@ -1,3 +1,6 @@
 grpcio
 futures
 protobuf
+requests
+pyyaml
+packaging
