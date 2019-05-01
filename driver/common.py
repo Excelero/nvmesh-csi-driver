@@ -77,3 +77,8 @@ class DriverError(Exception):
 	def __init__(self, code, message):
 		Exception.__init__(self, message)
 		self.code = code
+
+class Utils(object):
+	@staticmethod
+	def volume_name_kube_to_nvmesh(kubernetes_vol_name):
+		return kubernetes_vol_name.replace('-','')[:24]

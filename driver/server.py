@@ -2,11 +2,8 @@ import grpc
 import time
 import signal
 
-import os
 from concurrent import futures
-
-from common import Consts, ServerLoggingInterceptor, DriverLogger
-
+from common import ServerLoggingInterceptor, DriverLogger
 from controller_service import NVMeshControllerService
 from csi import csi_pb2_grpc
 from driver.config import Config
@@ -33,19 +30,19 @@ class NVMeshCSIDriverServer(object):
 		self.server.add_insecure_port(Config.SOCKET_PATH)
 
 		self.server.start()
-		self.logger.info("Server Started!")
+		self.logger.info("Server is listening on {}".format(Config.SOCKET_PATH))
 		self.wait_forever()
 
 	def wait_forever(self):
 		try:
 			while self.shouldContinue:
 				time.sleep(_ONE_DAY_IN_SECONDS)
-				self.logger.info("Server Stopped!")
+				self.logger.info("Server Stopped")
 		except KeyboardInterrupt:
 			self.server.stop(0)
 
 	def stop(self):
-		self.logger.info("Server is Shutting Down!")
+		self.logger.info("Server is Shutting Down..")
 		self.shouldContinue = False
 		self.server.stop(0)
 

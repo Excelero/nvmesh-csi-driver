@@ -15,6 +15,8 @@ class ManagementClientWrapper(ManagementClient):
 		kwargs['user'] = Config.MANAGEMENT_USERNAME
 		kwargs['password'] = Config.MANAGEMENT_PASSWORD
 
+		print("Initializing ManagementClient with managementServer={}".format(kwargs['managementServer']))
+		# TODO: BUG - if managementServers are not available the ManagementClient.isAlive() hangs
 		ManagementClient.__init__(self, *args, **kwargs)
 
 	def attachVolume(self, volumeID, nodeID):
@@ -24,3 +26,14 @@ class ManagementClientWrapper(ManagementClient):
 	def detachVolume(self, volumeID, nodeID):
 		requestObj = {"client": nodeID, "volumes": [ volumeID ] }
 		return self.detachVolumes(requestObj)
+
+	def createVolumeFromVpg(self, name, description, capacity, vpg):
+
+		volume = {
+			'name': name,
+			'description': description,
+			'capacity': capacity,
+			'VPG': vpg
+		}
+
+		return self.createVolume(volume)

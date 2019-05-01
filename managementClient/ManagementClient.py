@@ -229,6 +229,9 @@ class ManagementClient(object):
 		if 'domain' in arguments:
 			payload['domain'] = arguments['domain']
 
+		if 'vpg' in arguments:
+			payload['VPG'] = arguments['vpg']
+
 		if 'RAIDLevel' in arguments:
 			payload['RAIDLevel'] = arguments['RAIDLevel']
 
@@ -575,11 +578,11 @@ class ManagementClient(object):
 
 	def do_request(self, method, route, payload=None, numberOfRetries=0):
 		res = None
-		if route != '/isAlive':
-			self.logger.debug('request method={0} route={1} payload={2} retries={3}'.format(method, route, payload, numberOfRetries))
 		url = ''
 		try:
 			url = urlparse.urljoin(self.managementServer, route)
+			if route != '/isAlive':
+				self.logger.debug('request method={0} url={1} payload={2} retries={3}'.format(method, url, payload, numberOfRetries))
 			if method == 'post':
 				res = self.session.post(url, json=payload, verify=False)
 			elif method == 'get':

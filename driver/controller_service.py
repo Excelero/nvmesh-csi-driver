@@ -1,9 +1,11 @@
+import json
+from google.protobuf.json_format import MessageToJson
 
-from driver.common import CatchServerErrors, DriverError
+from driver.common import CatchServerErrors, DriverError, Utils
 from driver.csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ControllerPublishVolumeResponse, ControllerUnpublishVolumeResponse, \
 	ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse
 from driver.csi.csi_pb2_grpc import ControllerServicer
-from managementClient import Consts as ManagementClientConsts
+from managementClient.Consts import RAIDLevels
 from managementClient.ManagementClientWrapper import ManagementClientWrapper
 from grpc import StatusCode
 
@@ -23,32 +25,58 @@ class NVMeshControllerService(ControllerServicer):
 			volume_content_source = request.volume_content_source
 			accessibility_requirements = request.accessibility_requirements
 
-			volume = {
-				'name': name,
-				'description': 'created from K8s CSI',
-				'RAIDLevel': ManagementClientConsts.RAIDLevels.CONCATENATED,
-				'capacity': capacity
+			reqJson = MessageToJson(request)
+			self.logger.debug('create volume request: {}'.format(reqJson))
+
+			description_meta_data = {
+				'k8s_name': name
 			}
+
+			nvmesh_vol_name = Utils.volume_name_kube_to_nvmesh(name)
+			description = json.dumps(description_meta_data)
+			volume = {
+				'name': nvmesh_vol_name,
+				'description': description,
+				'capacity': capacity,
+				'RAIDLevel': RAIDLevels.CONCATENATED
+			}
+
+			self.logger.debug('create volume parameters: {}'.format(parameters))
+
+			if 'vpg' in parameters:
+				self.logger.debug('Creating Volume from VPG {}'.format(parameters['vpg']))
+				volume['vpg'] = parameters['vpg']
+			else:
+				if 'raid_level' in parameters:
+					volume['RAIDLevel'] = self._parse_raid_type(parameters['raid_level'])
+				else:
+					raise DriverError(StatusCode.INVALID_ARGUMENT, "Missing raid_level parameter")
+
+				#TODO: implement all other parameters (i.e stripe_width, num_of_mirrors, EC params.. etc.)
+
 			err, mgmtResponse = self.mgmtClient.createVolume(volume)
-			self.logger.debug(mgmtResponse)
 
 			if err:
 				raise DriverError(StatusCode.INVALID_ARGUMENT, err)
+			else:
+				self.logger.debug(mgmtResponse)
 
 			createResult = mgmtResponse['create'][0]
 			if not createResult['success']:
 				raise DriverError(StatusCode.RESOURCE_EXHAUSTED, createResult['err'])
 			else:
 				# volume created successfully
-				csiVolume = self._create_volume_from_mgmt_res(volume['name'])
+				# TODO: Should we wait for the volume to be Online ?
+				csiVolume = Volume(volume_id=nvmesh_vol_name, capacity_bytes=capacity)
 				return CreateVolumeResponse(volume=csiVolume)
 
 	@CatchServerErrors
 	def DeleteVolume(self, request, context):
 		volume_id = request.volume_id
+		nvmesh_vol_name = Utils.volume_name_kube_to_nvmesh(volume_id)
 		secrets = request.secrets
 
-		err, out = self.mgmtClient.removeVolume({ '_id': request.volume_id })
+		err, out = self.mgmtClient.removeVolume({ '_id': nvmesh_vol_name })
 		if err:
 			self.logger.error(err)
 
@@ -62,11 +90,8 @@ class NVMeshControllerService(ControllerServicer):
 			err = removeResult['ex'] if 'ex' in removeResult else 'err'
 			raise DriverError(StatusCode.FAILED_PRECONDITION, err)
 
+		# TODO: Should we wait for the volume to be Completely Deleted ?
 		return DeleteVolumeResponse()
-
-	def _create_volume_from_mgmt_res(self, vol_name):
-		vol = Volume(volume_id=vol_name)
-		return vol
 
 	@CatchServerErrors
 	def ControllerPublishVolume(self, request, context):
@@ -166,3 +191,22 @@ class NVMeshControllerService(ControllerServicer):
 
 		node_expansion_required = False
 		return ControllerExpandVolumeResponse(capacity_bytes=capacity_in_bytes, node_expansion_required=node_expansion_required)
+
+	def _parse_raid_type(self, raid_type_string):
+		raid_type_string = raid_type_string.lower()
+
+		raid_converter = {
+			'lvm': RAIDLevels.CONCATENATED,
+			'jbod': RAIDLevels.CONCATENATED,
+			'mirrored': RAIDLevels.RAID1,
+			'raid1': RAIDLevels.RAID1,
+			'raid10': RAIDLevels.RAID10,
+			'raid0': RAIDLevels.RAID0,
+			'ec': RAIDLevels.ERASURE_CODING
+		}
+
+		if raid_type_string not in raid_converter:
+			raise ValueError('Unknown RAID Type %s' % raid_type_string)
+
+		parsed_value = raid_converter[raid_type_string]
+		return parsed_value
