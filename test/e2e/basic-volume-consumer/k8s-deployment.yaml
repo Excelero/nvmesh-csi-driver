@@ -1,0 +1,35 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nvmesh-csi-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: nvmesh-concatenated
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nvmesh-volume-consumer
+  labels:
+    app: nvmesh-csi-testing
+spec:
+  containers:
+  - name: basic-volume-consumer
+    image: basic-volume-consumer:develop
+    volumeMounts:
+      - name: volume-mnt
+        mountPath: /mnt/vol/
+      - name: device-dir
+        mountPath: /dev
+  volumes:
+    - name: volume-mnt
+      persistentVolumeClaim:
+        claimName: nvmesh-csi-pvc
+    - name: device-dir
+      hostPath:
+        path: /dev
