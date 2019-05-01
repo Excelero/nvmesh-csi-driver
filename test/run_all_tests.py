@@ -21,8 +21,8 @@ def verify_server_is_running():
 		identityClient = IdentityClient()
 		msg = identityClient.Probe()
 		return msg.ready
-	except Exception:
-		print("Error starting driver gRPC server")
+	except Exception as ex:
+		print("Error starting driver gRPC server. ex: {}".format(str(ex)))
 		exit(1)
 
 if __name__ == "__main__":

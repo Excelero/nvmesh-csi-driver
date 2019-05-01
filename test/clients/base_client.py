@@ -7,9 +7,9 @@ from test.clients.client_logging_interceptor import ClientLoggingInterceptor
 
 class BaseClient(object):
 	def __init__(self):
+		self.logger = DriverLogger(self.__class__.__name__)
 		self.channel = grpc.insecure_channel(Config.SOCKET_PATH)
 		self.intercepted_channel = grpc.intercept_channel(self.channel, ClientLoggingInterceptor(self.logger))
-		self.logger = DriverLogger(self.__class__.__name__)
 
 	def close(self):
 		self.channel.close()

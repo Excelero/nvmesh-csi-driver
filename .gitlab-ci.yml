@@ -1,13 +1,12 @@
 variables:
-  CONFIG_FILE_PATH: "deploy/csi-driver-config.yml"
-  MANAGEMENT_SERVERS: "nvme115"
+  MANAGEMENT_SERVERS: "nvme115:4000"
+
 ci:
   before_script:
     - pwd
 
   script:
-    - echo $CONFIG_FILE_PATH
     - pip2 install -r requirements.txt
-    - sudo ./run_all_tests.sh $CONFIG_FILE_PATH
+    - sudo ./run_all_tests.sh $MANAGEMENT_SERVERS
     - exit $?
 

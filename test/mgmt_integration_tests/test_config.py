@@ -1,26 +1,32 @@
 import unittest
 from unittest import TestCase
 
-from driver.config import ConfigIsReadOnly
+import os
+
+from driver.config import ConfigError, load as reload_config, Config
+
 
 class TestConfigFile(TestCase):
 	def test_load(self):
 		from driver.config import Config
-		self.assertEquals(Config.management.protocol, 'https')
+		self.assertEquals(Config.MANAGEMENT_PROTOCOL, 'https')
 
-	def test_assignment(self):
-		from driver.config import Config
+	def test_fails_on_missing_management_servers(self):
+		del os.environ['MANAGEMENT_SERVERS']
 
-		old_value = Config.management.protocol
-		with self.assertRaises(ConfigIsReadOnly) as context:
-			Config.management.protocol = 'http'
+		def tryImport():
+			reload_config()
+			print(Config.MANAGEMENT_SERVERS)
 
-		self.assertTrue('Attempt to set attribute' in context.exception.message)
-		self.assertEquals(old_value, Config.management.protocol)
+		self.assertRaises(ConfigError, tryImport)
 
-	def test_read_key_not_exists(self):
-		from driver.config import Config
-		self.assertFalse(Config.somevalue.some_other)
+	def test_fails_on_empty_management_servers(self):
+		os.environ['MANAGEMENT_SERVERS'] = ''
+		def tryImport():
+			reload_config()
+			print(Config.MANAGEMENT_SERVERS)
+
+		self.assertRaises(ConfigError, tryImport)
 
 if __name__ == '__main__':
 	unittest.main()

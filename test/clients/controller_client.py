@@ -20,7 +20,7 @@ class ControllerClient(BaseClient):
 		return volume_capabilities
 
 
-	def CreateVolume(self, name, capacity_in_bytes=0):
+	def CreateVolume(self, name, capacity_in_bytes=0, parameters={}):
 		name = name # string
 
 		# OPTIONAL - CapacityRange capacity_range = 2;
@@ -36,7 +36,8 @@ class ControllerClient(BaseClient):
 		req = CreateVolumeRequest(
 			name=name,
 			capacity_range=capacity_range,
-			volume_capabilities=volume_capabilities
+			volume_capabilities=volume_capabilities,
+			parameters=parameters
 		)
 
 		return self.client.CreateVolume(req)
