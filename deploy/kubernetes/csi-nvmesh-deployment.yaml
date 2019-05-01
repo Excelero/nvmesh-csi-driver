@@ -1,11 +1,19 @@
----
+#---
+#apiVersion: v1
+#kind: ServiceAccount
+#metadata:
+#  name: nvmesh-csi
+#  labels:
+#    app: nvmesh-csi
+#---
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: nvmesh-csi
-  labels:
-    app: nvmesh-csi
+  name: nvmesh-csi-controller
+  namespace: nvmesh-csi
 ---
+
 # needed for StatefulSet
 kind: Service
 apiVersion: v1
@@ -20,10 +28,14 @@ spec:
     - name: dummy
       port: 12345
 ---
+#
+# NVMesh CSI Controller Driver StatefulSet Deployment
+#
 kind: StatefulSet
 apiVersion: apps/v1beta1
 metadata:
   name: nvmesh-csi-controller
+  namespace: nvmesh-csi
 spec:
   serviceName: "nvmesh-csi-controller"
   replicas: 1
@@ -32,10 +44,10 @@ spec:
       labels:
         app: nvmesh-csi
     spec:
-      serviceAccount: csi-provisioner
+      serviceAccount: nvmesh-csi-controller
       containers:
         - name: csi-provisioner
-          image: quay.io/k8scsi/csi-provisioner:canary
+          image: quay.io/k8scsi/csi-provisioner:v1.1.0
           args:
             - "--provisioner=nvmesh-csi.excelero.com"
             - "--csi-address=/csi/ctrl-csi.sock"
@@ -45,7 +57,7 @@ spec:
             - name: plugin-dir
               mountPath: /csi
         - name: csi-attacher
-          image: quay.io/k8scsi/csi-attacher:canary
+          image: quay.io/k8scsi/csi-attacher:v1.1.0
           imagePullPolicy: "IfNotPresent"
           args:
             - "--v=5"
@@ -87,10 +99,16 @@ spec:
             path: /var/lib/kubelet/plugins_registry/
             type: Directory
 ---
+#
+# NVMesh Node Driver DaemonSet (Per Node) Deployment
+#
+
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: nvmesh-csi-node-driver
+  namespace: nvmesh-csi
+
 spec:
   selector:
     matchLabels:
@@ -103,7 +121,7 @@ spec:
       hostNetwork: true
       containers:
         - name: csi-driver-registrar
-          image: quay.io/k8scsi/csi-node-driver-registrar:v1.0.2
+          image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
           args:
             - "--csi-address=/csi/csi.sock"
             - "--kubelet-registration-path=/var/lib/kubelet/plugins/nvmesh-csi.excelero.com/csi.sock"
@@ -145,11 +163,11 @@ spec:
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
-            - name: pods-mount-dir
-              mountPath: /var/lib/kubelet
-              # needed so that any mounts setup inside this container are
-              # propagated back to the host machine.
-              mountPropagation: "Bidirectional"
+#            - name: pods-mount-dir
+#              mountPath: /var/lib/kubelet
+#              # needed so that any mounts setup inside this container are
+#              # propagated back to the host machine.
+#              mountPropagation: "Bidirectional"
             - name: device-dir
               mountPath: /dev
       volumes:
@@ -161,10 +179,10 @@ spec:
           hostPath:
             path: /var/lib/kubelet/plugins_registry/
             type: Directory
-        - name: pods-mount-dir
-          hostPath:
-            path: /var/lib/kubelet
-            type: Directory
+#        - name: pods-mount-dir
+#          hostPath:
+#            path: /var/lib/kubelet
+#            type: Directory
         - name: device-dir
           hostPath:
             path: /dev

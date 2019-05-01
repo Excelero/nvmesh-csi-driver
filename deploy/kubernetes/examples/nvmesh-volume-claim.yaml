@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nvmesh-jbod
+  name: nvmesh-concatenated
 spec:
   accessModes:
   - ReadWriteMany
   resources:
     requests:
       storage: 5Gi
-  storageClassName: nvmesh-jbod
+  storageClassName: nvmesh-concatenated
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

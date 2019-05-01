@@ -2,6 +2,7 @@
 
 deploy() {
     kubectl create -f ../deploy/kubernetes/csi-nvmesh-deployment.yaml
+    kubectl create -f ../deploy/kubernetes/rbac-permissions.yaml
 }
 
 show_logs() {
