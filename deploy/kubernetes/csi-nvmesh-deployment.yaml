@@ -34,25 +34,11 @@ spec:
     spec:
       serviceAccount: csi-provisioner
       containers:
-#        - name: csi-driver-registrar
-#          image: quay.io/k8scsi/csi-node-driver-registrar:v1.0.2
-#          args:
-#            - "--csi-address=/csi/csi.sock"
-#            - "--kubelet-registration-path=/var/lib/kubelet/plugins/nvmesh-csi.excelero.com/csi.sock"
-#          lifecycle:
-#            preStop:
-#              exec:
-#                command: ["/bin/sh", "-c", "rm -rf /registration/nvmesh-csi.excelero.com /registration/nvmesh-csi.excelero.com-reg.sock"]
-#          volumeMounts:
-#            - name: plugin-dir
-#              mountPath: /csi
-#            - name: registration-dir
-#              mountPath: /registration
         - name: csi-provisioner
           image: quay.io/k8scsi/csi-provisioner:canary
           args:
             - "--provisioner=nvmesh-csi.excelero.com"
-            - "--csi-address=/csi/csi.sock"
+            - "--csi-address=/csi/ctrl-csi.sock"
             - "--v=5"
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
@@ -63,7 +49,7 @@ spec:
           imagePullPolicy: "IfNotPresent"
           args:
             - "--v=5"
-            - "--csi-address=/csi/csi.sock"
+            - "--csi-address=/csi/ctrl-csi.sock"
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
@@ -73,7 +59,7 @@ spec:
           imagePullPolicy: "IfNotPresent"
           env:
             - name: SOCKET_PATH
-              value: unix:///csi/csi.sock
+              value: unix:///csi/ctrl-csi.sock
             - name: MANAGEMENT_SERVERS
               value: "localhost:4000, nvme115:4000"
             - name: MANAGEMENT_PROTOCOL
@@ -100,3 +86,86 @@ spec:
           hostPath:
             path: /var/lib/kubelet/plugins_registry/
             type: Directory
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: nvmesh-csi-node-driver
+spec:
+  selector:
+    matchLabels:
+      app: nvmesh-csi
+  template:
+    metadata:
+      labels:
+        app: nvmesh-csi
+    spec:
+      hostNetwork: true
+      containers:
+        - name: csi-driver-registrar
+          image: quay.io/k8scsi/csi-node-driver-registrar:v1.0.2
+          args:
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/nvmesh-csi.excelero.com/csi.sock"
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /registration/nvmesh-csi.excelero.com /registration/nvmesh-csi.excelero.com-reg.sock"]
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+        - name: nvmesh-csi-plugin
+          # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
+          image: nvmesh-csi-plugin:develop
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          env:
+            - name: SOCKET_PATH
+              value: unix:///csi/csi.sock
+            - name: MANAGEMENT_SERVERS
+              value: "localhost:4000, nvme115:4000"
+            - name: MANAGEMENT_PROTOCOL
+              value: "https"
+            - name: MANAGEMENT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: excelero-nvmesh
+                  key: username
+            - name: MANAGEMENT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: excelero-nvmesh
+                  key: password
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet
+              # needed so that any mounts setup inside this container are
+              # propagated back to the host machine.
+              mountPropagation: "Bidirectional"
+            - name: device-dir
+              mountPath: /dev
+      volumes:
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/nvmesh-csi.excelero.com/
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: Directory
+        - name: pods-mount-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: device-dir
+          hostPath:
+            path: /dev
+---
