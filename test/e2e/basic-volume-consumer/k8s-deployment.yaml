@@ -3,9 +3,10 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: nvmesh-csi-pvc
+  namespace: nvmesh-csi
 spec:
   accessModes:
-  - ReadWriteOnce
+  - ReadWriteMany
   resources:
     requests:
       storage: 5Gi
@@ -15,6 +16,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: nvmesh-volume-consumer
+  namespace: nvmesh-csi
   labels:
     app: nvmesh-csi-testing
 spec:

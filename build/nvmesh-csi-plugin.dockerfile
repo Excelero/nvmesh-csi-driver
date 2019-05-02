@@ -6,6 +6,10 @@ COPY managementClient/ /managementClient/
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+RUN apt-get update \
+    && apt install parted -y \
+    && apt install udev -y
+
 USER root
 
 CMD ["python", "-u", "-m", "driver.server"]

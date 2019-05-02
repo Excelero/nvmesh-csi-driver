@@ -5,6 +5,7 @@ import grpc
 import sys
 import os
 
+from subprocess import Popen, PIPE
 
 class Consts(object):
 	PLUGIN_NAME = "nvmesh-csi.excelero.com"
@@ -79,6 +80,17 @@ class DriverError(Exception):
 		self.code = code
 
 class Utils(object):
+	logger = DriverLogger("Utils")
+
 	@staticmethod
-	def volume_name_kube_to_nvmesh(kubernetes_vol_name):
+	def volume_id_to_nvmesh_name(kubernetes_vol_name):
 		return kubernetes_vol_name.replace('-','')[:24]
+
+	@staticmethod
+	def run_command(cmd):
+		Utils.logger.debug("running: {}".format(cmd))
+		p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
+		stdout, stderr = p.communicate()
+		exit_code = p.returncode
+		Utils.logger.debug("cmd: {} return exit_code={} stdout={} stderr={}".format(cmd, exit_code, stdout, stderr))
+		return exit_code, stdout, stderr

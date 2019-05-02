@@ -4,6 +4,7 @@ FROM quay.io/bashell/alpine:latest
 RUN apk update \
  && apk upgrade \
  && apk add bash \
+ && apk add sudo \
  && rm -rf /var/cache/*/* \
  && echo "" > /root/.ash_history
 

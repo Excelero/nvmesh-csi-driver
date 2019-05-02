@@ -32,7 +32,7 @@ class NVMeshControllerService(ControllerServicer):
 				'k8s_name': name
 			}
 
-			nvmesh_vol_name = Utils.volume_name_kube_to_nvmesh(name)
+			nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(name)
 			description = json.dumps(description_meta_data)
 			volume = {
 				'name': nvmesh_vol_name,
@@ -73,7 +73,7 @@ class NVMeshControllerService(ControllerServicer):
 	@CatchServerErrors
 	def DeleteVolume(self, request, context):
 		volume_id = request.volume_id
-		nvmesh_vol_name = Utils.volume_name_kube_to_nvmesh(volume_id)
+		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(volume_id)
 		secrets = request.secrets
 
 		err, out = self.mgmtClient.removeVolume({ '_id': nvmesh_vol_name })
