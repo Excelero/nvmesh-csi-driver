@@ -23,15 +23,15 @@ class TestNodeService(TestCaseWithServerRunning):
 		res = self._client.NodeGetCapabilities()
 		self.assertListEqual([], list(res.capabilities))
 
-	@CatchRequestErrors
-	def test_node_publish_volume(self):
-		res = self._client.NodePublishVolume(volume_id=VOL_ID)
-		print(res)
-
-	@CatchRequestErrors
-	def test_node_unpublish_volume(self):
-		res = self._client.NodeUnpublishVolume(volume_id=VOL_ID)
-		print(res)
+	# @CatchRequestErrors
+	# def test_node_publish_volume(self):
+	# 	res = self._client.NodePublishVolume(volume_id=VOL_ID)
+	# 	print(res)
+	#
+	# @CatchRequestErrors
+	# def test_node_unpublish_volume(self):
+	# 	res = self._client.NodeUnpublishVolume(volume_id=VOL_ID)
+	# 	print(res)
 
 if __name__ == '__main__':
 	unittest.main()
