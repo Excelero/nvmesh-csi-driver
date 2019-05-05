@@ -13,7 +13,7 @@ graceful_exit() {
     exit 0
 }
 
-work() {
+get_info() {
     ls -l /dev/nvmesh/
 
     ls -l /mnt/
@@ -21,20 +21,25 @@ work() {
     cat /etc/mtab | grep /mnt/vol
 
     df -h | grep /mnt/vol
+}
 
-    echo "my data" > /mnt/vol/test-file
-
-    cat /mnt/vol/test-file
-
+work_loop() {
+    echo "Starting Work Loop"
+    while true
+    do
+        echo "`hostname`:$WORKER_ID: `date`" >> /mnt/vol/test-file
+        cat /mnt/vol/test-file | tail -4
+        echo "---------------------------"
+        sleep 2
+    done
 }
 
 trap graceful_exit SIGINT SIGTERM
 
 set -x
-work
+get_info
 set +x
 
-loop_forever
+work_loop
 
-
-
+echo "If this is printed, an error has occurred"

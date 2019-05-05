@@ -1,4 +1,8 @@
 import socket
+
+import os
+
+import shutil
 from google.protobuf.json_format import MessageToJson
 from grpc import StatusCode
 
@@ -16,51 +20,6 @@ class NVMeshNodeService(NodeServicer):
 
 	@CatchServerErrors
 	def NodeStageVolume(self, request, context):
-		# NodeStageVolume: This method is called by the CO to temporarily mount the volume to a staging path.
-		# Usually this staging path is a global directory on the node.
-		# In Kubernetes, after it's mounted to the global directory, you mount it into the pod directory (via NodePublishVolume).
-		# The reason that mounting is a two step operation is because Kubernetes allows you to use a single volume by multiple pods.
-		# This is allowed when the storage system supports it (say NFS) or if all pods run on the same node.
-		# One thing to note is that you also need to format the volume if it's not formatted already. Keep that in mind.
-
-			# // The ID of the volume to publish. This field is REQUIRED.
-			# string volume_id = 1;
-
-			# // The CO SHALL set this field to the value returned by
-			# // `ControllerPublishVolume` if the corresponding Controller Plugin
-			# // has `PUBLISH_UNPUBLISH_VOLUME` controller capability, and SHALL be
-			# // left unset if the corresponding Controller Plugin does not have
-			# // this capability. This is an OPTIONAL field.
-			# map<string, string> publish_context = 2;
-
-			# // The path to which the volume MAY be staged. It MUST be an
-			# // absolute path in the root filesystem of the process serving this
-			# // request, and MUST be a directory. The CO SHALL ensure that there
-			# // is only one `staging_target_path` per volume. The CO SHALL ensure
-			# // that the path is directory and that the process serving the
-			# // request has `read` and `write` permission to that directory. The
-			# // CO SHALL be responsible for creating the directory if it does not
-			# // exist.
-			# // This is a REQUIRED field.
-			# string staging_target_path = 3;
-			#
-			# // Volume capability describing how the CO intends to use this volume.
-			# // SP MUST ensure the CO can use the staged volume as described.
-			# // Otherwise SP MUST return the appropriate gRPC error code.
-			# // This is a REQUIRED field.
-			# VolumeCapability volume_capability = 4;
-			#
-			# // Secrets required by plugin to complete node stage volume request.
-			# // This field is OPTIONAL. Refer to the `Secrets Requirements`
-			# // section on how to use this field.
-			# map<string, string> secrets = 5 [(csi_secret) = true];
-			#
-			# // Volume context as returned by CO in CreateVolumeRequest. This field
-			# // is OPTIONAL and MUST match the volume_context of the volume
-			# // identified by `volume_id`.
-			# map<string, string> volume_context = 6;
-
-
 		volume_id = request.volume_id
 		publish_context = request.publish_context
 		staging_target_path = request.staging_target_path
@@ -76,16 +35,38 @@ class NVMeshNodeService(NodeServicer):
 		mount_request = volume_capability.mount
 
 		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
+		block_device_path = '/dev/nvmesh/{}'.format(nvmesh_volume_name)
 
-		block_device_path = FileSystemManager.create_fake_nvmesh_block_device(nvmesh_volume_name)
+		# TODO: For Debugging Purposes Only !
+		# The next lines should be removed after testing on an actual kubernetes cluster
+		# if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
+		# 	FileSystemManager.create_fake_nvmesh_block_device(block_device_path)
+		# END OF FAKE DEVICE
+
+		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
+			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(nvmesh_volume_name))
 
 		if mount_request and mount_request.fs_type:
-			self.logger.debug("requested mounted FileSystem Volume with fs_type = {}".format(mount_request.fs_type))
-			fs_type = mount_request.fs_type or "ext4"
+			self.logger.debug('requested mounted FileSystem Volume with fs_type={}'.format(mount_request.fs_type))
+			fs_type = mount_request.fs_type or 'ext4'
 			mount_flags = mount_request.mount_flags
 
-			# TODO: check if already formatted, and if format meets request
-			FileSystemManager.mkfs(fs_type=fs_type, target_path=block_device_path, flags=['-F'])
+			# check if already formatted, and if format meets request
+			current_fs_type = FileSystemManager.get_fs_type(block_device_path)
+			self.logger.debug('current_fs_type={}'.format(current_fs_type))
+
+			if current_fs_type == fs_type:
+				self.logger.debug('{} is already formatted to {}'.format(block_device_path, current_fs_type))
+			else:
+				if current_fs_type != '':
+					self.logger.debug('{} is formatted to {} but requested {}'.format(block_device_path, current_fs_type, fs_type))
+					# TODO: should we throw an error ?
+				else:
+					FileSystemManager.mkfs(fs_type=fs_type, target_path=block_device_path, flags=['-F'])
+
+			if FileSystemManager.is_mounted(staging_target_path):
+				self.logger.debug('path {} is already mounted'.format(staging_target_path))
+
 			FileSystemManager.mount(source=block_device_path, target=staging_target_path, flags=mount_flags)
 
 		elif block_volume:
@@ -104,6 +85,17 @@ class NVMeshNodeService(NodeServicer):
 
 		staging_target_path = request.staging_target_path
 		FileSystemManager.umount(target=staging_target_path)
+
+		if os.path.isdir(staging_target_path):
+			self.logger.debug('NodeUnstageVolume removing stage dir: {}'.format(staging_target_path))
+			FileSystemManager.remove_dir(staging_target_path)
+
+		# TODO: For Debugging Purposes Only !
+		# nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
+		# block_device_path = '/dev/nvmesh/{}'.format(nvmesh_volume_name)
+		# if os.path.isfile(block_device_path):
+		# 	os.remove(block_device_path)
+
 		return NodeUnstageVolumeResponse()
 
 	def NodePublishVolume(self, request, context):
@@ -124,6 +116,11 @@ class NVMeshNodeService(NodeServicer):
 		reqJson = MessageToJson(request)
 		self.logger.debug('NodePublishVolume called with request: {}'.format(reqJson))
 
+		if not Utils.is_nvmesh_volume_attached(volume_id):
+			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(volume_id))
+		if not FileSystemManager.is_mounted(staging_target_path):
+			raise DriverError(StatusCode.FAILED_PRECONDITION, 'staging_target_path {} was not found'.format(staging_target_path))
+
 		FileSystemManager.bind_mount(source=staging_target_path, target=target_path)
 		return NodePublishVolumeResponse()
 
@@ -135,7 +132,16 @@ class NVMeshNodeService(NodeServicer):
 		self.logger.debug('NodeUnpublishVolume called with request: {}'.format(reqJson))
 
 		self.logger.debug("NodeUnpublishVolume for volume_id: {} target_path: {}".format(volume_id, target_path))
+		if FileSystemManager.is_mounted(mount_path=target_path):
+			self.logger.debug("NodeUnpublishVolume: {} is already not mounted".format(target_path))
+
 		FileSystemManager.umount(target=target_path)
+
+		if os.path.isdir(target_path):
+			self.logger.debug('NodeUnpublishVolume removing publish dir: {}'.format(target_path))
+			FileSystemManager.remove_dir(target_path)
+			if os.path.isdir(target_path):
+				raise DriverError(StatusCode.INTERNAL, 'node-driver unable to delete publish directory')
 
 		return NodeUnpublishVolumeResponse()
 

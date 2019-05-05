@@ -10,7 +10,7 @@ kubectl delete pod nvmesh-csi-controller-0 -n nvmesh-csi --grace-period=3
 kubectl delete daemonset nvmesh-csi-node-driver -n nvmesh-csi
 kubectl delete pod nvmesh-csi-node-driver -n nvmesh-csi
 
-kubectl delete pod nvmesh-volume-consumer --grace-period=0 --force -n nvmesh-csi
+kubectl delete pod consumer-pod-1 consumer-pod-2 --grace-period=0 --force -n nvmesh-csi
 
 # Hints
 # Delete Force:

@@ -1,3 +1,7 @@
+import os
+
+import shutil
+
 from driver.common import Utils, DriverLogger
 
 logger = DriverLogger("FileSystemManager")
@@ -8,25 +12,22 @@ class ArgumentError(Exception):
 class FileSystemManager(object):
 
 	@staticmethod
-	def create_fake_nvmesh_block_device(nvmesh_volume_name):
+	def create_fake_nvmesh_block_device(block_device_path):
 		# Creates a Fake block device
 		# This function is used for development, for testing with kubernetes on Host that are unable to actually install NVMesh Core Modules
 		# TODO: remove when not needed
 
-		block_device_path = '/dev/nvmesh/{}'.format(nvmesh_volume_name)
 		cmd = 'mkdir -p /dev/nvmesh/'
 		Utils.run_command(cmd)
 
 		cmd = 'dd if=/dev/zero of={} bs=1M count=256'.format(block_device_path)
 		Utils.run_command(cmd)
 
-		cmd = 'parted {} mktable gpt'.format(block_device_path)
-		Utils.run_command(cmd)
-
-		cmd = 'parted {} mkpart primary 0% 100%'.format(block_device_path)
-		Utils.run_command(cmd)
-
-		return block_device_path
+	@staticmethod
+	def is_mounted(mount_path):
+		cmd = 'grep -qs "{} " /proc/mounts'.format(mount_path)
+		exit_code, stdout, stderr = Utils.run_command(cmd)
+		return exit_code == 0
 
 	@staticmethod
 	def mount(source, target, flags=None):
@@ -52,6 +53,7 @@ class FileSystemManager(object):
 		cmd = 'umount {target}'.format(target=target)
 
 		exit_code, stdout, stderr = Utils.run_command(cmd)
+		logger.debug("umount finished {} {} {}".format(exit_code, stdout, stderr))
 
 		if exit_code != 0 and exit_code != NOT_MOUNTED:
 			raise Exception("umount failed {} {} {}".format(exit_code, stdout, stderr))
@@ -69,4 +71,14 @@ class FileSystemManager(object):
 		exit_code, stdout, stderr = Utils.run_command(cmd)
 
 		if exit_code != 0:
-			raise Exception("mkfs failed {} {} {}".format(exit_code, stdout, stderr))
+			raise OSError("mkfs failed {} {} {}".format(exit_code, stdout, stderr))
+
+	@staticmethod
+	def get_fs_type(target_path):
+		cmd = "blkid {} | awk '{{ print $3}}' | cut -c 7- | rev | cut -c 2- | rev".format(target_path)
+		exit_code, stdout, stderr = Utils.run_command(cmd)
+		return stdout.strip()
+
+	@staticmethod
+	def remove_dir(dir_path):
+		return shutil.rmtree(dir_path)

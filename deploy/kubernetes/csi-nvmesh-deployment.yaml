@@ -119,6 +119,11 @@ spec:
         app: nvmesh-csi
     spec:
       hostNetwork: true
+      tolerations:
+        # This would make the DaemonSet to be deployed also on the master node
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+          operator: Exists
       containers:
         - name: csi-driver-registrar
           image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
@@ -167,7 +172,7 @@ spec:
               mountPath: /var/lib/kubelet
               # needed so that any mounts setup inside this container are
               # propagated back to the host machine.
-#              mountPropagation: "Bidirectional"
+              mountPropagation: "Bidirectional"
             - name: device-dir
               mountPath: /dev
       volumes:

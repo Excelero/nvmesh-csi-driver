@@ -87,6 +87,12 @@ class Utils(object):
 		return kubernetes_vol_name.replace('-','')[:24]
 
 	@staticmethod
+	def is_nvmesh_volume_attached(nvmesh_volume_name):
+		cmd = 'ls /dev/nvmesh/{}'.format(nvmesh_volume_name)
+		exit_code, stdout, stderr = Utils.run_command(cmd)
+		return exit_code == 0
+
+	@staticmethod
 	def run_command(cmd):
 		Utils.logger.debug("running: {}".format(cmd))
 		p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
