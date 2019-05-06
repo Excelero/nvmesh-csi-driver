@@ -46,25 +46,7 @@ spec:
     spec:
       serviceAccount: nvmesh-csi-controller
       containers:
-        - name: csi-provisioner
-          image: quay.io/k8scsi/csi-provisioner:v1.1.0
-          args:
-            - "--provisioner=nvmesh-csi.excelero.com"
-            - "--csi-address=/csi/ctrl-csi.sock"
-            - "--v=5"
-          imagePullPolicy: "IfNotPresent"
-          volumeMounts:
-            - name: plugin-dir
-              mountPath: /csi
-        - name: csi-attacher
-          image: quay.io/k8scsi/csi-attacher:v1.1.0
-          imagePullPolicy: "IfNotPresent"
-          args:
-            - "--v=5"
-            - "--csi-address=/csi/ctrl-csi.sock"
-          volumeMounts:
-            - name: plugin-dir
-              mountPath: /csi
+        # NVMesh Driver
         - name: nvmesh-csi-plugin
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
           image: nvmesh-csi-plugin:develop
@@ -95,6 +77,39 @@ spec:
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
+        # Provisioner
+        - name: csi-provisioner
+          image: quay.io/k8scsi/csi-provisioner:v1.1.0
+          args:
+            - "--provisioner=nvmesh-csi.excelero.com"
+            - "--csi-address=/csi/ctrl-csi.sock"
+            - "--v=5"
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+        # Attacher
+        - name: csi-attacher
+          image: quay.io/k8scsi/csi-attacher:v1.1.0
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/ctrl-csi.sock"
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+        # Resizer
+        - name: csi-resizer
+          image: quay.io/k8scsi/csi-resizer:canary
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/ctrl-csi.sock"
+            - "--leader-election"
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+
       volumes:
         - name: plugin-dir
           hostPath:

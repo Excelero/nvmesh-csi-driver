@@ -158,10 +158,11 @@ class NVMeshNodeService(NodeServicer):
 		def buildCapability(type):
 			return NodeServiceCapability(rpc=NodeServiceCapability.RPC(type=type))
 
-		get_volume_stats = buildCapability(NodeServiceCapability.RPC.GET_VOLUME_STATS)
+		#get_volume_stats = buildCapability(NodeServiceCapability.RPC.GET_VOLUME_STATS)
 		stage_unstage = buildCapability(NodeServiceCapability.RPC.STAGE_UNSTAGE_VOLUME)
+		expand_volume = buildCapability(NodeServiceCapability.RPC.EXPAND_VOLUME)
 
-		capabilities = [stage_unstage]
+		capabilities = [stage_unstage, expand_volume]
 
 		return NodeGetCapabilitiesResponse(capabilities=capabilities)
 
