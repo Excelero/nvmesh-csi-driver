@@ -73,9 +73,15 @@ spec:
             - name: SOCKET_PATH
               value: unix:///csi/ctrl-csi.sock
             - name: MANAGEMENT_SERVERS
-              value: "localhost:4000, nvme115:4000"
+              valueFrom:
+                configMapKeyRef:
+                  name: nvmesh-config
+                  key: management.servers
             - name: MANAGEMENT_PROTOCOL
-              value: "https"
+              valueFrom:
+                configMapKeyRef:
+                  name: nvmesh-config
+                  key: management.protocol
             - name: MANAGEMENT_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -152,9 +158,15 @@ spec:
             - name: SOCKET_PATH
               value: unix:///csi/csi.sock
             - name: MANAGEMENT_SERVERS
-              value: "localhost:4000, nvme115:4000"
+              valueFrom:
+                configMapKeyRef:
+                  name: nvmesh-config
+                  key: management.servers
             - name: MANAGEMENT_PROTOCOL
-              value: "https"
+              valueFrom:
+                configMapKeyRef:
+                  name: nvmesh-config
+                  key: management.protocol
             - name: MANAGEMENT_USERNAME
               valueFrom:
                 secretKeyRef:
