@@ -41,7 +41,7 @@ class DriverLogger(logging.Logger):
 
 	@staticmethod
 	def _get_default_formatter():
-		formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+		formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
 		return formatter
 
 	def _add_handler(self, handler):
