@@ -85,12 +85,12 @@ spec:
             - name: MANAGEMENT_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: excelero-nvmesh
+                  name: nvmesh-credentials
                   key: username
             - name: MANAGEMENT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: excelero-nvmesh
+                  name: nvmesh-credentials
                   key: password
           volumeMounts:
             - name: plugin-dir
@@ -170,12 +170,12 @@ spec:
             - name: MANAGEMENT_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: excelero-nvmesh
+                  name: nvmesh-credentials
                   key: username
             - name: MANAGEMENT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: excelero-nvmesh
+                  name: nvmesh-credentials
                   key: password
           volumeMounts:
             - name: plugin-dir
