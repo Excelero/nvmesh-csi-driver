@@ -54,21 +54,20 @@ class NVMeshControllerService(ControllerServicer):
 
 				#TODO: should we implement all other parameters ? (i.e stripe_width, num_of_mirrors, EC params.. etc.)
 
-			err, mgmtResponse = self.mgmtClient.createVolume(volume)
+			err, details = self.mgmtClient.createVolume(volume)
 
 			if err:
-				raise DriverError(StatusCode.INVALID_ARGUMENT, err)
+				if err == 'Could not create volume':
+					raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Error: {} Details: {}'.format(err, details))
+				elif err == 'Timed out Waiting for Volume to be Online ':
+					raise DriverError(StatusCode.FAILED_PRECONDITION, 'Error: {} Details: {}'.format(err, details))
+				else:
+					raise DriverError(StatusCode.INVALID_ARGUMENT, err)
 			else:
-				self.logger.debug(mgmtResponse)
+				self.logger.debug(details)
 
-			createResult = mgmtResponse['create'][0]
-			if not createResult['success']:
-				raise DriverError(StatusCode.RESOURCE_EXHAUSTED, createResult['err'])
-			else:
-				# volume created successfully
-				# TODO: Should we wait for the volume to be Online ?
-				csiVolume = Volume(volume_id=nvmesh_vol_name, capacity_bytes=capacity)
-				return CreateVolumeResponse(volume=csiVolume)
+			csiVolume = Volume(volume_id=nvmesh_vol_name, capacity_bytes=capacity)
+			return CreateVolumeResponse(volume=csiVolume)
 
 	@CatchServerErrors
 	def DeleteVolume(self, request, context):

@@ -1,6 +1,9 @@
 import urllib3
 
+import time
+
 from driver.config import Config
+from managementClient import Consts
 from managementClient.ManagementClient import ManagementClient
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import requests
@@ -27,13 +30,35 @@ class ManagementClientWrapper(ManagementClient):
 		requestObj = {"client": nodeID, "volumes": [ volumeID ] }
 		return self.detachVolumes(requestObj)
 
-	def createVolumeFromVpg(self, name, description, capacity, vpg):
+	def createVolume(self, volume, wait_for_online=True):
+		err, mgmtResponse = ManagementClient.createVolume(self, volume)
 
-		volume = {
-			'name': name,
-			'description': description,
-			'capacity': capacity,
-			'VPG': vpg
-		}
+		if not wait_for_online or err:
+			return err ,mgmtResponse
 
-		return self.createVolume(volume)
+		createResult = mgmtResponse['create'][0]
+		if not createResult['success']:
+			return 'Could not create volume', createResult['err']
+
+		return self._wait_for_volume_status(volume['name'], Consts.VolumeStatuses.ONLINE)
+
+	def _wait_for_volume_status(self, volume_id, status):
+
+		volume_status = None
+		volume = None
+		attempts = 15
+
+		while volume_status != status:
+			err, volume = self.getVolumeByName(volume_id)
+			if err:
+				return err, volume
+
+			volume_status = volume['status']
+			if volume_status == status:
+				return None, volume
+
+			attempts += 1
+			time.sleep(1)
+
+		return 'Timed out Waiting for Volume to be Online', volume
+
