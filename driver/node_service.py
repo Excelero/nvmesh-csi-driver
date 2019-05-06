@@ -37,12 +37,6 @@ class NVMeshNodeService(NodeServicer):
 		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
 		block_device_path = '/dev/nvmesh/{}'.format(nvmesh_volume_name)
 
-		# TODO: For Debugging Purposes Only !
-		# The next lines should be removed after testing on an actual kubernetes cluster
-		# if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
-		# 	FileSystemManager.create_fake_nvmesh_block_device(block_device_path)
-		# END OF FAKE DEVICE
-
 		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
 			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(nvmesh_volume_name))
 
@@ -90,20 +84,10 @@ class NVMeshNodeService(NodeServicer):
 			self.logger.debug('NodeUnstageVolume removing stage dir: {}'.format(staging_target_path))
 			FileSystemManager.remove_dir(staging_target_path)
 
-		# TODO: For Debugging Purposes Only !
-		# nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
-		# block_device_path = '/dev/nvmesh/{}'.format(nvmesh_volume_name)
-		# if os.path.isfile(block_device_path):
-		# 	os.remove(block_device_path)
-
 		return NodeUnstageVolumeResponse()
 
 	def NodePublishVolume(self, request, context):
 		# NodePublishVolume: This method is called to mount the volume from staging to target path.
-		# Usually what you do here is a bind mount. A bind mount allows you to mount a path to a different path (instead of mounting a device to a path).
-		# In Kubernetes, this allows us for example to use the mounted volume from the staging path
-		# (i.e global directory) to the target path (pod directory).
-		# Here, formatting is not needed because we already did it in NodeStageVolume.
 
 		volume_id = request.volume_id
 		staging_target_path = request.staging_target_path
@@ -163,6 +147,7 @@ class NVMeshNodeService(NodeServicer):
 		# 		// See VolumeExpansion for details.
 		# 		EXPAND_VOLUME = 3;
 		#	}
+
 		def buildCapability(type):
 			return NodeServiceCapability(rpc=NodeServiceCapability.RPC(type=type))
 

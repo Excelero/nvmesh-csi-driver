@@ -28,6 +28,6 @@ def load():
 	if not Config.MANAGEMENT_SERVERS:
 		raise ConfigError("MANAGEMENT_SERVERS environment variable not found or is empty")
 
-	print("Loaded Config with SOCKET_PATH={} ,MANAGEMENT_SERVERS = {}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS))
+	print("Loaded Config with SOCKET_PATH={} ,MANAGEMENT_SERVERS={}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS))
 
 load()

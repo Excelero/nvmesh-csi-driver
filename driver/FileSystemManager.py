@@ -9,6 +9,12 @@ logger = DriverLogger("FileSystemManager")
 class ArgumentError(Exception):
 	pass
 
+class MountError(Exception):
+	pass
+
+class MountTargetIsBusyError(MountError):
+	pass
+
 class FileSystemManager(object):
 
 	@staticmethod
@@ -49,14 +55,19 @@ class FileSystemManager(object):
 
 	@staticmethod
 	def umount(target):
-		NOT_MOUNTED = 32
 		cmd = 'umount {target}'.format(target=target)
 
 		exit_code, stdout, stderr = Utils.run_command(cmd)
 		logger.debug("umount finished {} {} {}".format(exit_code, stdout, stderr))
 
-		if exit_code != 0 and exit_code != NOT_MOUNTED:
-			raise Exception("umount failed {} {} {}".format(exit_code, stdout, stderr))
+		if exit_code != 0:
+			if 'not mounted' in stderr:
+				# this is not an error
+				return
+			elif 'target is busy' in stderr:
+				raise MountTargetIsBusyError(stderr)
+			else:
+				raise Exception("umount failed exit_code={} stdout={} stderr={}".format(exit_code, stdout, stderr))
 
 	@staticmethod
 	def mkfs(fs_type, target_path, flags=None):
