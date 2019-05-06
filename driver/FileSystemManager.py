@@ -93,3 +93,17 @@ class FileSystemManager(object):
 	@staticmethod
 	def remove_dir(dir_path):
 		return shutil.rmtree(dir_path)
+
+	@staticmethod
+	def format_block_device(block_device_path, fs_type):
+		# check if already formatted, and if format meets request
+		current_fs_type = FileSystemManager.get_fs_type(block_device_path)
+		logger.debug('current_fs_type={}'.format(current_fs_type))
+		if current_fs_type == fs_type:
+			logger.debug('{} is already formatted to {}'.format(block_device_path, current_fs_type))
+		else:
+			if current_fs_type != '':
+				logger.debug('{} is formatted to {} but requested {}'.format(block_device_path, current_fs_type, fs_type))
+			# TODO: should we throw an error ? or format to the new requested format ?
+			else:
+				FileSystemManager.mkfs(fs_type=fs_type, target_path=block_device_path, flags=['-F'])

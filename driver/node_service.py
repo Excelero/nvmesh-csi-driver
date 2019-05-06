@@ -21,10 +21,10 @@ class NVMeshNodeService(NodeServicer):
 	@CatchServerErrors
 	def NodeStageVolume(self, request, context):
 		volume_id = request.volume_id
-		publish_context = request.publish_context
 		staging_target_path = request.staging_target_path
 		volume_capability = request.volume_capability
 		secrets = request.secrets
+		publish_context = request.publish_context
 		volume_context = request.volume_context
 
 		reqJson = MessageToJson(request)
@@ -37,6 +37,8 @@ class NVMeshNodeService(NodeServicer):
 		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
 		block_device_path = '/dev/nvmesh/{}'.format(nvmesh_volume_name)
 
+		self.logger.debug('requested access_type={}'.format(volume_capability.access_type))
+
 		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
 			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(nvmesh_volume_name))
 
@@ -45,18 +47,7 @@ class NVMeshNodeService(NodeServicer):
 			fs_type = mount_request.fs_type or 'ext4'
 			mount_flags = mount_request.mount_flags
 
-			# check if already formatted, and if format meets request
-			current_fs_type = FileSystemManager.get_fs_type(block_device_path)
-			self.logger.debug('current_fs_type={}'.format(current_fs_type))
-
-			if current_fs_type == fs_type:
-				self.logger.debug('{} is already formatted to {}'.format(block_device_path, current_fs_type))
-			else:
-				if current_fs_type != '':
-					self.logger.debug('{} is formatted to {} but requested {}'.format(block_device_path, current_fs_type, fs_type))
-					# TODO: should we throw an error ?
-				else:
-					FileSystemManager.mkfs(fs_type=fs_type, target_path=block_device_path, flags=['-F'])
+			FileSystemManager.format_block_device(block_device_path, fs_type)
 
 			if FileSystemManager.is_mounted(staging_target_path):
 				self.logger.debug('path {} is already mounted'.format(staging_target_path))

@@ -10,7 +10,7 @@ from subprocess import Popen, PIPE
 class Consts(object):
 	PLUGIN_NAME = "nvmesh-csi.excelero.com"
 	PLUGIN_VERSION = "0.01"
-	SPEC_VERSION = "1.0.0"
+	SPEC_VERSION = "1.1.0"
 	MIN_KUBERNETES_VERSION = "1.13"
 
 	DEFAULT_UDS_PATH = "unix:///tmp/csi.sock"

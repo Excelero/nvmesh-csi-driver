@@ -1,7 +1,7 @@
 from driver.csi.csi_pb2 import CreateVolumeRequest, DeleteVolumeRequest, VolumeCapability, CapacityRange, ControllerPublishVolumeRequest, \
 	ControllerUnpublishVolumeRequest, ValidateVolumeCapabilitiesRequest, ListVolumesRequest, ControllerGetCapabilitiesRequest, ControllerExpandVolumeRequest
 from driver.csi.csi_pb2_grpc import ControllerStub
-from test.clients.base_client import BaseClient
+from test.integration.clients.base_client import BaseClient
 
 AccessMode = VolumeCapability.AccessMode
 

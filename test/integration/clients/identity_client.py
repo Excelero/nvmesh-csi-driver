@@ -1,6 +1,6 @@
 from driver.csi.csi_pb2 import GetPluginInfoRequest, GetPluginCapabilitiesRequest, ProbeRequest
 from driver.csi.csi_pb2_grpc import IdentityStub
-from test.clients.base_client import BaseClient
+from test.integration.clients.base_client import BaseClient
 
 
 class IdentityClient(BaseClient):

@@ -1,9 +1,9 @@
 import socket
 import unittest
 
-from test.clients.node_client import NodeClient
-from test.helpers.error_handlers import CatchRequestErrors
-from test.helpers.test_case_with_server import TestCaseWithServerRunning
+from test.integration.helpers.test_case_with_server import TestCaseWithServerRunning
+from test.integration.clients.node_client import NodeClient
+from test.integration.helpers.error_handlers import CatchRequestErrors
 
 GB = 1024*1024*1024
 VOL_ID = "vol_1"

@@ -6,7 +6,8 @@ minikube stop
 minikube delete
 rm -rf ~/.minikube
 minikube start
-./init_env.sh
+cd ../../deploy/kubernetes/
+init_env.sh
 minikube dashboard &
 
 echo $(date) - Finished

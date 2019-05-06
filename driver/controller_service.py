@@ -52,7 +52,7 @@ class NVMeshControllerService(ControllerServicer):
 				else:
 					raise DriverError(StatusCode.INVALID_ARGUMENT, "Missing raid_level parameter")
 
-				#TODO: implement all other parameters (i.e stripe_width, num_of_mirrors, EC params.. etc.)
+				#TODO: should we implement all other parameters ? (i.e stripe_width, num_of_mirrors, EC params.. etc.)
 
 			err, mgmtResponse = self.mgmtClient.createVolume(volume)
 

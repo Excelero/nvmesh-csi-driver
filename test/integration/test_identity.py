@@ -1,9 +1,9 @@
 import unittest
 
 from driver.common import Consts
-from test.clients.identity_client import IdentityClient
-from test.helpers.error_handlers import CatchRequestErrors
-from test.helpers.test_case_with_server import TestCaseWithServerRunning
+from test.integration.helpers.test_case_with_server import TestCaseWithServerRunning
+from test.integration.clients.identity_client import IdentityClient
+from test.integration.helpers.error_handlers import CatchRequestErrors
 
 
 class TestIdentityService(TestCaseWithServerRunning):

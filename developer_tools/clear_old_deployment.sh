@@ -6,9 +6,9 @@ kubectl delete service nvmesh-csi-controller
 kubectl delete serviceaccount nvmesh-csi
 
 kubectl delete statefulsets nvmesh-csi-controller
-kubectl delete pod nvmesh-csi-controller-0 --grace-period=3
 kubectl delete daemonset nvmesh-csi-node-driver
-kubectl delete pod nvmesh-csi-node-driver
+
+#kubectl delete pod nvmesh-csi-controller-0
 
 kubectl delete daemonset multi-consumer-test
 

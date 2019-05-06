@@ -1,6 +1,5 @@
 import unittest
 from unittest import TestCase
-
 import os
 
 from driver.config import ConfigError, load as reload_config, Config

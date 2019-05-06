@@ -1,7 +1,7 @@
 
 from driver.csi.csi_pb2 import NodeGetInfoRequest, NodeGetCapabilitiesRequest, NodePublishVolumeRequest, VolumeCapability, NodeUnpublishVolumeRequest
 from driver.csi.csi_pb2_grpc import NodeStub
-from test.clients.base_client import BaseClient
+from test.integration.clients.base_client import BaseClient
 
 
 class NodeClient(BaseClient):

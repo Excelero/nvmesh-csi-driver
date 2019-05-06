@@ -24,3 +24,6 @@ ssh -L 8001:localhost:8001 <user@server-ip>
 # fix permission error accesing docker daemon
 # add to docker group
 sudo usermod -a -G docker $USER
+
+# get minikube docker-env
+eval $(minikube docker-env)

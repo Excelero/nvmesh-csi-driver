@@ -2,7 +2,7 @@ import grpc
 
 from driver.common import DriverLogger
 from driver.config import Config
-from test.clients.client_logging_interceptor import ClientLoggingInterceptor
+from test.integration.clients.client_logging_interceptor import ClientLoggingInterceptor
 
 
 class BaseClient(object):

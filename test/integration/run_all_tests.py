@@ -1,15 +1,15 @@
 #!/usr/bin/env python2
-import unittest
 import os
 import sys
+import unittest
 
-from test.helpers.server_manager import ServerManager
-from test.clients.identity_client import IdentityClient
+from test.integration.clients.identity_client import IdentityClient
+from test.integration.helpers.server_manager import ServerManager
 
 project_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(project_path)
 
-def run_mgmt_integration_tests():
+def run_integration_tests():
 	loader = unittest.TestLoader()
 	loader.sortTestMethodsUsing = None
 	suite = loader.discover(start_dir='.')
@@ -32,9 +32,11 @@ if __name__ == "__main__":
 
 	verify_server_is_running()
 
-	result = run_mgmt_integration_tests()
+	results = run_integration_tests()
 
 	driver_server.stop()
 
-	if result.errors:
+	print(results)
+	if results.errors or results.failures:
+		print("Integration Tests Failed")
 		exit(1)
