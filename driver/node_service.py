@@ -37,7 +37,8 @@ class NVMeshNodeService(NodeServicer):
 		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
 		block_device_path = '/dev/nvmesh/{}'.format(nvmesh_volume_name)
 
-		self.logger.debug('requested access_type={}'.format(volume_capability.access_type))
+		if hasattr(volume_capability, 'access_type'):
+			self.logger.debug('requested access_type={}'.format(volume_capability.access_type))
 
 		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
 			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(nvmesh_volume_name))
@@ -64,11 +65,16 @@ class NVMeshNodeService(NodeServicer):
 
 		return NodeStageVolumeResponse()
 
+	@CatchServerErrors
 	def NodeUnstageVolume(self, request, context):
 		reqJson = MessageToJson(request)
 		self.logger.debug('NodeUnstageVolume called with request: {}'.format(reqJson))
 
 		staging_target_path = request.staging_target_path
+
+		if not os.path.isdir(staging_target_path):
+			raise DriverError(StatusCode.NOT_FOUND, 'mount path {} not found'.format(staging_target_path))
+
 		FileSystemManager.umount(target=staging_target_path)
 
 		if os.path.isdir(staging_target_path):
@@ -77,6 +83,7 @@ class NVMeshNodeService(NodeServicer):
 
 		return NodeUnstageVolumeResponse()
 
+	@CatchServerErrors
 	def NodePublishVolume(self, request, context):
 		# NodePublishVolume: This method is called to mount the volume from staging to target path.
 
@@ -85,6 +92,7 @@ class NVMeshNodeService(NodeServicer):
 		target_path = request.target_path
 		volume_capability = request.volume_capability
 		readonly = request.readonly
+		# TODO: how to use readonly (add flag to mount ?)
 
 		self.logger.debug("NodePublishVolume for volume_id: {} target_path: {}".format(volume_id, target_path))
 
@@ -99,6 +107,7 @@ class NVMeshNodeService(NodeServicer):
 		FileSystemManager.bind_mount(source=staging_target_path, target=target_path)
 		return NodePublishVolumeResponse()
 
+	@CatchServerErrors
 	def NodeUnpublishVolume(self, request, context):
 		volume_id = request.volume_id
 		target_path = request.target_path
@@ -107,7 +116,11 @@ class NVMeshNodeService(NodeServicer):
 		self.logger.debug('NodeUnpublishVolume called with request: {}'.format(reqJson))
 
 		self.logger.debug("NodeUnpublishVolume for volume_id: {} target_path: {}".format(volume_id, target_path))
-		if FileSystemManager.is_mounted(mount_path=target_path):
+
+		if not os.path.isdir(target_path):
+			raise DriverError(StatusCode.NOT_FOUND, 'mount path {} not found'.format(target_path))
+
+		if not FileSystemManager.is_mounted(mount_path=target_path):
 			self.logger.debug("NodeUnpublishVolume: {} is already not mounted".format(target_path))
 
 		FileSystemManager.umount(target=target_path)
@@ -120,12 +133,15 @@ class NVMeshNodeService(NodeServicer):
 
 		return NodeUnpublishVolumeResponse()
 
+	@CatchServerErrors
 	def NodeGetVolumeStats(self, request, context):
 		raise NotImplementedError('Method not implemented!')
 
+	@CatchServerErrors
 	def NodeExpandVolume(self, request, context):
 		raise NotImplementedError('Method not implemented!')
 
+	@CatchServerErrors
 	def NodeGetCapabilities(self, request, context):
 		# NodeServiceCapability types
 		# enum Type {
@@ -149,6 +165,7 @@ class NVMeshNodeService(NodeServicer):
 
 		return NodeGetCapabilitiesResponse(capabilities=capabilities)
 
+	@CatchServerErrors
 	def NodeGetInfo(self, request, context):
 		return NodeGetInfoResponse(node_id=socket.gethostname())
 
