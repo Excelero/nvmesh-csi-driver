@@ -2,15 +2,15 @@
 
 kubectl config set-context --current --namespace=nvmesh-csi
 
-kubectl delete service nvmesh-csi-controller -n nvmesh-csi
-kubectl delete serviceaccount nvmesh-csi -n nvmesh-csi
+kubectl delete service nvmesh-csi-controller
+kubectl delete serviceaccount nvmesh-csi
 
-kubectl delete statefulsets nvmesh-csi-controller -n nvmesh-csi
-kubectl delete pod nvmesh-csi-controller-0 -n nvmesh-csi --grace-period=3
-kubectl delete daemonset nvmesh-csi-node-driver -n nvmesh-csi
-kubectl delete pod nvmesh-csi-node-driver -n nvmesh-csi
+kubectl delete statefulsets nvmesh-csi-controller
+kubectl delete pod nvmesh-csi-controller-0 --grace-period=3
+kubectl delete daemonset nvmesh-csi-node-driver
+kubectl delete pod nvmesh-csi-node-driver
 
-kubectl delete pod consumer-pod-1 consumer-pod-2 --grace-period=0 --force -n nvmesh-csi
+kubectl delete daemonset multi-consumer-test
 
 # Hints
 # Delete Force:

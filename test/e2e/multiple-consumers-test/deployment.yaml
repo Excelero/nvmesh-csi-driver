@@ -1,0 +1,49 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nvmesh-csi-pvc
+  namespace: nvmesh-csi
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: nvmesh-concatenated
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: multi-consumer-test
+  namespace: nvmesh-csi
+spec:
+  selector:
+    matchLabels:
+      app: nvmesh-csi-testing
+  template:
+    metadata:
+      labels:
+        app: nvmesh-csi-testing
+    spec:
+      containers:
+      - name: consumer1
+        image: basic-volume-consumer:develop
+        env:
+          - name: WORKER_ID
+            value: "consumer1"
+        volumeMounts:
+          - name: volume-mnt
+            mountPath: /mnt/vol/
+      - name: consumer2
+        image: basic-volume-consumer:develop
+        env:
+          - name: WORKER_ID
+            value: "consumer2"
+        volumeMounts:
+          - name: volume-mnt
+            mountPath: /mnt/vol/
+      volumes:
+        - name: volume-mnt
+          persistentVolumeClaim:
+            claimName: nvmesh-csi-pvc

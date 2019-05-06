@@ -25,10 +25,11 @@ get_info() {
 
 work_loop() {
     echo "Starting Work Loop"
+    hostname=`hostname`
     while true
     do
-        echo "`hostname`:$WORKER_ID: `date`" >> /mnt/vol/test-file
-        cat /mnt/vol/test-file | tail -4
+        echo "$hostname:$WORKER_ID: `date`" >> /mnt/vol/$hostname-$WORKER_ID
+        ls /mnt/vol/
         echo "---------------------------"
         sleep 2
     done
