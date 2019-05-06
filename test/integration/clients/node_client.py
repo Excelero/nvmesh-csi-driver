@@ -1,4 +1,4 @@
-
+from driver.common import Consts
 from driver.csi.csi_pb2 import NodeGetInfoRequest, NodeGetCapabilitiesRequest, NodePublishVolumeRequest, VolumeCapability, NodeUnpublishVolumeRequest, \
 	NodeStageVolumeRequest, NodeUnstageVolumeRequest
 from driver.csi.csi_pb2_grpc import NodeStub
@@ -11,10 +11,20 @@ class NodeClient(BaseClient):
 		BaseClient.__init__(self)
 		self.client = NodeStub(self.intercepted_channel)
 
-	def NodeStageVolume(self, volume_id):
+	def _build_capability(self, access_type, access_mode, fs_type):
+		access_mode_obj = VolumeCapability.AccessMode(mode=access_mode)
+		if access_type == Consts.VolumeAccessType.MOUNT:
+			mount_req = VolumeCapability.MountVolume(fs_type=fs_type)
+			volume_capability = VolumeCapability(mount=mount_req, access_mode=access_mode_obj)
+		else:
+			volume_capability = VolumeCapability(block=VolumeCapability.BlockVolume(),access_mode=access_mode_obj)
+
+		return volume_capability
+
+	def NodeStageVolume(self, volume_id, access_type=Consts.VolumeAccessType.MOUNT, access_mode=VolumeCapability.AccessMode.MULTI_NODE_MULTI_WRITER):
 		staging_target_path = '/stage/{}'.format(volume_id)
 
-		volume_capability = VolumeCapability(block=VolumeCapability.BlockVolume())
+		volume_capability = self._build_capability(access_type, access_mode, fs_type='ext4')
 
 		req =  NodeStageVolumeRequest(
 			volume_id=volume_id,
@@ -28,10 +38,10 @@ class NodeClient(BaseClient):
 		req = NodeUnstageVolumeRequest(volume_id=volume_id, staging_target_path=staging_target_path)
 		return self.client.NodeUnstageVolume(req)
 
-	def NodePublishVolume(self, volume_id, readonly=False):
+	def NodePublishVolume(self, volume_id, readonly=False, access_type=Consts.VolumeAccessType.MOUNT, access_mode=VolumeCapability.AccessMode.MULTI_NODE_MULTI_WRITER):
 
 		target_path = '/publish/{}'.format(volume_id)
-		volume_capability = VolumeCapability(block=VolumeCapability.BlockVolume())
+		volume_capability = self._build_capability(access_type, access_mode, fs_type='ext4')
 
 		req =  NodePublishVolumeRequest(
 			volume_id=volume_id,

@@ -2,15 +2,42 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nvmesh-csi-pvc
+  name: nvmesh-fs-rw-once
+  namespace: nvmesh-csi
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: nvmesh-concatenated
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nvmesh-block
+  namespace: nvmesh-csi
+spec:
+  volumeMode: Block
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: nvmesh-raid1
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nvmesh-fs-rw-many
   namespace: nvmesh-csi
 spec:
   accessModes:
   - ReadWriteMany
   resources:
     requests:
-      storage: 5Gi
-  storageClassName: nvmesh-concatenated
+      storage: 30Gi
+  storageClassName: nvmesh-raid10
 ---
 kind: DaemonSet
 apiVersion: apps/v1
@@ -28,7 +55,7 @@ spec:
     spec:
       containers:
       - name: consumer1
-        image: basic-volume-consumer:develop
+        image: multi-consumer-test:develop
         env:
           - name: WORKER_ID
             value: "consumer1"
@@ -36,7 +63,7 @@ spec:
           - name: volume-mnt
             mountPath: /mnt/vol/
       - name: consumer2
-        image: basic-volume-consumer:develop
+        image: multi-consumer-test:develop
         env:
           - name: WORKER_ID
             value: "consumer2"
@@ -46,4 +73,4 @@ spec:
       volumes:
         - name: volume-mnt
           persistentVolumeClaim:
-            claimName: nvmesh-csi-pvc
+            claimName: nvmesh-block

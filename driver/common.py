@@ -16,11 +16,17 @@ class Consts(object):
 	DEFAULT_UDS_PATH = "unix:///tmp/csi.sock"
 	SYSLOG_PATH = "/dev/log"
 
+	class VolumeAccessType(object):
+		BLOCK = 'block'
+		MOUNT = 'mount'
+
 class ServerLoggingInterceptor(grpc.ServerInterceptor):
 	def __init__(self, logger):
 		self.logger = logger
 
 	def intercept_service(self, continuation, handler_call_details):
+		# gRPC Python doesn't have a complete server interceptor implementation that allow you to access the request obj
+		# but we can print the method's name
 		method = handler_call_details.method.split('/')[-1:][0]
 		self.logger.debug('called method {}'.format(method))
 		return continuation(handler_call_details)
