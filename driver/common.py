@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from logging.handlers import SysLogHandler
 
@@ -8,6 +9,7 @@ import os
 from subprocess import Popen, PIPE
 
 class Consts(object):
+	DEFAULT_VOLUME_SIZE = 5000000000 #5GB
 	PLUGIN_NAME = "nvmesh-csi.excelero.com"
 	PLUGIN_VERSION = "0.01"
 	SPEC_VERSION = "1.1.0"
@@ -65,18 +67,19 @@ def CatchServerErrors(func):
 		try:
 			return func(self, request, context)
 		except DriverError as drvErr:
-			context.set_code(drvErr.code)
-			context.set_details(str(drvErr.message))
-			return None
+			# context.set_code(drvErr.code)
+			# context.set_details(str(drvErr.message))
+			context.abort(drvErr.code, str(drvErr.message))
 
 		except Exception as ex:
 			exc_type, exc_obj, exc_tb = sys.exc_info()
 			exc_tb = exc_tb.tb_next
 			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 
-			context.set_code(grpc.StatusCode.INTERNAL)
-			context.set_details("{type}: {msg} in {fname} on line: {lineno}".format(type=exc_type, msg=str(ex), fname=fname, lineno=exc_tb.tb_lineno))
-			return None
+			# context.set_code(grpc.StatusCode.INTERNAL)
+			# context.set_details()
+			details = "{type}: {msg} in {fname} on line: {lineno}".format(type=exc_type, msg=str(ex), fname=fname, lineno=exc_tb.tb_lineno)
+			context.abort(grpc.StatusCode.INTERNAL, details)
 
 	return func_wrapper
 
@@ -89,8 +92,8 @@ class Utils(object):
 	logger = DriverLogger("Utils")
 
 	@staticmethod
-	def volume_id_to_nvmesh_name(kubernetes_vol_name):
-		return kubernetes_vol_name.replace('-','')[:24]
+	def volume_id_to_nvmesh_name(co_vol_name):
+		return 'csi_' + hashlib.md5(co_vol_name).hexdigest()[:20]
 
 	@staticmethod
 	def is_nvmesh_volume_attached(nvmesh_volume_name):
@@ -106,3 +109,15 @@ class Utils(object):
 		exit_code = p.returncode
 		Utils.logger.debug("cmd: {} return exit_code={} stdout={} stderr={}".format(cmd, exit_code, stdout, stderr))
 		return exit_code, stdout, stderr
+
+	@staticmethod
+	def validate_params_exists(request, attribute_list):
+		for attribute_name in attribute_list:
+			Utils.validate_param_exists(request, attribute_name)
+
+	@staticmethod
+	def validate_param_exists(request, attribute_name, error_msg=None):
+		if not getattr(request, attribute_name):
+			if not error_msg:
+				error_msg = '{} was not provided'.format(attribute_name)
+			raise DriverError(grpc.StatusCode.INVALID_ARGUMENT, error_msg)

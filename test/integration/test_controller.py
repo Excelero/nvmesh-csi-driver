@@ -9,7 +9,7 @@ from test.integration.helpers.error_handlers import CatchRequestErrors
 GB = 1024*1024*1024
 VOL_ID="vol_1"
 VOL_FOR_EXTENSION="vol_to_extend"
-NODE_ID="Gil-Laptop"
+NODE_ID="nvme117.excelero.com"
 
 class TestControllerService(TestCaseWithServerRunning):
 	def __init__(self, *args, **kwargs):
@@ -27,16 +27,7 @@ class TestControllerService(TestCaseWithServerRunning):
 		parameters = { 'vpg': 'DEFAULT_CONCATENATED_VPG' }
 
 		def createExistingVolume():
-			self.ctrl_client.CreateVolume(name=VOL_ID, capacity_in_bytes=5 * GB, parameters=parameters)
-
-		self.assertRaises(_Rendezvous, createExistingVolume)
-
-	@CatchRequestErrors
-	def test_fail_to_create_volume_with_missing_parameters(self):
-		parameters = {}
-
-		def createExistingVolume():
-			self.ctrl_client.CreateVolume(name=VOL_ID, capacity_in_bytes=5 * GB, parameters=parameters)
+			self.ctrl_client.CreateVolume(name=VOL_ID, capacity_in_bytes=8 * GB, parameters=parameters)
 
 		self.assertRaises(_Rendezvous, createExistingVolume)
 

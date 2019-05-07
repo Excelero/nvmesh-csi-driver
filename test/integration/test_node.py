@@ -35,7 +35,7 @@ class TestNodeService(TestCaseWithServerRunning):
 												access_type=Consts.VolumeAccessType.BLOCK,
 												access_mode=VolumeCapability.AccessMode.MULTI_NODE_MULTI_WRITER)
 
-		self.assertReturnsGrpcError(do_request, StatusCode.NOT_FOUND, "nvmesh volume {} was not found".format(VOL_ID))
+		self.assertReturnsGrpcError(do_request, StatusCode.NOT_FOUND, "was not found")
 
 	@CatchRequestErrors
 	def test_node_unstage_volume(self):
@@ -49,7 +49,7 @@ class TestNodeService(TestCaseWithServerRunning):
 		def do_request():
 			return self._client.NodePublishVolume(volume_id=VOL_ID)
 
-		self.assertReturnsGrpcError(do_request, StatusCode.NOT_FOUND, "nvmesh volume {} was not found".format(VOL_ID))
+		self.assertReturnsGrpcError(do_request, StatusCode.NOT_FOUND, "was not found")
 
 	@CatchRequestErrors
 	def test_node_unpublish_volume(self):

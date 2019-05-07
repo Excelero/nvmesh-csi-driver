@@ -19,6 +19,8 @@ class NVMeshNodeService(NodeServicer):
 
 	@CatchServerErrors
 	def NodeStageVolume(self, request, context):
+		Utils.validate_params_exists(request, ['volume_id', 'staging_target_path', 'volume_capability'])
+
 		volume_id = request.volume_id
 		staging_target_path = request.staging_target_path
 		volume_capability = request.volume_capability
@@ -66,6 +68,8 @@ class NVMeshNodeService(NodeServicer):
 
 	@CatchServerErrors
 	def NodeUnstageVolume(self, request, context):
+		Utils.validate_params_exists(request, ['volume_id', 'staging_target_path'])
+
 		reqJson = MessageToJson(request)
 		self.logger.debug('NodeUnstageVolume called with request: {}'.format(reqJson))
 
@@ -92,6 +96,7 @@ class NVMeshNodeService(NodeServicer):
 	@CatchServerErrors
 	def NodePublishVolume(self, request, context):
 		# NodePublishVolume: This method is called to mount the volume from staging to target path.
+		Utils.validate_params_exists(request, ['volume_id', 'target_path'])
 
 		volume_id = request.volume_id
 		staging_target_path = request.staging_target_path
@@ -116,6 +121,8 @@ class NVMeshNodeService(NodeServicer):
 
 	@CatchServerErrors
 	def NodeUnpublishVolume(self, request, context):
+		Utils.validate_params_exists(request, ['volume_id', 'target_path'])
+
 		volume_id = request.volume_id
 		target_path = request.target_path
 
@@ -183,12 +190,12 @@ class NVMeshNodeService(NodeServicer):
 
 	def _get_block_or_mount_volume(self, request):
 		volume_capability = request.volume_capability
-		block_volume = volume_capability.block
-		mount_request = volume_capability.mount
 
-		if mount_request and mount_request.fs_type:
+		if volume_capability.HasField('mount'):
 			return Consts.VolumeAccessType.MOUNT
-		else:
+		elif volume_capability.HasField('block'):
 			return Consts.VolumeAccessType.BLOCK
+		else:
+			raise DriverError(StatusCode.INVALID_ARGUMENT, 'at least one of volume_capability.block, volume_capability.mount must be set')
 
 
