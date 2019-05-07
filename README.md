@@ -5,12 +5,15 @@
 Driver Version:     0.0.1  
 CSI spec version:   1.1.0
 
-supported version of CSI in Kubernetes:
-https://kubernetes-csi.github.io/docs/#kubernetes-releases
+Supported version of CSI in Kubernetes:
+[Kubernetes	CSI Spec Compatibility](https://kubernetes-csi.github.io/docs/#kubernetes-releases)
 
-## Release Notes
+Supported Features in each Kubernetes Release:
+[Kubernetes CSI Change Log](https://kubernetes-csi.github.io/docs/kubernetes-changelog.html#features-1)
+
+## Notes
 * Volume Expansion (CSI 1.1.0) is implemented but is not currently supported by Kubernetes (1.13)
-* raw Block Device
+
 ## Deployment
 NVMesh CSI driver is compatible with any Container Orchestration (CO) system that support the CSI spec.
 Having said that, the deployment of CSI drivers is not covered in the spec, and so each CO might have a different way of deploying and registering the driver.

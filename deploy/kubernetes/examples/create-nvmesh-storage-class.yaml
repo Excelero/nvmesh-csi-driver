@@ -3,8 +3,8 @@ apiVersion: storage.k8s.io/v1
 metadata:
   name: nvmesh-concatenated
 provisioner: nvmesh-csi.excelero.com
-# Kubernetes Currently (v1.13) does not support Volume Expansion on CSI driver
 allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
 parameters:
   vpg: DEFAULT_CONCATENATED_VPG
 ---
@@ -13,8 +13,9 @@ apiVersion: storage.k8s.io/v1
 metadata:
   name: nvmesh-raid0
 provisioner: nvmesh-csi.excelero.com
-# Kubernetes Currently (v1.13) does not support Volume Expansion on CSI driver
 allowVolumeExpansion: true
+# Immediate, WaitForFirstConsumer
+volumeBindingMode: Immediate
 parameters:
   vpg: DEFAULT_RAID_0_VPG
 ---
@@ -23,8 +24,8 @@ apiVersion: storage.k8s.io/v1
 metadata:
   name: nvmesh-raid1
 provisioner: nvmesh-csi.excelero.com
-# Kubernetes Currently (v1.13) does not support Volume Expansion on CSI driver
 allowVolumeExpansion: true
+volumeBindingMode: Immediate
 parameters:
   vpg: DEFAULT_RAID_1_VPG
 ---
@@ -33,8 +34,8 @@ apiVersion: storage.k8s.io/v1
 metadata:
   name: nvmesh-raid10
 provisioner: nvmesh-csi.excelero.com
-# Kubernetes Currently (v1.13) does not support Volume Expansion on CSI driver
 allowVolumeExpansion: true
+volumeBindingMode: Immediate
 parameters:
   vpg: DEFAULT_RAID_10_VPG
 ---
@@ -43,7 +44,7 @@ apiVersion: storage.k8s.io/v1
 metadata:
   name: nvmesh-ec
 provisioner: nvmesh-csi.excelero.com
-# Kubernetes Currently (v1.13) does not support Volume Expansion on CSI driver
 allowVolumeExpansion: true
+volumeBindingMode: Immediate
 parameters:
   vpg: DEFAULT_ERASURE_CODING_VPG

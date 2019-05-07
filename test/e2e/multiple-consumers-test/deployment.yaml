@@ -2,42 +2,15 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nvmesh-fs-rw-once
-  namespace: nvmesh-csi
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 5Gi
-  storageClassName: nvmesh-concatenated
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: nvmesh-block
-  namespace: nvmesh-csi
-spec:
-  volumeMode: Block
-  accessModes:
-  - ReadWriteMany
-  resources:
-    requests:
-      storage: 5Gi
-  storageClassName: nvmesh-raid1
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: nvmesh-fs-rw-many
+  name: nvmesh-vol-for-consumer-test
   namespace: nvmesh-csi
 spec:
   accessModes:
   - ReadWriteMany
   resources:
     requests:
-      storage: 30Gi
-  storageClassName: nvmesh-raid10
+      storage: 3Gi
+  storageClassName: nvmesh-raid0
 ---
 kind: DaemonSet
 apiVersion: apps/v1
@@ -73,4 +46,4 @@ spec:
       volumes:
         - name: volume-mnt
           persistentVolumeClaim:
-            claimName: nvmesh-block
+            claimName: nvmesh-vol-for-consumer-test
