@@ -152,12 +152,20 @@ class NVMeshControllerService(ControllerServicer):
 
 		create_delete_volume = buildCapability(ControllerServiceCapability.RPC.CREATE_DELETE_VOLUME)
 		publish_unpublish = buildCapability(ControllerServiceCapability.RPC.PUBLISH_UNPUBLISH_VOLUME)
+		publish_readonly = buildCapability(ControllerServiceCapability.RPC.PUBLISH_READONLY)
 		list_volumes = buildCapability(ControllerServiceCapability.RPC.LIST_VOLUMES)
 		expand_volume = buildCapability(ControllerServiceCapability.RPC.EXPAND_VOLUME)
+
+		# Not Implemented
+		# get_capacity = buildCapability(ControllerServiceCapability.RPC.GET_CAPACITY)
+		# create_delete_snapshot = buildCapability(ControllerServiceCapability.RPC.CREATE_DELETE_SNAPSHOT)
+		# list_snapshots = buildCapability(ControllerServiceCapability.RPC.LIST_SNAPSHOTS)
+		# clone_volume = buildCapability(ControllerServiceCapability.RPC.CLONE_VOLUME)
 
 		capabilities = [
 			create_delete_volume,
 			publish_unpublish,
+			publish_readonly,
 			list_volumes,
 			expand_volume
 		]

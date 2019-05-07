@@ -17,11 +17,11 @@ class NVMeshIdentityService(IdentityServicer):
 		return GetPluginInfoResponse(name=name, vendor_version=vendor_version)
 
 	def GetPluginCapabilities(self, request, context):
-		ctrl_service = PluginCapability.Service(type=PluginCapability.Service.CONTROLLER_SERVICE)
-		plugin_capability = PluginCapability(service=ctrl_service)
-
+		ctrl_service = PluginCapability(service=PluginCapability.Service(type=PluginCapability.Service.CONTROLLER_SERVICE))
+		volume_expansion = PluginCapability(volume_expansion=PluginCapability.VolumeExpansion(type=PluginCapability.VolumeExpansion.OFFLINE))
 		capabilities = [
-			plugin_capability
+			ctrl_service,
+			volume_expansion
 		]
 
 		return GetPluginCapabilitiesResponse(capabilities=capabilities)

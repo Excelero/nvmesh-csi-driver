@@ -65,19 +65,20 @@ class TestControllerService(TestCaseWithServerRunning):
 	@CatchRequestErrors
 	def test_controller_get_capabilities(self):
 		msg = self.ctrl_client.GetCapabilities()
-		self.assertEquals(len(msg.capabilities), 4)
 
 		def get_capability_string(cap):
 			return str(cap.rpc).split(':')[1].strip()
 
-		capabilitiesReceived = map(get_capability_string, msg.capabilities)
-		expectedCapabilities = [
+		capabilitiesReceived = set(map(get_capability_string, msg.capabilities))
+		expectedCapabilities = {
 			'CREATE_DELETE_VOLUME',
 			'PUBLISH_UNPUBLISH_VOLUME',
+			'PUBLISH_READONLY',
 			'LIST_VOLUMES',
 			'EXPAND_VOLUME',
-		]
-		self.assertListEqual(expectedCapabilities, capabilitiesReceived)
+		}
+
+		self.assertSetEqual(expectedCapabilities, capabilitiesReceived)
 
 	@CatchRequestErrors
 	def test_controller_expand_volume(self):

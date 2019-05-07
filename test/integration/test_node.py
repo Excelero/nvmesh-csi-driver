@@ -1,9 +1,6 @@
 import socket
 import unittest
 
-import os
-os.environ['MANAGEMENT_SERVERS'] = 'n115:4000'
-
 from grpc import StatusCode
 
 from driver.common import Consts
