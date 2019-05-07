@@ -19,7 +19,6 @@ class ManagementClientWrapper(ManagementClient):
 		kwargs['password'] = Config.MANAGEMENT_PASSWORD
 
 		print("Initializing ManagementClient with managementServer={}".format(kwargs['managementServer']))
-		# TODO: BUG - if managementServers are not available the ManagementClient.isAlive() hangs
 		ManagementClient.__init__(self, *args, **kwargs)
 
 	def attachVolume(self, volumeID, nodeID):

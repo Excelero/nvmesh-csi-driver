@@ -30,9 +30,11 @@ class ManagementClient(object):
 	DEFAULT_USERNAME = "app@excelero.com"
 	DEFAULT_PASSWORD = "admin"
 	DEFAULT_NVMESH_CONFIG_FILE = '/etc/opt/NVMesh/nvmesh.conf'
+	DEFAULT_TIMEOUT = 10
 
 	def __init__(self, managementServer=None, user=DEFAULT_USERNAME, password=DEFAULT_PASSWORD, configFile=DEFAULT_NVMESH_CONFIG_FILE):
 		self.managementServer = None
+		self.managementServers = None
 		self.configFile = configFile
 		self.setManagementServer(managementServer)
 		self.user = user
@@ -42,10 +44,7 @@ class ManagementClient(object):
 		self.isAlive()
 
 	def login(self):
-		try:
-			self.session.post("{}/login".format(self.managementServer), params={"username": self.user, "password": self.password}, verify=False)
-		except requests.ConnectionError as ex:
-			raise ManagementTimeout(self.managementServer, ex.message)
+		self.post("/login", payload={}, params={"username": self.user, "password": self.password})
 
 	def getVersion(self):
 		err, out = self.get('/version')
@@ -558,25 +557,27 @@ class ManagementClient(object):
 
 		return self.post(self._formatDiskUrl(), payload)
 
-	def post(self, route, payload=None):
-		return self.request('post', route, payload)
+	def post(self, route, payload=None, **kwargs):
+		return self.request('post', route, payload, **kwargs)
 
-	def get(self, route, payload=None):
-		return self.request('get', route, payload)
+	def get(self, route, payload=None, **kwargs):
+		return self.request('get', route, payload, **kwargs)
 
-	def request(self, method, route, payload=None, numberOfRetries = 0):
+	def request(self, method, route, payload=None, numberOfRetries=0, **kwargs):
 		# self.logger.debug("request method={0} route={1} payload={2} retries={3}".format(method, route, payload, numberOfRetries))
 		for i in range(len(self.managementServers)):
 			self.managementServer = self.managementServers[0]
 			try:
-				return self.do_request(method, route, payload, numberOfRetries)
+				return self.do_request(method, route, payload, numberOfRetries, **kwargs)
 			except ManagementTimeout as ex:
 				# put it as last
 				self.managementServers.append(self.managementServers.pop(0))
 
 		raise ManagementTimeout(route, "Timeout from all Management Servers ({})".format(', '.join(self.managementServers)))
 
-	def do_request(self, method, route, payload=None, numberOfRetries=0):
+	def do_request(self, method, route, payload=None, numberOfRetries=0, **kwargs):
+		kwargs.setdefault('timeout', ManagementClient.DEFAULT_TIMEOUT)
+
 		res = None
 		url = ''
 		try:
@@ -584,22 +585,23 @@ class ManagementClient(object):
 			if route != '/isAlive':
 				self.logger.debug('request method={0} url={1} payload={2} retries={3}'.format(method, url, payload, numberOfRetries))
 			if method == 'post':
-				res = self.session.post(url, json=payload, verify=False)
+				res = self.session.post(url, json=payload, verify=False, **kwargs)
 			elif method == 'get':
-				res = self.session.get(url, params=payload, verify=False)
+
+				res = self.session.get(url, params=payload, verify=False, **kwargs)
 
 			if '/login' in res.text:
 				self.login()
 				numberOfRetries += 1
 				if numberOfRetries < 3:
-					return self.request(method, route, payload, numberOfRetries)
+					return self.request(method, route, payload, numberOfRetries, **kwargs)
 				else:
 					raise ManagementLoginFailed(iport=url)
 
 		except requests.ConnectionError as ex:
 			numberOfRetries += 1
 			if numberOfRetries < 3:
-				return self.request(method, route, payload, numberOfRetries)
+				return self.request(method, route, payload, numberOfRetries, **kwargs)
 			else:
 				raise ManagementTimeout(url, ex.message)
 
