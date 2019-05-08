@@ -99,6 +99,7 @@ class NVMeshNodeService(NodeServicer):
 		Utils.validate_params_exists(request, ['volume_id', 'target_path'])
 
 		volume_id = request.volume_id
+		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
 		staging_target_path = request.staging_target_path
 		target_path = request.target_path
 		volume_capability = request.volume_capability
@@ -107,8 +108,8 @@ class NVMeshNodeService(NodeServicer):
 		reqJson = MessageToJson(request)
 		self.logger.debug('NodePublishVolume called with request: {}'.format(reqJson))
 
-		if not Utils.is_nvmesh_volume_attached(volume_id):
-			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(volume_id))
+		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
+			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(nvmesh_volume_name))
 		if not FileSystemManager.is_mounted(staging_target_path):
 			raise DriverError(StatusCode.FAILED_PRECONDITION, 'staging_target_path {} was not found'.format(staging_target_path))
 
