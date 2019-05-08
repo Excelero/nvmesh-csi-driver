@@ -75,21 +75,18 @@ class NVMeshNodeService(NodeServicer):
 
 		staging_target_path = request.staging_target_path
 
-		if not os.path.isdir(staging_target_path):
+		if not os.path.exists(staging_target_path):
 			raise DriverError(StatusCode.NOT_FOUND, 'mount path {} not found'.format(staging_target_path))
-
-		FileSystemManager.umount(target=staging_target_path)
-
-		access_type = self._get_block_or_mount_volume(request)
-
-		if access_type == Consts.VolumeAccessType.BLOCK:
-			if os.path.isfile(staging_target_path):
-				self.logger.debug('NodeUnstageVolume removing stage bind file: {}'.format(staging_target_path))
-				os.remove(staging_target_path)
 		else:
-			if os.path.isdir(staging_target_path):
-				self.logger.debug('NodeUnstageVolume removing stage dir: {}'.format(staging_target_path))
-				FileSystemManager.remove_dir(staging_target_path)
+			FileSystemManager.umount(target=staging_target_path)
+
+		if os.path.isfile(staging_target_path):
+			self.logger.debug('NodeUnstageVolume removing stage bind file: {}'.format(staging_target_path))
+			os.remove(staging_target_path)
+
+		if os.path.isdir(staging_target_path):
+			self.logger.debug('NodeUnstageVolume removing stage dir: {}'.format(staging_target_path))
+			FileSystemManager.remove_dir(staging_target_path)
 
 		return NodeUnstageVolumeResponse()
 
@@ -130,25 +127,25 @@ class NVMeshNodeService(NodeServicer):
 		reqJson = MessageToJson(request)
 		self.logger.debug('NodeUnpublishVolume called with request: {}'.format(reqJson))
 
-		if not os.path.isdir(target_path):
+		if not os.path.exists(target_path):
 			raise DriverError(StatusCode.NOT_FOUND, 'mount path {} not found'.format(target_path))
 
 		if not FileSystemManager.is_mounted(mount_path=target_path):
 			self.logger.debug('NodeUnpublishVolume: {} is already not mounted'.format(target_path))
-
-		FileSystemManager.umount(target=target_path)
-
-		access_type = self._get_block_or_mount_volume(request)
-		if access_type == Consts.VolumeAccessType.BLOCK:
-			if os.path.isfile(target_path):
-				self.logger.debug('NodeUnpublishVolume removing publish bind file: {}'.format(target_path))
-				os.remove(target_path)
 		else:
+			FileSystemManager.umount(target=target_path)
+
+		if os.path.isfile(target_path):
+			self.logger.debug('NodeUnpublishVolume removing publish bind file: {}'.format(target_path))
+			os.remove(target_path)
+			if os.path.isfile(target_path):
+				raise DriverError(StatusCode.INTERNAL, 'node-driver unable to delete publish path')
+
+		if os.path.isdir(target_path):
+			self.logger.debug('NodeUnpublishVolume removing publish dir: {}'.format(target_path))
+			FileSystemManager.remove_dir(target_path)
 			if os.path.isdir(target_path):
-				self.logger.debug('NodeUnpublishVolume removing publish dir: {}'.format(target_path))
-				FileSystemManager.remove_dir(target_path)
-				if os.path.isdir(target_path):
-					raise DriverError(StatusCode.INTERNAL, 'node-driver unable to delete publish directory')
+				raise DriverError(StatusCode.INTERNAL, 'node-driver unable to delete publish directory')
 
 		return NodeUnpublishVolumeResponse()
 

@@ -124,8 +124,10 @@ class NVMeshControllerService(ControllerServicer):
 	def ControllerUnpublishVolume(self, request, context):
 		Utils.validate_params_exists(request, ['node_id', 'volume_id'])
 
-		# NVMesh Detach Volume
-		err, out = self.mgmtClient.detachVolume(nodeID=request.node_id,volumeID=request.volume_id)
+		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
+		self._validate_volume_exists(nvmesh_vol_name)
+		self._validate_node_exists(request.node_id)
+		err, out = self.mgmtClient.detachVolume(nodeID=request.node_id,volumeID=nvmesh_vol_name)
 
 		if err:
 			raise DriverError(StatusCode.FAILED_PRECONDITION, err)
