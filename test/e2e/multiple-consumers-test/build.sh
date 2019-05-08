@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-docker build . --tag multi-consumer-test:develop
+docker build . --tag excelero/multi-consumer-test:develop

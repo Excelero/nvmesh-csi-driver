@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
       - name: consumer1
-        image: multi-consumer-test:develop
+        image: excelero/multi-consumer-test:develop
         env:
           - name: WORKER_ID
             value: "consumer1"
@@ -36,13 +36,14 @@ spec:
           - name: volume-mnt
             mountPath: /mnt/vol/
       - name: consumer2
-        image: multi-consumer-test:develop
+        image: excelero/multi-consumer-test:develop
         env:
           - name: WORKER_ID
             value: "consumer2"
         volumeMounts:
           - name: volume-mnt
             mountPath: /mnt/vol/
+            readOnly: true
       volumes:
         - name: volume-mnt
           persistentVolumeClaim:
