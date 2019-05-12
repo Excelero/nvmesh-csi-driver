@@ -14,13 +14,14 @@ graceful_exit() {
 }
 
 get_info() {
-    ls -l /dev/nvmesh/
-
-    ls -l /mnt/
+    ls -lsa /mnt/
 
     cat /etc/mtab | grep /mnt/vol
 
-    df -h | grep /mnt/vol
+    df -h /mnt/vol
+
+    FS_SIZE=$(df -h /mnt/vol | tail -1 | awk '{ print $1 }')
+    echo "File System Size: $FS_SIZE"
 }
 
 work_loop() {
@@ -29,7 +30,9 @@ work_loop() {
     while true
     do
         echo "$hostname:$WORKER_ID: `date`" >> /mnt/vol/$hostname-$WORKER_ID
-        ls /mnt/vol/
+        echo "List Files in /mnt/vol/:"
+        ls -l /mnt/vol/
+
         echo "---------------------------"
         sleep 2
     done

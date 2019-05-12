@@ -7,6 +7,6 @@ ci:
 
   script:
     - pip2 install -r requirements.txt
-    - sudo ./run_all_tests.sh $MANAGEMENT_SERVERS
+    - sudo ./run_tests.sh $MANAGEMENT_SERVERS
     - exit $?
 

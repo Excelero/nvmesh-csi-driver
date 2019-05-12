@@ -4,7 +4,7 @@ metadata:
   name: nvmesh-concatenated
 provisioner: nvmesh-csi.excelero.com
 allowVolumeExpansion: true
-volumeBindingMode: WaitForFirstConsumer
+volumeBindingMode: Immediate
 parameters:
   vpg: DEFAULT_CONCATENATED_VPG
 ---

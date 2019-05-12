@@ -14,7 +14,7 @@ show_logs() {
 ./clear_old_deployment.sh
 
 cd ../build_tools
-./docker_build.sh
+./build.sh
 
 cd ../deploy/kubernetes/
 ./deploy.sh

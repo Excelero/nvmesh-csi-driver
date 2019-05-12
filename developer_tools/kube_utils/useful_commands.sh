@@ -20,6 +20,10 @@ kubectl proxy --accept-hosts='.*' --accept-paths='.*' --address 10.0.1.115
 
 # ssh tunnel for dashboard
 ssh -L 8001:localhost:8001 <user@server-ip>
+# command to expose dashborad from the machine
+kubectl proxy --address='0.0.0.0' --port=8001 --accept-hosts='.*'
+# dashboard url
+localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/
 
 # fix permission error accesing docker daemon
 # add to docker group
@@ -30,3 +34,6 @@ eval $(minikube docker-env)
 
 # start a docker registry
 docker run -d -p 5000:5000 --restart=always --name n115 registry:2
+
+# ssh to container
+kubectl exec -it <kube-pod> -c <kube-container> -- /bin/bash

@@ -5,11 +5,12 @@ RUN apk update \
  && apk upgrade \
  && apk add bash \
  && apk add sudo \
+ && apk add xfsprogs \
  && rm -rf /var/cache/*/* \
  && echo "" > /root/.ash_history
 
 WORKDIR /root
 
-COPY ./main_process.sh /
+COPY ./fs_consumer.sh /
 
-ENTRYPOINT ["/bin/bash","/main_process.sh"]
+ENTRYPOINT ["/bin/bash","/fs_consumer.sh"]

@@ -1,4 +1,16 @@
 ---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-jbod-xfs
+  namespace: nvmesh-csi
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_CONCATENATED_VPG
+  fsType: xfs
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -10,7 +22,7 @@ spec:
   resources:
     requests:
       storage: 3Gi
-  storageClassName: nvmesh-raid0
+  storageClassName: nvmesh-jbod-xfs
 ---
 kind: DaemonSet
 apiVersion: apps/v1
@@ -28,7 +40,7 @@ spec:
     spec:
       containers:
       - name: consumer1
-        image: excelero/multi-consumer-test:develop
+        image: excelero/fs-consumer-test:develop
         env:
           - name: WORKER_ID
             value: "consumer1"
@@ -36,7 +48,7 @@ spec:
           - name: volume-mnt
             mountPath: /mnt/vol/
       - name: consumer2
-        image: excelero/multi-consumer-test:develop
+        image: excelero/fs-consumer-test:develop
         env:
           - name: WORKER_ID
             value: "consumer2"

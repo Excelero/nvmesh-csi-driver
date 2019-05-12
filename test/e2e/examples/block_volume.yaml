@@ -1,20 +1,11 @@
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: nvmesh-concatenated
-spec:
-  accessModes:
-  - ReadWriteMany
-  resources:
-    requests:
-      storage: 5Gi
-  storageClassName: nvmesh-concatenated
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nvmesh-raid1
+  name: nvmesh-block
+  namespace: nvmesh-csi
 spec:
+  volumeMode: Block
   accessModes:
   - ReadWriteMany
   resources:
@@ -28,9 +19,8 @@ metadata:
   name: block-pvc
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   volumeMode: Block
-  volumeBindingMode: Immediate
   resources:
     requests:
       storage: 8Gi
