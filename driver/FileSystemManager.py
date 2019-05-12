@@ -2,7 +2,9 @@ import os
 
 import shutil
 
-from driver.common import Utils, DriverLogger
+from grpc import StatusCode
+
+from driver.common import Utils, DriverLogger, DriverError
 
 logger = DriverLogger("FileSystemManager")
 
@@ -101,9 +103,11 @@ class FileSystemManager(object):
 		logger.debug('current_fs_type={}'.format(current_fs_type))
 		if current_fs_type == fs_type:
 			logger.debug('{} is already formatted to {}'.format(block_device_path, current_fs_type))
-		else:
-			if current_fs_type != '':
-				logger.debug('{} is formatted to {} but requested {}'.format(block_device_path, current_fs_type, fs_type))
-			# TODO: should we throw an error ? or format to the new requested format ?
-			else:
-				FileSystemManager.mkfs(fs_type=fs_type, target_path=block_device_path, flags=['-F'])
+			return
+
+		if current_fs_type != '':
+			logger.debug('{} is formatted to {} but requested {}'.format(block_device_path, current_fs_type, fs_type))
+			raise DriverError(StatusCode.INVALID_ARGUMENT, 'block device already formatted to {}. but required: '.format(current_fs_type, ))
+
+		FileSystemManager.mkfs(fs_type=fs_type, target_path=block_device_path, flags=[])
+

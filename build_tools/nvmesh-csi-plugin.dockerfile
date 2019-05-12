@@ -8,7 +8,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 RUN apt-get update \
     && apt install parted -y \
-    && apt install udev -y
+    && apt install udev -y \
+    && apt install xfsprogs -y
 
 USER root
 
