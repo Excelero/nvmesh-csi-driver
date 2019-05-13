@@ -38,10 +38,7 @@ From a machine with SSH access to all nodes run the following:
 
 2.1 Run the following command on **one** node with kubectl cli
 
-    # the sources will be in ~/nvmesh_csi_driver/ if you followed step 1
-    cd ~/nvmesh_csi_driver/
-    cd ./deploy
-    ./deploy.sh
+    ssh node1 "cd ~/nvmesh_csi_driver/deploy/kubernetes; ./deploy.sh"
 
 * This will load all resources and deploy the driver on the cluster.
 
@@ -63,3 +60,6 @@ Using Dashboard:
  * secret in Kubernetes must be in base64 format
  * for example use: `echo -n 'admin@excelero.com' | base64` and `echo -n 'admin' | base64` to get the username and passsword in base64
  * for more info visit: [Kubernetes Docs - Convert your secret data to a base-64 representation](https://kubernetes.io/docs/tasks/inject-data-application/distribute-credentials-secure/#convert-your-secret-data-to-a-base-64-representation)
+
+## Usage
+# TODO: add Usage Instructions
