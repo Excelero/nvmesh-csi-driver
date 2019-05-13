@@ -3,8 +3,8 @@ import os
 import sys
 import unittest
 
-from test.integration.clients.identity_client import IdentityClient
-from test.integration.helpers.server_manager import ServerManager
+from test.sanity.clients.identity_client import IdentityClient
+from test.sanity.helpers.server_manager import ServerManager
 
 project_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(project_path)

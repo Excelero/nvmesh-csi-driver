@@ -3,7 +3,7 @@ kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
   name: nvmesh-jbod-xfs
-  namespace: nvmesh-csi
+  namespace: nvmesh-csi-testing
 provisioner: nvmesh-csi.excelero.com
 allowVolumeExpansion: true
 volumeBindingMode: Immediate
@@ -15,7 +15,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: nvmesh-vol-for-consumer-test
-  namespace: nvmesh-csi
+  namespace: nvmesh-csi-testing
 spec:
   accessModes:
   - ReadWriteMany
@@ -28,7 +28,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: multi-consumer-test
-  namespace: nvmesh-csi
+  namespace: nvmesh-csi-testing
 spec:
   selector:
     matchLabels:

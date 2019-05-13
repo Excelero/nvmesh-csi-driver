@@ -63,7 +63,7 @@ class NVMeshControllerService(ControllerServicer):
 				if 'Name already Exists' in details:
 					existing_capcity = self._get_nvmesh_volume_capacity(nvmesh_vol_name)
 					if capacity == existing_capcity:
-						# Idempotency - same Name same Capacity > return success
+						# Idempotency - same Name same Capacity - return success
 						pass
 					else:
 						raise DriverError(StatusCode.ALREADY_EXISTS, 'Error: {} Details: {}'.format(err, details))

@@ -2,9 +2,9 @@ import unittest
 
 from grpc._channel import _Rendezvous
 
-from test.integration.helpers.test_case_with_server import TestCaseWithServerRunning
-from test.integration.clients.controller_client import ControllerClient
-from test.integration.helpers.error_handlers import CatchRequestErrors
+from test.sanity.helpers.test_case_with_server import TestCaseWithServerRunning
+from test.sanity.clients.controller_client import ControllerClient
+from test.sanity.helpers.error_handlers import CatchRequestErrors
 
 GB = 1024*1024*1024
 VOL_ID="vol_1"

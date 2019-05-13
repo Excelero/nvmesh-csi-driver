@@ -2,7 +2,7 @@ from driver.common import Consts
 from driver.csi.csi_pb2 import NodeGetInfoRequest, NodeGetCapabilitiesRequest, NodePublishVolumeRequest, VolumeCapability, NodeUnpublishVolumeRequest, \
 	NodeStageVolumeRequest, NodeUnstageVolumeRequest
 from driver.csi.csi_pb2_grpc import NodeStub
-from test.integration.clients.base_client import BaseClient
+from test.sanity.clients.base_client import BaseClient
 
 
 class NodeClient(BaseClient):
