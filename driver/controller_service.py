@@ -140,14 +140,8 @@ class NVMeshControllerService(ControllerServicer):
 		volume_capabilities = request.volume_capabilities
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
 
-		projection = { '_id': 1, 'capacity': 1 , 'status': 1, 'description': 1 }
-		err, out = self.mgmtClient.getVolumes(filterObject={ '_id': nvmesh_vol_name }, projectionObject=projection, )
-		if err:
-			raise DriverError(StatusCode.INTERNAL, err)
-		if not len(out):
-			raise DriverError(StatusCode.NOT_FOUND, 'Volume {} Could not be found'.format(nvmesh_vol_name))
+		volume = self.get_nvmesh_volume(nvmesh_vol_name)
 
-		volume = out[0]
 		actual_capabilities = json.loads(volume['description'])['volume_capabilities']
 		expected_capabilities = MessageToDict(request)['volumeCapabilities']
 
@@ -240,17 +234,32 @@ class NVMeshControllerService(ControllerServicer):
 	def ControllerExpandVolume(self, request, context):
 		capacity_in_bytes = request.capacity_range.required_bytes
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
-		editObj = {
-			'volume': nvmesh_vol_name,
-			'capacity': capacity_in_bytes
-		}
 
-		err, out = self.mgmtClient.editVolume(editObj)
+		volume = self.get_nvmesh_volume(nvmesh_vol_name)
+		capabilities = json.loads(volume['description'])['volume_capabilities']
+		capability = capabilities[0]
+
+		# Call Node Expansion Method to Expand a FileSystem
+		# For a Block Device there is no need to do anything on the node
+		node_expansion_required = True if "mount" in capability else False
+
+		# Extend Volume
+		err, out = self.mgmtClient.editVolume({ 'volume': nvmesh_vol_name, 'capacity': capacity_in_bytes})
 		if err:
 			raise DriverError(StatusCode.NOT_FOUND, err)
 
-		node_expansion_required = False
+		self.logger.debug("ControllerExpandVolumeResponse: capacity_in_bytes={}, node_expansion_required={}".format(capacity_in_bytes, node_expansion_required))
 		return ControllerExpandVolumeResponse(capacity_bytes=capacity_in_bytes, node_expansion_required=node_expansion_required)
+
+	def get_nvmesh_volume(self, nvmesh_vol_name):
+		projection = {'_id': 1, 'capacity': 1, 'status': 1, 'description': 1}
+		err, out = self.mgmtClient.getVolumes(filterObject={'_id': nvmesh_vol_name}, projectionObject=projection, )
+		if err:
+			raise DriverError(StatusCode.INTERNAL, err)
+		if not len(out):
+			raise DriverError(StatusCode.NOT_FOUND, 'Volume {} Could not be found'.format(nvmesh_vol_name))
+
+		return out[0]
 
 	def _parse_raid_type(self, raid_type_string):
 		raid_type_string = raid_type_string.lower()

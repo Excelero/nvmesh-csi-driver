@@ -3,7 +3,7 @@ kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
   name: nvmesh-jbod-block
-  namespace: nvmesh-csi
+  namespace: nvmesh-csi-testing
 provisioner: nvmesh-csi.excelero.com
 allowVolumeExpansion: true
 volumeBindingMode: Immediate
@@ -15,6 +15,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: block-pvc
+  namespace: nvmesh-csi-testing
 spec:
   accessModes:
     - ReadWriteMany
@@ -28,12 +29,13 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: block-volume-consumer-pod
+  namespace: nvmesh-csi-testing
   labels:
     app: block-volume-consumer-test
 spec:
   containers:
     - name: block-volume-consumer
-      image: excelero/multi-consumer-test:develop
+      image: excelero/block-consumer-test:develop
       volumeMounts:
         - name: block-volume
           mountPath: /mnt/vol/

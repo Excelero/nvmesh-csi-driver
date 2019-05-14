@@ -35,7 +35,7 @@ class NVMeshNodeService(NodeServicer):
 		access_type = self._get_block_or_mount_volume(request)
 
 		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
-		block_device_path = '/dev/nvmesh/{}'.format(nvmesh_volume_name)
+		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_volume_name)
 
 		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
 			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(nvmesh_volume_name))
@@ -155,7 +155,21 @@ class NVMeshNodeService(NodeServicer):
 
 	@CatchServerErrors
 	def NodeExpandVolume(self, request, context):
-		raise NotImplementedError('Method not implemented!')
+		# if this function was called, assume the Controller checked that this volume is a FileSystem Mounted Volume.
+		# So we will resize the File System here
+		volume_id = request.volume_id
+		volume_path = request.volume_path
+		capacity_range = request.capacity_range
+		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(volume_id)
+		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_vol_name)
+
+		reqJson = MessageToJson(request)
+		self.logger.debug('NodeExpandVolume called with request: {}'.format(reqJson))
+
+		fs_type = FileSystemManager.get_file_system_type(block_device_path)
+		FileSystemManager.expand_file_system(block_device_path, fs_type)
+
+		self.logger.debug('Finished Expanding File System of type {} on volume {}'.format(fs_type, block_device_path))
 
 	@CatchServerErrors
 	def NodeGetCapabilities(self, request, context):

@@ -111,3 +111,25 @@ class FileSystemManager(object):
 
 		FileSystemManager.mkfs(fs_type=fs_type, target_path=block_device_path, flags=[])
 
+	@staticmethod
+	def expand_file_system(block_device_path, fs_type):
+		if fs_type == 'devtmpfs':
+			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Device not formatted with FileSystem found fs type {}'.format(fs_type))
+		elif fs_type.startswith('ext'):
+			cmd = 'sudo resize2fs {}'.format(block_device_path)
+		elif fs_type == 'xfs':
+			cmd = 'sudo xfs_growfs {}'.format(block_device_path)
+		else:
+			raise DriverError(StatusCode.INVALID_ARGUMENT, 'unknown fs_type {}'.format(fs_type))
+
+		exit_code, stdout, stderr = Utils.run_command(cmd)
+		logger.debug("resize file-system finished {} {} {}".format(exit_code, stdout, stderr))
+
+		if exit_code != 0:
+			raise DriverError(StatusCode.INTERNAL, 'Error expanding File System {} on block device {}'.format(fs_type, block_device_path))
+
+	@staticmethod
+	def get_file_system_type(target_path):
+		cmd = "sudo df -T {} | tail -1 | awk '{{ print $2}}'".format(target_path)
+		exit_code, stdout, stderr = Utils.run_command(cmd)
+		return stdout

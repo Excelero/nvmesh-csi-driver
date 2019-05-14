@@ -121,3 +121,7 @@ class Utils(object):
 			if not error_msg:
 				error_msg = '{} was not provided'.format(attribute_name)
 			raise DriverError(grpc.StatusCode.INVALID_ARGUMENT, error_msg)
+
+	@staticmethod
+	def get_nvmesh_block_device_path(nvmesh_volume_name):
+		return '/dev/nvmesh/{}'.format(nvmesh_volume_name)

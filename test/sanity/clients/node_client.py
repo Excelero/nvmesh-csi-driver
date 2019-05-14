@@ -1,6 +1,6 @@
 from driver.common import Consts
 from driver.csi.csi_pb2 import NodeGetInfoRequest, NodeGetCapabilitiesRequest, NodePublishVolumeRequest, VolumeCapability, NodeUnpublishVolumeRequest, \
-	NodeStageVolumeRequest, NodeUnstageVolumeRequest
+	NodeStageVolumeRequest, NodeUnstageVolumeRequest, NodeExpandVolumeRequest
 from driver.csi.csi_pb2_grpc import NodeStub
 from test.sanity.clients.base_client import BaseClient
 
@@ -59,8 +59,9 @@ class NodeClient(BaseClient):
 	def NodeGetVolumeStats(self):
 		raise NotImplementedError('Client Method not implemented!')
 
-	def NodeExpandVolume(self):
-		raise NotImplementedError('Client Method not implemented!')
+	def NodeExpandVolume(self, volume_id, volume_path='some_path'):
+		req = NodeExpandVolumeRequest(volume_id=volume_id, volume_path=volume_path)
+		return self.client.NodeExpandVolume(req)
 
 	def NodeGetCapabilities(self):
 		return self.client.NodeGetCapabilities(NodeGetCapabilitiesRequest())

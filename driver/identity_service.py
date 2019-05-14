@@ -18,7 +18,7 @@ class NVMeshIdentityService(IdentityServicer):
 
 	def GetPluginCapabilities(self, request, context):
 		ctrl_service = PluginCapability(service=PluginCapability.Service(type=PluginCapability.Service.CONTROLLER_SERVICE))
-		volume_expansion = PluginCapability(volume_expansion=PluginCapability.VolumeExpansion(type=PluginCapability.VolumeExpansion.OFFLINE))
+		volume_expansion = PluginCapability(volume_expansion=PluginCapability.VolumeExpansion(type=PluginCapability.VolumeExpansion.ONLINE))
 		capabilities = [
 			ctrl_service,
 			volume_expansion

@@ -58,5 +58,12 @@ class TestNodeService(TestCaseWithServerRunning):
 
 		self.assertReturnsGrpcError(do_request, StatusCode.NOT_FOUND, "mount path")
 
+	@CatchRequestErrors
+	def test_node_expand_volume(self):
+		def do_request():
+			return self._client.NodeExpandVolume(volume_id=VOL_ID)
+
+		self.assertReturnsGrpcError(do_request, StatusCode.INVALID_ARGUMENT, "unknown fs_type")
+
 if __name__ == '__main__':
 	unittest.main()
