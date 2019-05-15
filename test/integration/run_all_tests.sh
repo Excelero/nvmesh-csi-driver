@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 
+export num_of_volumes=3
+
 test_files=(
     create_all_volume_types.sh
-    create_multiple_volumes.sh
+    create_volumes.sh
+    create_fs_consumers.sh
+    expand_volumes.sh
+    delete_fs_consumers.sh
+    delete_volumes.sh
     test_multiple_fs_consumers.sh
 )
 

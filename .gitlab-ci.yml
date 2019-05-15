@@ -4,7 +4,7 @@
 
 stages:
   - sanity
-#  - integration
+  - integration
 
 sanity:
   stage: sanity
@@ -14,10 +14,12 @@ sanity:
     - sudo ./run_sanity_tests.sh $MANAGEMENT_SERVERS
     - exit $?
 
-# integration:
-#   stage: integration
-#   script:
-#     - pwd
-#     - cd test/
-#     - ./run_integration_tests.sh --master $KUBE_MASTER
-#     - exit $?
+integration:
+  stage: integration
+  script:
+    - pwd
+    - cd test/
+    - ./run_integration_tests.sh --master $KUBE_MASTER
+    - exit $?
+  only:
+    - /^#ci.*$/

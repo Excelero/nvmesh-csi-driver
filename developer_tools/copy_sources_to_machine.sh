@@ -14,5 +14,5 @@ fi
 for server in "$@"
 do
     echo "Copying sources to $server.."
-    rsync -r ../ $server:~/projects/k8s_csi/
+    rsync -r ../ $server:~/nvmesh_csi_driver/
 done
