@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source ./test_utils.sh
+
 RAID_TYPES=(concatenated raid0 raid1 raid10)
 read -r -d '' create_volume_template << EOM
 apiVersion: v1

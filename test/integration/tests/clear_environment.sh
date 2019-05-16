@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source ./test_utils.sh
+
 delete_all_daemonsets() {
     for x in $(kubectl get daemonsets | awk '{ if(NR>1) print $1 }') ;
     do

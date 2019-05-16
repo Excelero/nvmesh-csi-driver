@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-
+source ./test_utils.sh
 
 kubectl create -f ../resources/fs_consumer/multiple-consumer-test.yaml
 

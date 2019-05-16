@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source ./test_utils.sh
+
 read -r -d '' create_volume_template << EOM
 apiVersion: v1
 kind: PersistentVolumeClaim

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source ./test_utils.sh
+
 read -r -d '' create_consumer_template << EOM
 apiVersion: v1
 kind: Pod
@@ -20,7 +22,6 @@ spec:
       persistentVolumeClaim:
         claimName: vol-{index}
 EOM
-
 
 if [ -z "$num_of_volumes" ]; then
     num_of_volumes=30

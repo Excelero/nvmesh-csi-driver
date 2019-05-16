@@ -13,6 +13,8 @@ graceful_exit() {
     exit 0
 }
 
+trap graceful_exit SIGINT SIGTERM
+
 get_info() {
     ls -lsa /mnt/
 
@@ -38,7 +40,6 @@ work_loop() {
     done
 }
 
-trap graceful_exit SIGINT SIGTERM
 
 set -x
 get_info

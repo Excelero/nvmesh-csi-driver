@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source ./test_utils.sh
+
 if [ -z "$num_of_volumes" ]; then
     num_of_volumes=30
 fi

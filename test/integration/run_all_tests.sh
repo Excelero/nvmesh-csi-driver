@@ -34,7 +34,7 @@ run_all_tests() {
     for file in ${test_files[@]};
     do
         ./$file
-
+        child_process=$!
         exit_code=$?
         if [ $exit_code -ne 0 ]; then
             echo "Test $file Failed"
@@ -42,6 +42,15 @@ run_all_tests() {
         fi
     done
 }
+
+graceful_exit() {
+    echo "exiting!"
+    kill -TERM "$child_process" 2>/dev/null
+    clear_environment
+    exit 0
+}
+
+trap graceful_exit SIGINT SIGTERM
 
 create_and_set_namespace
 clear_environment
