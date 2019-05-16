@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-export num_of_volumes=3
+if [ -z "$num_of_volumes" ]; then
+    export num_of_volumes=3
+fi
 
 test_files=(
     create_all_volume_types.sh

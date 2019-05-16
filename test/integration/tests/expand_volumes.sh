@@ -20,10 +20,16 @@ done
 echo "all volumes were created..."
 
 echo "check file-system size in containers"
-for ((i=1; i<=num_of_volumes; i++))
+
+for ((i=1; i<=$num_of_volumes; i++))
 do
-    fs_size=$(kubectl exec -it fs-consumer-$i -- /bin/bash -c "df -Pkh /mnt/vol | tail -1 | awk '{ print \$2 }'")
-    echo "fs-consumer-$i: Volume vol-$i FileSystem size is $fs_size"
+    fs_size=""
+    while [ "$fs_size" != "4.9G" ];
+    do
+        fs_size=$(kubectl exec -i fs-consumer-$i -- /bin/bash -c "df -Pkh /mnt/vol | tail -1 | awk '{ print \$2 }'")
+        echo "fs-consumer-$i: Volume vol-$i FileSystem size is $fs_size"
+        sleep 2
+    done
 done
 
 exit 0
