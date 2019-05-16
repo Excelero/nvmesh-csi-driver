@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 
 servers=()
+DEPLOY=false
 
 show_help() {
-    echo "Usage: ./build.sh [--servers s1 s2 s3]"
+    echo "Usage: ./build.sh [--servers s1 s2 s3] [--deploy]"
     echo "To build to local docker registry use: ./build.sh"
     echo "To build on remote machines using ssh use: ./build.sh --servers kube-master kube-node-1 kube-node-2"
+    echo "To build and deploy on remote machines using ssh use: ./build.sh --servers kube-master kube-node-1 kube-node-2"
 }
 
 parse_args() {
@@ -24,6 +26,10 @@ parse_args() {
             shift
         done
 
+        ;;
+        -d|--deploy)
+            DEPLOY=true
+            shift
         ;;
         -h|--help)
             show_help
@@ -73,7 +79,11 @@ parse_args $@
 
 if [ ${#servers[@]} -eq 0 ];then
     build_locally
-    exit 0
 else
     build_on_remote_machines
+
+    if [ "$DEPLOY" ]; then
+        echo "Deploying YAML files on ($server).."
+        ssh ${servers[0]} "cd ~/nvmesh_csi_driver/deploy/kubernetes/ ; ./remove_deployment.sh ; ./deploy.sh"
+    fi
 fi

@@ -1,16 +1,9 @@
 #!/usr/bin/env bash
 
-kubectl config set-context --current --namespace=nvmesh-csi
+../deploy/kubernetes/remove_deployment.sh
 
-kubectl delete service nvmesh-csi-controller
-kubectl delete serviceaccount nvmesh-csi
-
-kubectl delete statefulsets nvmesh-csi-controller
-kubectl delete daemonset nvmesh-csi-node-driver
-
-#kubectl delete pod nvmesh-csi-controller-0
-
-kubectl delete daemonset multi-consumer-test
+# remove all testing workloads
+kubectl delete daemonset multi-consumer-test -n nvmesh-csi
 
 # Hints
 # Delete Force:
