@@ -37,6 +37,11 @@ class NVMeshNodeService(NodeServicer):
 		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
 		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_volume_name)
 
+		# try to run attach locally to support future changes to NVMesh
+		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_attach_volumes {}'.format(nvmesh_volume_name))
+		if exit_code != 0:
+			raise DriverError(StatusCode.INTERNAL, "local attach failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
+
 		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
 			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(nvmesh_volume_name))
 
@@ -89,7 +94,9 @@ class NVMeshNodeService(NodeServicer):
 		reqJson = MessageToJson(request)
 		self.logger.debug('NodeUnstageVolume called with request: {}'.format(reqJson))
 
+		volume_id = request.volume_id
 		staging_target_path = request.staging_target_path
+		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
 
 		if not os.path.exists(staging_target_path):
 			raise DriverError(StatusCode.NOT_FOUND, 'mount path {} not found'.format(staging_target_path))
@@ -102,6 +109,11 @@ class NVMeshNodeService(NodeServicer):
 		elif os.path.isdir(staging_target_path):
 			self.logger.debug('NodeUnstageVolume removing stage dir: {}'.format(staging_target_path))
 			FileSystemManager.remove_dir(staging_target_path)
+
+		# also run detach locally to support future changes to NVMesh
+		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_detach_volumes {}'.format(nvmesh_volume_name))
+		if exit_code != 0:
+			raise DriverError(StatusCode.INTERNAL, "local detach failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
 
 		return NodeUnstageVolumeResponse()
 
@@ -222,5 +234,4 @@ class NVMeshNodeService(NodeServicer):
 			return Consts.VolumeAccessType.BLOCK
 		else:
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'at least one of volume_capability.block, volume_capability.mount must be set')
-
 

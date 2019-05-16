@@ -189,7 +189,12 @@ spec:
               mountPropagation: "Bidirectional"
             - name: device-dir
               mountPath: /dev
-                # Registrar
+            - name: host-bin
+              mountPath: /host/bin
+            - name: var-opt-nvmesh
+              mountPath: /var/opt/NVMesh
+
+        # Registrar
         - name: csi-driver-registrar
           image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
           args:
@@ -220,4 +225,10 @@ spec:
         - name: device-dir
           hostPath:
             path: /dev
+        - name: host-bin
+          hostPath:
+            path: /bin
+        - name: var-opt-nvmesh
+          hostPath:
+            path: /var/opt/NVMesh
 ---

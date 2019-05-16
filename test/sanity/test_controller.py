@@ -63,8 +63,6 @@ class TestControllerService(TestCaseWithServerRunning):
 		capabilitiesReceived = set(map(get_capability_string, msg.capabilities))
 		expectedCapabilities = {
 			'CREATE_DELETE_VOLUME',
-			'PUBLISH_UNPUBLISH_VOLUME',
-			'PUBLISH_READONLY',
 			'LIST_VOLUMES',
 			'EXPAND_VOLUME',
 		}

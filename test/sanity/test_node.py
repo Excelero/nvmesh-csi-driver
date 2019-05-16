@@ -35,7 +35,7 @@ class TestNodeService(TestCaseWithServerRunning):
 												access_type=Consts.VolumeAccessType.BLOCK,
 												access_mode=VolumeCapability.AccessMode.MULTI_NODE_MULTI_WRITER)
 
-		self.assertReturnsGrpcError(do_request, StatusCode.NOT_FOUND, "was not found")
+		self.assertReturnsGrpcError(do_request, StatusCode.INTERNAL, "local attach failed")
 
 	@CatchRequestErrors
 	def test_node_unstage_volume(self):
