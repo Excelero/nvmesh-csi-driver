@@ -8,7 +8,7 @@ from grpc import StatusCode
 from driver.FileSystemManager import FileSystemManager
 from driver.common import Utils, CatchServerErrors, DriverError, Consts
 from driver.csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
-	NodeStageVolumeResponse, NodeUnstageVolumeResponse, VolumeCapability
+	NodeStageVolumeResponse, NodeUnstageVolumeResponse, VolumeCapability, NodeExpandVolumeResponse
 from driver.csi.csi_pb2_grpc import NodeServicer
 
 
@@ -170,6 +170,7 @@ class NVMeshNodeService(NodeServicer):
 		FileSystemManager.expand_file_system(block_device_path, fs_type)
 
 		self.logger.debug('Finished Expanding File System of type {} on volume {}'.format(fs_type, block_device_path))
+		return NodeExpandVolumeResponse()
 
 	@CatchServerErrors
 	def NodeGetCapabilities(self, request, context):

@@ -41,4 +41,9 @@ apiServerExtraArgs:
 controllerManagerExtraArgs:
   feature-gates: "ExpandCSIVolumes=true,ExpandInUsePersistentVolumes=true"
 schedulerExtraArgs:
-  feature-gates: "ExpandCSIVolumes=true,ExpandInUsePersistentVolumes=true"
+  feature-gates: "ExpandCSIVolumes=true,ExpandInUsePersistentVolumes=true,"
+
+# open feature gates on kubelet:
+sudo vim /etc/sysconfig/kubelet
+#edit to the following
+KUBELET_EXTRA_ARGS=--feature-gates=ExpandCSIVolumes=true,ExpandInUsePersistentVolumes=true,BlockVolume=true,CSIBlockVolume=true

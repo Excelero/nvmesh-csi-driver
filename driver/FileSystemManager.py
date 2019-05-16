@@ -116,9 +116,9 @@ class FileSystemManager(object):
 		if fs_type == 'devtmpfs':
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Device not formatted with FileSystem found fs type {}'.format(fs_type))
 		elif fs_type.startswith('ext'):
-			cmd = 'sudo resize2fs {}'.format(block_device_path)
+			cmd = 'resize2fs {}'.format(block_device_path)
 		elif fs_type == 'xfs':
-			cmd = 'sudo xfs_growfs {}'.format(block_device_path)
+			cmd = 'xfs_growfs {}'.format(block_device_path)
 		else:
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'unknown fs_type {}'.format(fs_type))
 
@@ -130,6 +130,6 @@ class FileSystemManager(object):
 
 	@staticmethod
 	def get_file_system_type(target_path):
-		cmd = "sudo df -T {} | tail -1 | awk '{{ print $2}}'".format(target_path)
+		cmd = "df -T {} | tail -1 | awk '{{ print $2}}'".format(target_path)
 		exit_code, stdout, stderr = Utils.run_command(cmd)
 		return stdout
