@@ -54,13 +54,29 @@ class NVMeshNodeService(NodeServicer):
 			FileSystemManager.mount(source=block_device_path, target=staging_target_path, flags=mount_flags)
 
 		elif access_type == Consts.VolumeAccessType.BLOCK:
-			block_volume = volume_capability.block
 			self.logger.info('Requested Block Volume')
 			if access_mode != VolumeCapability.AccessMode.MULTI_NODE_MULTI_WRITER:
 				requested_access_mode_name = VolumeCapability.AccessMode.Mode._enum_type.values_by_number[access_mode].name
-				raise DriverError(StatusCode.INVALID_ARGUMENT, 'accessMode {} not supported. Only MULTI_NODE_MULTI_WRITER is supported'.format(requested_access_mode_name))
+				raise DriverError(StatusCode.INVALID_ARGUMENT, 'accessMode {} not supported. Only MULTI_NODE_MULTI_WRITER is supported with block volume'.format(requested_access_mode_name))
 
-			FileSystemManager.bind_mount(source=block_device_path, target=staging_target_path)
+			try:
+				if os.path.isfile(staging_target_path):
+					self.logger.debug('staging_target_path {} is a file'.format(staging_target_path))
+				elif os.path.isdir(staging_target_path):
+					self.logger.debug('staging_target_path {} is a dir. removing the dir and creating a file instead'.format(staging_target_path))
+					FileSystemManager.remove_dir(staging_target_path)
+					# create an empty file for bind mount
+					open(staging_target_path, 'w').close()
+				else:
+					self.logger.debug('staging_target_path {} is NOT a file or a dir'.format(staging_target_path))
+					open(staging_target_path, 'w').close()
+
+				self.logger.debug('Trying to bind mount Block volume {} to {}'.format(block_device_path, staging_target_path))
+				FileSystemManager.bind_mount(source=block_device_path, target=staging_target_path)
+			except Exception as ex:
+				errMessage = 'Error Failed to bind mount Block volume {} to {}. Error: {}'.format(block_device_path, staging_target_path, str(ex))
+				raise DriverError(StatusCode.INTERNAL, errMessage)
+
 		else:
 			self.logger.Info('Unknown AccessType {}'.format(access_type))
 
@@ -83,8 +99,7 @@ class NVMeshNodeService(NodeServicer):
 		if os.path.isfile(staging_target_path):
 			self.logger.debug('NodeUnstageVolume removing stage bind file: {}'.format(staging_target_path))
 			os.remove(staging_target_path)
-
-		if os.path.isdir(staging_target_path):
+		elif os.path.isdir(staging_target_path):
 			self.logger.debug('NodeUnstageVolume removing stage dir: {}'.format(staging_target_path))
 			FileSystemManager.remove_dir(staging_target_path)
 
@@ -98,7 +113,7 @@ class NVMeshNodeService(NodeServicer):
 		volume_id = request.volume_id
 		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
 		staging_target_path = request.staging_target_path
-		target_path = request.target_path
+		publish_path = request.target_path
 		volume_capability = request.volume_capability
 		readonly = request.readonly
 
@@ -107,14 +122,18 @@ class NVMeshNodeService(NodeServicer):
 
 		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
 			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(nvmesh_volume_name))
-		if not FileSystemManager.is_mounted(staging_target_path):
-			raise DriverError(StatusCode.FAILED_PRECONDITION, 'staging_target_path {} was not found'.format(staging_target_path))
 
 		flags = []
 		if readonly:
 			flags.append('-o ro')
 
-		FileSystemManager.bind_mount(source=staging_target_path, target=target_path, flags=flags)
+		# create an empty file for bind mount
+		with open(publish_path, 'w+'):
+			pass
+
+		self.logger.debug('NodePublishVolume trying to bind mount {} to {}'.format(staging_target_path, publish_path))
+		FileSystemManager.bind_mount(source=staging_target_path, target=publish_path, flags=flags)
+
 		return NodePublishVolumeResponse()
 
 	@CatchServerErrors
@@ -135,10 +154,11 @@ class NVMeshNodeService(NodeServicer):
 		else:
 			FileSystemManager.umount(target=target_path)
 
-		if os.path.isfile(target_path):
-			self.logger.debug('NodeUnpublishVolume removing publish bind file: {}'.format(target_path))
-			os.remove(target_path)
-			if os.path.isfile(target_path):
+		block_device_publish_path = target_path + '/mount'
+		if os.path.isfile(block_device_publish_path):
+			self.logger.debug('NodeUnpublishVolume removing publish bind file: {}'.format(block_device_publish_path))
+			os.remove(block_device_publish_path)
+			if os.path.isfile(block_device_publish_path):
 				raise DriverError(StatusCode.INTERNAL, 'node-driver unable to delete publish path')
 
 		if os.path.isdir(target_path):
@@ -174,17 +194,7 @@ class NVMeshNodeService(NodeServicer):
 
 	@CatchServerErrors
 	def NodeGetCapabilities(self, request, context):
-		# NodeServiceCapability types
-		# enum Type {
-		# 		UNKNOWN = 0;
-		# 		STAGE_UNSTAGE_VOLUME = 1;
-		# 		// If Plugin implements GET_VOLUME_STATS capability
-		# 		// then it MUST implement NodeGetVolumeStats RPC
-		# 		// call for fetching volume statistics.
-		# 		GET_VOLUME_STATS = 2;
-		# 		// See VolumeExpansion for details.
-		# 		EXPAND_VOLUME = 3;
-		#	}
+		# NodeServiceCapability types UNKNOWN, STAGE_UNSTAGE_VOLUME, GET_VOLUME_STATS, EXPAND_VOLUME
 
 		def buildCapability(type):
 			return NodeServiceCapability(rpc=NodeServiceCapability.RPC(type=type))

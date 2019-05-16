@@ -1,16 +1,3 @@
----
-kind: StorageClass
-apiVersion: storage.k8s.io/v1
-metadata:
-  name: nvmesh-jbod-block
-  namespace: nvmesh-csi-testing
-provisioner: nvmesh-csi.excelero.com
-allowVolumeExpansion: true
-volumeBindingMode: Immediate
-parameters:
-  vpg: DEFAULT_CONCATENATED_VPG
-  volumeMode: Block
----
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -23,7 +10,7 @@ spec:
   resources:
     requests:
       storage: 8Gi
-  storageClassName: nvmesh-jbod-block
+  storageClassName: nvmesh-concatenated
 ---
 apiVersion: v1
 kind: Pod
@@ -36,9 +23,9 @@ spec:
   containers:
     - name: block-volume-consumer
       image: excelero/block-consumer-test:develop
-      volumeMounts:
+      volumeDevices:
         - name: block-volume
-          mountPath: /mnt/vol/
+          devicePath: /dev/my_block_dev
   volumes:
     - name: block-volume
       persistentVolumeClaim:

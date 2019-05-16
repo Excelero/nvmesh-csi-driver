@@ -139,5 +139,25 @@ Create a Raw Block Volume (Kubernetes 1.14 or higher)
           storage: 3Gi
       storageClassName: nvmesh-concatenated
 
+Create A Pod that uses a Block Volume
 
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: block-volume-consumer-pod
+      namespace: nvmesh-csi-testing
+      labels:
+        app: block-volume-consumer-test
+    spec:
+      containers:
+        - name: block-volume-consumer
+          image: excelero/block-consumer-test:develop
+          volumeDevices:
+            - name: block-volume
+              devicePath: /dev/my_block_dev
+      volumes:
+        - name: block-volume
+          persistentVolumeClaim:
+            claimName: block-pvc
+        
 * More usage examples are available under deploy/kubernetes/examples/

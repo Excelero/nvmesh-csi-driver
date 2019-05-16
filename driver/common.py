@@ -94,7 +94,7 @@ class Utils(object):
 	@staticmethod
 	def volume_id_to_nvmesh_name(co_vol_name):
 		# Nvmesh vol name / id cannot be longer than 23 characters
-		return 'csi-' + co_vol_name[4:23]
+		return 'csi-' + co_vol_name[4:22]
 
 	@staticmethod
 	def is_nvmesh_volume_attached(nvmesh_volume_name):
