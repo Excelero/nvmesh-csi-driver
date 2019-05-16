@@ -116,6 +116,7 @@ class NVMeshNodeService(NodeServicer):
 		publish_path = request.target_path
 		volume_capability = request.volume_capability
 		readonly = request.readonly
+		access_type = self._get_block_or_mount_volume(request)
 
 		reqJson = MessageToJson(request)
 		self.logger.debug('NodePublishVolume called with request: {}'.format(reqJson))
@@ -127,9 +128,10 @@ class NVMeshNodeService(NodeServicer):
 		if readonly:
 			flags.append('-o ro')
 
-		# create an empty file for bind mount
-		with open(publish_path, 'w+'):
-			pass
+		if access_type == Consts.VolumeAccessType.BLOCK:
+			# create an empty file for bind mount
+			with open(publish_path, 'w+'):
+				pass
 
 		self.logger.debug('NodePublishVolume trying to bind mount {} to {}'.format(staging_target_path, publish_path))
 		FileSystemManager.bind_mount(source=staging_target_path, target=publish_path, flags=flags)
