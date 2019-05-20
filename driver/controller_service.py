@@ -1,4 +1,7 @@
 import json
+import random
+
+import time
 from google.protobuf.json_format import MessageToJson, MessageToDict
 
 from driver.common import CatchServerErrors, DriverError, Utils, Consts
@@ -6,6 +9,7 @@ from driver.csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeRespons
 	ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse
 from driver.csi.csi_pb2_grpc import ControllerServicer
 from managementClient.Consts import RAIDLevels
+from managementClient.ManagementClient import ManagementTimeout
 from managementClient.ManagementClientWrapper import ManagementClientWrapper
 from grpc import StatusCode
 
@@ -127,10 +131,20 @@ class NVMeshControllerService(ControllerServicer):
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
 		self._validate_volume_exists(nvmesh_vol_name)
 		self._validate_node_exists(request.node_id)
-		err, out = self.mgmtClient.detachVolume(nodeID=request.node_id,volumeID=nvmesh_vol_name)
 
-		if err:
-			raise DriverError(StatusCode.FAILED_PRECONDITION, err)
+		def try_detach_from_management():
+			err, out = self.mgmtClient.detachVolume(nodeID=request.node_id, volumeID=nvmesh_vol_name)
+			if err:
+				raise DriverError(StatusCode.FAILED_PRECONDITION, err)
+
+		retries = 0
+		while retries < 10:
+			try:
+				try_detach_from_management()
+			except ManagementTimeout as ex:
+				# get random timeout between 1 - 4 seconds
+				timeout = (random.random() * 3) + 1
+				time.sleep(timeout)
 
 		return ControllerUnpublishVolumeResponse()
 

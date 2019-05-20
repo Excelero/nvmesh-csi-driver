@@ -67,8 +67,7 @@ def CatchServerErrors(func):
 		try:
 			return func(self, request, context)
 		except DriverError as drvErr:
-			# context.set_code(drvErr.code)
-			# context.set_details(str(drvErr.message))
+			self.logger.warning("Driver Error caught in gRPC call {} - {}".format(func.__name__, str(drvErr.message)))
 			context.abort(drvErr.code, str(drvErr.message))
 
 		except Exception as ex:
@@ -76,9 +75,8 @@ def CatchServerErrors(func):
 			exc_tb = exc_tb.tb_next
 			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 
-			# context.set_code(grpc.StatusCode.INTERNAL)
-			# context.set_details()
 			details = "{type}: {msg} in {fname} on line: {lineno}".format(type=exc_type, msg=str(ex), fname=fname, lineno=exc_tb.tb_lineno)
+			self.logger.warning("Error caught in gRPC call {} - {}".format(func.__name__, details))
 			context.abort(grpc.StatusCode.INTERNAL, details)
 
 	return func_wrapper
