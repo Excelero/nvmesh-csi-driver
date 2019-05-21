@@ -2,10 +2,6 @@
 
 source ./test_utils.sh
 
-if [ -z "$num_of_volumes" ]; then
-    num_of_volumes=30
-fi
-
 for ((i=1; i<=num_of_volumes; i++))
 do
     echo "Deleting pvc vol-$i"

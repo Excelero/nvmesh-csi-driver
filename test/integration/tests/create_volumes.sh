@@ -17,10 +17,6 @@ spec:
   storageClassName: nvmesh-raid1
 EOM
 
-if [ -z "$num_of_volumes" ]; then
-    num_of_volumes=30
-fi
-
 echo "Creating $num_of_volumes Volumes"
 
 for ((i=1; i<=num_of_volumes; i++))

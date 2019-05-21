@@ -23,10 +23,6 @@ spec:
         claimName: vol-{index}
 EOM
 
-if [ -z "$num_of_volumes" ]; then
-    num_of_volumes=30
-fi
-
 echo "Creating $num_of_volumes Consumers"
 
 for ((i=1; i<=num_of_volumes; i++))

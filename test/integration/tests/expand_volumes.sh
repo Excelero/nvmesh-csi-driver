@@ -2,10 +2,6 @@
 
 source ./test_utils.sh
 
-if [ -z "$num_of_volumes" ]; then
-    num_of_volumes=30
-fi
-
 echo "Expanding $num_of_volumes Volumes"
 
 for ((i=1; i<=num_of_volumes; i++))
