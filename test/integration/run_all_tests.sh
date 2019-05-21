@@ -8,7 +8,7 @@ test_files=(
     create_all_volume_types.sh
     create_volumes.sh
     create_fs_consumers.sh
-#    expand_volumes.sh
+    expand_volumes.sh
     delete_fs_consumers.sh
     delete_volumes.sh
     test_multiple_fs_consumers.sh
