@@ -62,6 +62,26 @@ Using Dashboard:
  * for example use: `echo -n 'admin@excelero.com' | base64` and `echo -n 'admin' | base64` to get the username and passsword in base64
  * for more info visit: [Kubernetes Docs - Convert your secret data to a base-64 representation](https://kubernetes.io/docs/tasks/inject-data-application/distribute-credentials-secure/#convert-your-secret-data-to-a-base-64-representation)
 
+##### 4. Opening Kubernetes Feature Gates
+
+Depending on the Kubernetes version some `Feature Gates` might require to be turned on manually
+
+The following Feature Gates are required:
+
+    ExpandCSIVolumes=true
+    ExpandInUsePersistentVolumes=true
+    BlockVolume=true
+    CSIBlockVolume=true
+
+* the --feature-gates argument should be added to the following Kubernetes Components: 
+  * **apiserver**           (Kubernetes ConfigMap kubeadm-config or /etc/kubernetes/manifests/kube-apiserver.yaml)
+  * **controller-manager**  (Kubernetes ConfigMap kubeadm-config or /etc/kubernetes/manifests/kube-controller-manager.yaml)
+  * **scheduler**           (Kubernetes ConfigMap kubeadm-config or /etc/kubernetes/manifests/kube-scheduler.yaml)
+  * **kubelet**             (kubernetes ConfigMag kublet-config-<version> or /etc/sysconfig/kubelet)
+* example of feature-gates argument  
+`--feature-gates=ExpandCSIVolumes=true,ExpandInUsePersistentVolumes=true,BlockVolume=true,CSIBlockVolume=true`
+
+
 ## Usage
 #### Creating PersistentVolume and PersistentVolumeClaim
 
