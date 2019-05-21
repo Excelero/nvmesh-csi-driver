@@ -31,15 +31,15 @@ class TestControllerService(TestCaseWithServerRunning):
 
 		self.assertRaises(_Rendezvous, createExistingVolume)
 
-	@CatchRequestErrors
-	def test_publish_volume(self):
-		msg = self.ctrl_client.PublishVolume(volume_id=VOL_ID, node_id=NODE_ID)
-		print(msg)
-
-	@CatchRequestErrors
-	def test_unpublish_volume(self):
-		msg = self.ctrl_client.UnpublishVolume(volume_id="vol_1", node_id=NODE_ID)
-		print(msg)
+	# @CatchRequestErrors
+	# def test_publish_volume(self):
+	# 	msg = self.ctrl_client.PublishVolume(volume_id=VOL_ID, node_id=NODE_ID)
+	# 	print(msg)
+	#
+	# @CatchRequestErrors
+	# def test_unpublish_volume(self):
+	# 	msg = self.ctrl_client.UnpublishVolume(volume_id="vol_1", node_id=NODE_ID)
+	# 	print(msg)
 
 	@CatchRequestErrors
 	def test_validate_volume_capabilities(self):
