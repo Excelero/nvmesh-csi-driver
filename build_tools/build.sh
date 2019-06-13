@@ -7,7 +7,7 @@ show_help() {
     echo "Usage: ./build.sh [--servers s1 s2 s3] [--deploy]"
     echo "To build to local docker registry use: ./build.sh"
     echo "To build on remote machines using ssh use: ./build.sh --servers kube-master kube-node-1 kube-node-2"
-    echo "To build and deploy on remote machines using ssh use: ./build.sh --servers kube-master kube-node-1 kube-node-2"
+    echo "To build and deploy on remote machines using ssh use: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy"
 }
 
 parse_args() {
