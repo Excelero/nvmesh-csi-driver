@@ -4,10 +4,11 @@ servers=()
 DEPLOY=false
 
 show_help() {
-    echo "Usage: ./build.sh [--servers s1 s2 s3] [--deploy]"
+    echo "Usage: ./build.sh [--servers s1 s2 s3] [--deploy] [--build-test]"
     echo "To build to local docker registry use: ./build.sh"
     echo "To build on remote machines using ssh use: ./build.sh --servers kube-master kube-node-1 kube-node-2"
     echo "To build and deploy on remote machines using ssh use: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy"
+    echo "To build also the integration testing containers. use: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy --build-tests"
 }
 
 parse_args() {
@@ -29,6 +30,10 @@ parse_args() {
         ;;
         -d|--deploy)
             DEPLOY=true
+            shift
+        ;;
+        --build-tests)
+            BUILD_TESTS=true
             shift
         ;;
         -h|--help)
@@ -74,6 +79,15 @@ build_on_remote_machines() {
     done
 }
 
+build_testsing_containers_on_remote_machines() {
+    echo "Building testing containers on remote machines ${servers[@]}"
+
+    for server in ${servers[@]}; do
+        echo "running local build.sh for testing containers on remote machine ($server).."
+        ssh $server "cd ~/nvmesh_csi_driver/test/integration ; ./build.sh"
+    done
+}
+
 ### MAIN ###
 parse_args $@
 
@@ -85,5 +99,9 @@ else
     if [ "$DEPLOY" ]; then
         echo "Deploying YAML files on ($server).."
         ssh ${servers[0]} "cd ~/nvmesh_csi_driver/deploy/kubernetes/ ; ./remove_deployment.sh ; ./deploy.sh"
+    fi
+
+    if [ "$BUILD_TESTS" ]; then
+        build_testsing_containers_on_remote_machines
     fi
 fi
