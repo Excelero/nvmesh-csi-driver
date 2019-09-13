@@ -44,9 +44,19 @@ EOF
 
 }
 
+configure_dns() {
+
+        cat <<EOF >> /etc/sysctl.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.bridge.bridge-nf-call-arptables = 1
+EOF
+
+        sudo sysctl -p
+        sudo iptables-save
+}
 
 clear_old_install
-
 pre_install
-
 install
+configure_dns

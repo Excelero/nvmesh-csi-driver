@@ -47,3 +47,6 @@ schedulerExtraArgs:
 sudo vim /etc/sysconfig/kubelet
 #edit to the following
 KUBELET_EXTRA_ARGS=--feature-gates=ExpandCSIVolumes=true,ExpandInUsePersistentVolumes=true,BlockVolume=true,CSIBlockVolume=true
+
+# list CSI drivers
+kubectl get csidrivers.csi.storage.k8s.io
