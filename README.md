@@ -48,7 +48,7 @@ resources include:
  * secrets
  * configMaps
  * RBAC permissions
- * nvmesh storage classes
+ * default nvmesh storage classes
 
 ##### 3. Configuration
 
@@ -88,11 +88,11 @@ The following Feature Gates are required:
 The driver deployment creates storage-classes that correspond to each of the NVMesh default VPGs.
 
 The Following storage classes will appear under namespace "nvmesh-csi"
-nvmesh-concatenated
-nvmesh-raid0
-nvmesh-raid1
-nvmesh-raid10
-nvmesh-ec
+* nvmesh-concatenated
+* nvmesh-raid0
+* nvmesh-raid1
+* nvmesh-raid10
+* nvmesh-ec
 
 Create a PersistentVolumeClaim of RAID1 type:
 
