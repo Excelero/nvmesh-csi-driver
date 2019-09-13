@@ -3,7 +3,7 @@
 DEPL_DIR=resources
 
 # Deploy Static Assets
-kubectl create -f $DEPL_DIR/nvmesh-csi-namespace.json
+kubectl create -f $DEPL_DIR/nvmesh-csi-namespace.yaml
 kubectl create -f $DEPL_DIR/nvmesh-credentials.yaml
 kubectl create -f $DEPL_DIR/nvmesh-configmaps.yaml
 kubectl create -f $DEPL_DIR/rbac-permissions.yaml

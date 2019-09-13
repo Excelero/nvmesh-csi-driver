@@ -39,16 +39,16 @@ From a machine with SSH access to all nodes run the following:
 
 2.1 Run the following command on **one** node with kubectl cli
 
-    ssh node1 "cd ~/nvmesh_csi_driver/deploy/kubernetes; ./deploy.sh"
+    ssh node1 "kubectl create -f <repo>/deploy/kubernetes/deployment.yaml"
 
 * This will load all resources and deploy the driver on the cluster.
 
 resources include:
- * 'nvmesh-csi' namespace
- * secrets
- * configMaps
+ * 'nvmesh-csi' Namespace
+ * Secrets
+ * ConfigMaps
  * RBAC permissions
- * default nvmesh storage classes
+ * Default NVMesh Storage Classes
 
 ##### 3. Configuration
 
@@ -73,12 +73,12 @@ The following Feature Gates are required:
     BlockVolume=true
     CSIBlockVolume=true
 
-* the --feature-gates argument should be added to the following Kubernetes Components: 
+* the --feature-gates argument should be added to the following Kubernetes Components:
   * **apiserver**           (Kubernetes ConfigMap kubeadm-config or /etc/kubernetes/manifests/kube-apiserver.yaml)
   * **controller-manager**  (Kubernetes ConfigMap kubeadm-config or /etc/kubernetes/manifests/kube-controller-manager.yaml)
   * **scheduler**           (Kubernetes ConfigMap kubeadm-config or /etc/kubernetes/manifests/kube-scheduler.yaml)
   * **kubelet**             (kubernetes ConfigMag kublet-config-<version> or /etc/sysconfig/kubelet)
-* example of feature-gates argument  
+* example of feature-gates argument
 `--feature-gates=ExpandCSIVolumes=true,ExpandInUsePersistentVolumes=true,BlockVolume=true,CSIBlockVolume=true`
 
 
@@ -179,5 +179,5 @@ Create A Pod that uses a Block Volume
         - name: block-volume
           persistentVolumeClaim:
             claimName: block-pvc
-        
+
 * More usage examples are available under deploy/kubernetes/examples/

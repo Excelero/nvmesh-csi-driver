@@ -5,4 +5,6 @@ metadata:
   namespace: nvmesh-csi
 data:
   management.protocol: https
-  management.servers: "localhost:4000, nvme115:4001"
+  management.servers: "nvmesh-management:4001"
+  # To combine with nvmesh-management container in kubernetes, please use the following service reference for management.servers
+  #management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"
