@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+REPO_PATH=~/nvmesh-csi-driver
 servers=()
 DEPLOY=false
 
@@ -70,12 +71,12 @@ build_on_remote_machines() {
 
     for server in ${servers[@]}; do
         echo "Sending sources to remote machine ($server).."
-        rsync -r ../ $server:~/nvmesh_csi_driver/
+        rsync -r ../ $server:$REPO_PATH
     done
 
     for server in ${servers[@]}; do
         echo "running local build.sh on remote machine ($server).."
-        ssh $server "cd ~/nvmesh_csi_driver/build_tools/ ; ./build.sh"
+        ssh $server "cd $REPO_PATH/build_tools/ ; ./build.sh"
     done
 }
 
@@ -84,7 +85,7 @@ build_testsing_containers_on_remote_machines() {
 
     for server in ${servers[@]}; do
         echo "running local build.sh for testing containers on remote machine ($server).."
-        ssh $server "cd ~/nvmesh_csi_driver/test/integration ; ./build.sh"
+        ssh $server "cd $REPO_PATH/test/integration ; ./build.sh"
     done
 }
 
@@ -98,7 +99,7 @@ else
 
     if [ "$DEPLOY" ]; then
         echo "Deploying YAML files on ($server).."
-        ssh ${servers[0]} "cd ~/nvmesh_csi_driver/deploy/kubernetes/ ; ./remove_deployment.sh ; ./deploy.sh"
+        ssh ${servers[0]} "cd $REPO_PATH/deploy/kubernetes/ ; ./remove_deployment.sh ; ./deploy.sh"
     fi
 
     if [ "$BUILD_TESTS" ]; then

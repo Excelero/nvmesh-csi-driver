@@ -39,7 +39,7 @@ From a machine with SSH access to all nodes run the following:
 
 2.1 Run the following command on **one** node with kubectl cli
 
-    ssh node1 "kubectl create -f <repo>/deploy/kubernetes/deployment.yaml"
+    ssh node1 "kubectl apply -f ~/nvmesh-csi-driver/deploy/kubernetes/deployment.yaml"
 
 * This will load all resources and deploy the driver on the cluster.
 
