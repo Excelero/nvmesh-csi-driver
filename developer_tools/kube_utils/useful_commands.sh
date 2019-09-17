@@ -3,12 +3,6 @@
 # install dashboard
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v1.10.1/src/deploy/recommended/kubernetes-dashboard.yaml
 
-# install dashboard container cluster monitoring and performance analysis
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/influxdb/heapster.yaml
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/influxdb/influxdb.yaml
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/rbac/heapster-rbac.yaml
-
-
 # get join node command (run on master)
 sudo kubeadm token create --print-join-command
 
@@ -26,14 +20,14 @@ localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard
 # add to docker group
 sudo usermod -a -G docker $USER
 
-# get minikube docker-env
-eval $(minikube docker-env)
-
 # start a docker registry
 docker run -d -p 5000:5000 --restart=always --name n115 registry:2
 
 # get shell inside a container
 kubectl exec -it <kube-pod> -c <kube-container> -- /bin/bash
+
+# Feature Gates:
+# Not required fromm Kubernetes 1.15 and up.
 
 # open feature-gates
 apiServerExtraArgs:
@@ -49,4 +43,5 @@ sudo vim /etc/sysconfig/kubelet
 KUBELET_EXTRA_ARGS=--feature-gates=ExpandCSIVolumes=true,ExpandInUsePersistentVolumes=true,BlockVolume=true,CSIBlockVolume=true
 
 # list CSI drivers
+# Doesn't seem to work
 kubectl get csidrivers.csi.storage.k8s.io

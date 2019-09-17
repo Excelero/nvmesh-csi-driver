@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
 
-show_logs() {
-    # wait for pod to start
-    sleep 1
-
-    kubectl logs nvmesh-csi-controller-0 -c nvmesh-csi-plugin --follow
-}
-
-
 ### MAIN ###
 ############
 
@@ -16,6 +8,9 @@ show_logs() {
 cd ../build_tools
 ./build.sh
 
-cd ../deploy/kubernetes/
-./deploy.sh
+cd ../deploy/kubernetes/scripts
+./build_deployment_file.sh
+
+cd ..
+kubectl apply -f ./deployment.yaml
 

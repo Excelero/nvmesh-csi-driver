@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-../deploy/kubernetes/remove_deployment.sh
+../deploy/kubernetes/scripts/remove_deployment.sh
 
 # remove all testing workloads
 kubectl delete daemonset multi-consumer-test -n nvmesh-csi
