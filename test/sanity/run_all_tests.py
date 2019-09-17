@@ -9,7 +9,7 @@ from test.sanity.helpers.server_manager import ServerManager
 project_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(project_path)
 
-def run_integration_tests():
+def run_sanity_tests():
 	loader = unittest.TestLoader()
 	loader.sortTestMethodsUsing = None
 	suite = loader.discover(start_dir='.')
@@ -32,11 +32,11 @@ if __name__ == "__main__":
 
 	verify_server_is_running()
 
-	results = run_integration_tests()
+	results = run_sanity_tests()
 
 	driver_server.stop()
 
 	print(results)
 	if results.errors or results.failures:
-		print("Integration Tests Failed")
+		print("Sanity Tests Failed")
 		exit(1)
