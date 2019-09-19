@@ -49,12 +49,12 @@ spec:
             - name: MANAGEMENT_SERVERS
               valueFrom:
                 configMapKeyRef:
-                  name: nvmesh-config
+                  name: nvmesh-csi-config
                   key: management.servers
             - name: MANAGEMENT_PROTOCOL
               valueFrom:
                 configMapKeyRef:
-                  name: nvmesh-config
+                  name: nvmesh-csi-config
                   key: management.protocol
             - name: MANAGEMENT_USERNAME
               valueFrom:
@@ -154,12 +154,12 @@ spec:
             - name: MANAGEMENT_SERVERS
               valueFrom:
                 configMapKeyRef:
-                  name: nvmesh-config
+                  name: nvmesh-csi-config
                   key: management.servers
             - name: MANAGEMENT_PROTOCOL
               valueFrom:
                 configMapKeyRef:
-                  name: nvmesh-config
+                  name: nvmesh-csi-config
                   key: management.protocol
             - name: MANAGEMENT_USERNAME
               valueFrom:

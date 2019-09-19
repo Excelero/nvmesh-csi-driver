@@ -1,7 +1,7 @@
 kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: nvmesh-config
+  name: nvmesh-csi-config
   namespace: nvmesh-csi
 data:
   management.protocol: https
