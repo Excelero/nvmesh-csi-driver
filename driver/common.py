@@ -11,7 +11,7 @@ from subprocess import Popen, PIPE
 class Consts(object):
 	DEFAULT_VOLUME_SIZE = 5000000000 #5GB
 	PLUGIN_NAME = "nvmesh-csi.excelero.com"
-	PLUGIN_VERSION = "0.01"
+	PLUGIN_VERSION = "0.0.1"
 	SPEC_VERSION = "1.1.0"
 	MIN_KUBERNETES_VERSION = "1.13"
 
