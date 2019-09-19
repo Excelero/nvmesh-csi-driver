@@ -57,6 +57,12 @@ Using Dashboard:
 
 3.2 Go to `Config Maps` > `nvmesh-config` and edit `management.servers` to your MANAGEMENT_SERVERS configuration
 
+For Example:
+management.servers: server-1.domain.com
+
+If you deployed NVMesh Management in a Container using [Excelero/nvmesh-mgmt-docker](https://github.com/Excelero/nvmesh-mgmt-docker) use:
+management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"
+
 3.3 Go to `Secrets` > `nvmesh-credentials` and edit `username` and `password` to your management server credentials configuration
  * secret in Kubernetes must be in base64 format
  * for example use: `echo -n 'admin@excelero.com' | base64` and `echo -n 'admin' | base64` to get the username and passsword in base64

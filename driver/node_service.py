@@ -37,7 +37,7 @@ class NVMeshNodeService(NodeServicer):
 		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
 		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_volume_name)
 
-		# try to run attach locally to support future changes to NVMesh
+		# run nvmesh attach locally
 		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_attach_volumes {}'.format(nvmesh_volume_name))
 		if exit_code != 0:
 			raise DriverError(StatusCode.INTERNAL, "local attach failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
