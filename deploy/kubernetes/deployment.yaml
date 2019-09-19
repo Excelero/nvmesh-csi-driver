@@ -322,9 +322,9 @@ spec:
       serviceAccount: nvmesh-csi-controller
       containers:
         # NVMesh Driver
-        - name: nvmesh-csi-plugin
+        - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
-          image: excelero/nvmesh-csi-plugin:v0.0.1
+          image: excelero/nvmesh-csi-driver:v0.0.1
           imagePullPolicy: "IfNotPresent"
           env:
             - name: SOCKET_PATH
@@ -422,9 +422,9 @@ spec:
           operator: Exists
       containers:
         # NVMesh Driver
-        - name: nvmesh-csi-plugin
+        - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
-          image: excelero/nvmesh-csi-plugin:v0.0.1
+          image: excelero/nvmesh-csi-driver:v0.0.1
           imagePullPolicy: "IfNotPresent"
           securityContext:
             privileged: true

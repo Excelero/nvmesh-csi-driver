@@ -26,7 +26,7 @@ Deployment of NVMesh CSI driver consists of the following stages:
 
 ##### 1. Build & Upload Docker image
 
-Upload the driver container image (nvmesh-csi-plugin) to a private Docker registry deployed at your site, or to each nodes local Docker registry
+Upload the driver container image (nvmesh-csi-driver) to a private Docker registry deployed at your site, or to each nodes local Docker registry
 
 From a machine with SSH access to all nodes run the following:
 
