@@ -31,25 +31,38 @@ kubectl apply -f https://raw.githubusercontent.com/Excelero/nvmesh-csi-driver/ma
 
 #### 2. Configuration
 
-Using Kubernetes Dashboard:
-1. make sure the selected namespace is `nvmesh-csi` in the side menu
+* If you are using Kubernetes Dashboard make sure the selected namespace is `nvmesh-csi` in the side menu
 
-2. Go to `Config Maps` > `nvmesh-config` and edit `management.servers` to your MANAGEMENT_SERVERS configuration
+1. Edit Management Server Address
 
-For Example:
-management.servers: server-1.domain.com
+Go to `Config Maps` > `nvmesh-config` OR from the terminal run:
+```
+kubectl edit configmap -n nvmesh-csi nvmesh-csi-config
+```
+
+Edit `management.servers` to your MANAGEMENT_SERVERS configuration
+
+`management.servers: server-1.domain.com`
 
 If you deployed NVMesh Management in a Container using [Excelero/nvmesh-mgmt-docker](https://github.com/Excelero/nvmesh-mgmt-docker) use:
-management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4001"
 
-3. Go to `Secrets` > `nvmesh-credentials` and edit `username` and `password` to your management server credentials configuration
+`management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4001"`
+
+2. Edit Username and Password to the Management Server
+Go to `Secrets` > `nvmesh-credentials` OR from the terminal run:
+```
+kubectl edit secret -n nvmesh-csi nvmesh-credentials
+```
+
+Edit `username` and `password` to your management server credentials configuration
  * secret in Kubernetes must be in base64 format
  * for example use: `echo -n 'admin@excelero.com' | base64` and `echo -n 'admin' | base64` to get the username and passsword in base64
  * for more info visit: [Kubernetes Docs - Convert your secret data to a base-64 representation](https://kubernetes.io/docs/tasks/inject-data-application/distribute-credentials-secure/#convert-your-secret-data-to-a-base-64-representation)
 
 
 #### 3. Opening Kubernetes Feature Gates
-This stage is only required for Kubernetes versions 1.13 - 1.14
+* This stage is only required for Kubernetes versions 1.13 - 1.14
+
 Depending on the Kubernetes version some `Feature Gates` might require to be turned on manually
 
 The following Feature Gates are required:
