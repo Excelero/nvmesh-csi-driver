@@ -9,6 +9,14 @@ metadata:
   labels:
     app: nvmesh-csi
 ---
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: nvmesh-csi.excelero.com
+spec:
+  attachRequired: true
+  podInfoOnMount: true
+---
 kind: ConfigMap
 apiVersion: v1
 metadata:
@@ -469,30 +477,30 @@ spec:
             - name: var-opt-nvmesh
               mountPath: /var/opt/NVMesh
 
-        # Registrar
-        - name: csi-driver-registrar
-          image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
-          args:
-            - "--csi-address=/csi/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/nvmesh-csi.excelero.com/csi.sock"
-          lifecycle:
-            preStop:
-              exec:
-                command: ["/bin/sh", "-c", "rm -rf /registration/nvmesh-csi.excelero.com /registration/nvmesh-csi.excelero.com-reg.sock"]
-          volumeMounts:
-            - name: plugin-dir
-              mountPath: /csi
-            - name: registration-dir
-              mountPath: /registration
+        # # Registrar
+        # - name: csi-driver-registrar
+        #   image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+        #   args:
+        #     - "--csi-address=/csi/csi.sock"
+        #     - "--kubelet-registration-path=/var/lib/kubelet/plugins/nvmesh-csi.excelero.com/csi.sock"
+        #   lifecycle:
+        #     preStop:
+        #       exec:
+        #         command: ["/bin/sh", "-c", "rm -rf /registration/nvmesh-csi.excelero.com /registration/nvmesh-csi.excelero.com-reg.sock"]
+        #   volumeMounts:
+        #     - name: plugin-dir
+        #       mountPath: /csi
+        #     - name: registration-dir
+        #       mountPath: /registration
       volumes:
         - name: plugin-dir
           hostPath:
             path: /var/lib/kubelet/plugins/nvmesh-csi.excelero.com/
             type: DirectoryOrCreate
-        - name: registration-dir
-          hostPath:
-            path: /var/lib/kubelet/plugins_registry/
-            type: Directory
+        # - name: registration-dir
+        #   hostPath:
+        #     path: /var/lib/kubelet/plugins_registry/
+        #     type: Directory
         - name: pods-mount-dir
           hostPath:
             path: /var/lib/kubelet

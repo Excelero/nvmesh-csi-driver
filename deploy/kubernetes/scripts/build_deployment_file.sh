@@ -2,6 +2,7 @@ YAML_SEPARATOR="---"
 DEPLOYMENT_FILE_PATH="../deployment.yaml"
 ORDERED_LIST_OF_YAML_FILES=(
     nvmesh-csi-namespace.yaml
+    nvmesh-csi-driver.yaml
     nvmesh-configmaps.yaml
     nvmesh-credentials.yaml
     rbac-permissions.yaml
