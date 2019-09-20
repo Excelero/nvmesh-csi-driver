@@ -14,8 +14,8 @@ kind: CSIDriver
 metadata:
   name: nvmesh-csi.excelero.com
 spec:
-  attachRequired: true
-  podInfoOnMount: true
+  attachRequired: false
+  podInfoOnMount: false
 ---
 kind: ConfigMap
 apiVersion: v1
@@ -24,7 +24,7 @@ metadata:
   namespace: nvmesh-csi
 data:
   management.protocol: https
-  management.servers: "nvmesh-management:4001"
+  management.servers: "nvmesh-management:4000"
   # To combine with nvmesh-management container in kubernetes, please use the following service reference for management.servers
   #management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"
 
@@ -477,30 +477,30 @@ spec:
             - name: var-opt-nvmesh
               mountPath: /var/opt/NVMesh
 
-        # # Registrar
-        # - name: csi-driver-registrar
-        #   image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
-        #   args:
-        #     - "--csi-address=/csi/csi.sock"
-        #     - "--kubelet-registration-path=/var/lib/kubelet/plugins/nvmesh-csi.excelero.com/csi.sock"
-        #   lifecycle:
-        #     preStop:
-        #       exec:
-        #         command: ["/bin/sh", "-c", "rm -rf /registration/nvmesh-csi.excelero.com /registration/nvmesh-csi.excelero.com-reg.sock"]
-        #   volumeMounts:
-        #     - name: plugin-dir
-        #       mountPath: /csi
-        #     - name: registration-dir
-        #       mountPath: /registration
+        # Registrar
+        - name: csi-driver-registrar
+          image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+          args:
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/nvmesh-csi.excelero.com/csi.sock"
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /registration/nvmesh-csi.excelero.com /registration/nvmesh-csi.excelero.com-reg.sock"]
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
       volumes:
         - name: plugin-dir
           hostPath:
             path: /var/lib/kubelet/plugins/nvmesh-csi.excelero.com/
             type: DirectoryOrCreate
-        # - name: registration-dir
-        #   hostPath:
-        #     path: /var/lib/kubelet/plugins_registry/
-        #     type: Directory
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: Directory
         - name: pods-mount-dir
           hostPath:
             path: /var/lib/kubelet
