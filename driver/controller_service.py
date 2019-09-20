@@ -1,6 +1,5 @@
 import json
 import random
-
 import time
 from google.protobuf.json_format import MessageToJson, MessageToDict
 
@@ -18,6 +17,20 @@ class NVMeshControllerService(ControllerServicer):
 		ControllerServicer.__init__(self)
 		self.logger = logger
 		self.mgmtClient = ManagementClientWrapper()
+		self._wait_for_connection_to_management()
+
+	def _wait_for_connection_to_management(self):
+		connected = False
+
+		while not connected:
+			isAlive = self.mgmtClient.isAlive()
+			if isAlive:
+				connected = True
+			else:
+				print("Waiting for NVMesh Management server on {}".format(self.mgmtClient.managementServers))
+				Utils.interruptable_sleep(10)
+
+		print("Connected to NVMesh Management server on {}".format(self.mgmtClient.managementServer))
 
 	@CatchServerErrors
 	def CreateVolume(self, request, context):

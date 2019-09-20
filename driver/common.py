@@ -1,11 +1,10 @@
 import hashlib
 import logging
 from logging.handlers import SysLogHandler
-
 import grpc
 import sys
 import os
-
+import time
 from subprocess import Popen, PIPE
 
 class Consts(object):
@@ -124,3 +123,10 @@ class Utils(object):
 	@staticmethod
 	def get_nvmesh_block_device_path(nvmesh_volume_name):
 		return '/dev/nvmesh/{}'.format(nvmesh_volume_name)
+
+	@staticmethod
+	def interruptable_sleep(duration, sleep_interval=1):
+		# time.sleep doesn't interrupt on signals (for example SIGTERM when trying to terminate the container)
+		# so we will make many short sleeps
+		for i in range(int(duration / sleep_interval)):
+			time.sleep(sleep_interval)
