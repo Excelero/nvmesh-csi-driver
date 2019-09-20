@@ -42,6 +42,6 @@ sudo vim /etc/sysconfig/kubelet
 #edit to the following
 KUBELET_EXTRA_ARGS=--feature-gates=ExpandCSIVolumes=true,ExpandInUsePersistentVolumes=true,BlockVolume=true,CSIBlockVolume=true
 
-# list CSI drivers
-# Doesn't seem to work
-kubectl get csidrivers.csi.storage.k8s.io
+# list CSI drivers and show info
+kubectl get csidrivers.storage.k8s.io
+kubectl describe csidrivers.storage.k8s.io

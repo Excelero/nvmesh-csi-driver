@@ -91,14 +91,22 @@ build_testsing_containers_on_remote_machines() {
 ### MAIN ###
 parse_args $@
 
+DEPLOY_COMMAND="cd $REPO_PATH/deploy/kubernetes/scripts ; ./remove_deployment.sh ; ./build_deployment_file.sh ; ./deploy.sh "
+
 if [ ${#servers[@]} -eq 0 ];then
     build_locally
+
+    if [ "$DEPLOY" ]; then
+        echo "Deploying YAML files locally.."
+        eval $DEPLOY_COMMAND
+    fi
+
 else
     build_on_remote_machines
 
     if [ "$DEPLOY" ]; then
         echo "Deploying YAML files on ($server).."
-        ssh ${servers[0]} "cd $REPO_PATH/deploy/kubernetes/ ; ./remove_deployment.sh ; ./deploy.sh"
+        ssh ${servers[0]} "$DEPLOY_COMMAND"
     fi
 
     if [ "$BUILD_TESTS" ]; then

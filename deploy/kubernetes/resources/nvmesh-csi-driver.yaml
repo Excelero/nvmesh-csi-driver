@@ -3,5 +3,5 @@ kind: CSIDriver
 metadata:
   name: nvmesh-csi.excelero.com
 spec:
-  attachRequired: true
-  podInfoOnMount: true
+  attachRequired: false
+  podInfoOnMount: false

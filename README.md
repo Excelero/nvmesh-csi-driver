@@ -46,7 +46,7 @@ Edit `management.servers` to your MANAGEMENT_SERVERS configuration
 
 If you deployed NVMesh Management in a Container using [Excelero/nvmesh-mgmt-docker](https://github.com/Excelero/nvmesh-mgmt-docker) use:
 
-`management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4001"`
+`management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"`
 
 2. Edit Username and Password to the Management Server
 Go to `Secrets` > `nvmesh-credentials` OR from the terminal run:
