@@ -289,3 +289,46 @@ Create A Pod that uses a Block Volume
             claimName: block-pvc
 
 * More usage examples are available under deploy/kubernetes/examples/
+
+## Developer Guide
+
+### Release of New Version
+
+This is a TODO list for releasing a new driver version:
+1. Verify driver version strings updated:
+   1. driver/common.py  Consts.DRIVER_VERSION
+   2. build_tools/build.sh DRIVER_VERSION
+   3. deploy/kubernetes/resources/nvmesh-csi-deployment.yaml - search for `image: excelero/nvmesh-csi-driver:<old-version>`
+
+2. Build image locally
+```bash
+cd build
+./build.sh
+```
+
+3. Commit all changes
+
+4. Create git tag to indicate the version
+```
+git tag -a v0.0.1 -m v0.0.1
+```
+
+5. Push Version to GitHub
+```
+git push github HEAD:<version>_rc
+```
+
+6. Create GitHub Pull Request
+
+7. Login to Docker Hub
+```bash
+docker login
+```
+* enter your Docker Hub username and password
+
+* you must be a member of the Excelero Organization in Docker Hub in order to push an image to it.
+
+8. Push image to Docker Hub
+```
+docker push excelero/nvmesh-csi-driver:<version>
+```

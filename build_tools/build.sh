@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+DRIVER_VERSION=v0.0.1
 REPO_PATH=~/nvmesh-csi-driver
 servers=()
 DEPLOY=false
@@ -57,12 +58,16 @@ build_locally() {
     # using the -f flag allows us to include files from a directory out of the 'context'
     # we need it because the Dockerfile is in build dir and sources are in driver dir
 
-    docker build -f build_tools/nvmesh-csi-driver.dockerfile . --tag excelero/nvmesh-csi-driver:v0.0.1
+    docker build -f build_tools/nvmesh-csi-driver.dockerfile . --tag excelero/nvmesh-csi-driver:$DRIVER_VERSION
 
     if [ $? -ne 0 ]; then
         echo "Docker image build failed"
         exit 1
     fi
+
+    # build Kubernetes deployment.yaml
+    cd deploy/kubernetes/scripts
+    ./build_deployment_file.sh
 }
 
 build_on_remote_machines() {
@@ -91,7 +96,7 @@ build_testsing_containers_on_remote_machines() {
 ### MAIN ###
 parse_args $@
 
-DEPLOY_COMMAND="cd $REPO_PATH/deploy/kubernetes/scripts ; ./remove_deployment.sh ; ./build_deployment_file.sh ; ./deploy.sh "
+DEPLOY_COMMAND="cd $REPO_PATH/deploy/kubernetes/scripts ; ./remove_deployment.sh ; ./deploy.sh "
 
 if [ ${#servers[@]} -eq 0 ];then
     build_locally
