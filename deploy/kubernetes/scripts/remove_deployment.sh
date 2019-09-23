@@ -15,5 +15,21 @@ kubectl delete clusterrolebinding csi-attacher-role csi-provisioner-role csi-res
 kubectl delete service nvmesh-csi-controller
 kubectl delete CSIDriver nvmesh-csi.excelero.com
 
+# Backup ConfigMap & Secrets (in namespace nvmesh-csi-saved) and Delete
+BACKUP_NAMESPACE="nvmesh-csi-saved"
+
+if kubectl get namespace nvmesh-csi-saved &>/dev/null ; then
+    kubectl delete configmap nvmesh-csi-config -n $BACKUP_NAMESPACE
+    kubectl delete secret nvmesh-credentials -n $BACKUP_NAMESPACE
+else
+    kubectl create namespace $BACKUP_NAMESPACE
+fi
+
+kubectl get configmap nvmesh-csi-config -n nvmesh-csi -o yaml | sed -e "s/namespace: nvmesh-csi/namespace: $BACKUP_NAMESPACE/g" | kubectl apply -f -
+kubectl get secret nvmesh-credentials -n nvmesh-csi -o yaml | sed -e "s/namespace: nvmesh-csi/namespace: $BACKUP_NAMESPACE/g" | kubectl apply -f -
+
+kubectl delete configmap nvmesh-csi-config -n nvmesh-csi
+kubectl delete secret nvmesh-credentials -n nvmesh-csi
+
 # Delete nvmesh-csi Namespace
 kubectl delete namespace nvmesh-csi
