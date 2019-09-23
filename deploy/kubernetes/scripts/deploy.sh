@@ -1,1 +1,1 @@
-kubectl apply -f ../deployment.yaml
+kubectl create -f ../deployment.yaml
