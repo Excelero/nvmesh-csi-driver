@@ -4,6 +4,7 @@ DRIVER_VERSION=v0.0.1
 REPO_PATH=~/nvmesh-csi-driver
 servers=()
 DEPLOY=false
+DEPLOY_ONLY=false
 
 show_help() {
     echo "Usage: ./build.sh [--servers s1 s2 s3] [--deploy] [--build-test]"
@@ -32,6 +33,10 @@ parse_args() {
         ;;
         -d|--deploy)
             DEPLOY=true
+            shift
+        ;;
+        --deploy-only)
+            DEPLOY_ONLY=true
             shift
         ;;
         --build-tests)
@@ -64,57 +69,87 @@ build_locally() {
         echo "Docker image build failed"
         exit 1
     fi
+}
 
+build_k8s_deployment_file() {
     # build Kubernetes deployment.yaml
     cd deploy/kubernetes/scripts
     ./build_deployment_file.sh
 }
 
 build_on_remote_machines() {
+    if [ "$BUILD_TESTS" ]; then
+        BUILD_TESTS_FLAG="--build-tests"
+    fi
+
     echo "Building on remote machines ${servers[@]}"
 
     for server in ${servers[@]}; do
         echo "Sending sources to remote machine ($server).."
-        rsync -r ../ $server:$REPO_PATH
+        rsync -r ../ $server:$REPO_PATH &> >(sed 's/^/'$server': /') &
+    done
+
+    # wait for all sources copy to finish
+    for server in ${servers[@]}; do
+        wait
     done
 
     for server in ${servers[@]}; do
-        echo "running local build.sh on remote machine ($server).."
-        ssh $server "cd $REPO_PATH/build_tools/ ; ./build.sh"
+        echo "running build.sh $BUILD_TESTS_FLAG on $server.."
+        ssh $server "cd $REPO_PATH/build_tools/ ; ./build.sh $BUILD_TESTS_FLAG" &> >(sed 's/^/'$server': /') &
     done
+
+    # wait build.sh to finish on all servers
+    for server in ${servers[@]}; do
+        wait
+    done
+
+    # deploy only on first node (kube-master) n
+    if [ $DEPLOY = true ]; then
+        echo "Deploying on first node"
+        ssh ${servers[0]} "cd $REPO_PATH/build_tools/ ; ./build.sh --deploy-only" &> >(sed 's/^/'${servers[0]}': /')
+    fi
 }
 
-build_testsing_containers_on_remote_machines() {
-    echo "Building testing containers on remote machines ${servers[@]}"
+build_testsing_containers() {
+    echo "Building testing containers"
 
     for server in ${servers[@]}; do
         echo "running local build.sh for testing containers on remote machine ($server).."
-        ssh $server "cd $REPO_PATH/test/integration ; ./build.sh"
+        cd $REPO_PATH/test/integration ; ./build.sh
     done
+}
+
+deploy() {
+    echo "Deploying YAML files.."
+    cd $REPO_PATH/deploy/kubernetes/scripts
+
+    if kubectl get namespace nvmesh-csi &>/dev/null; then
+        ./remove_deployment.sh
+    fi
+
+    ./deploy.sh
 }
 
 ### MAIN ###
 parse_args $@
 
-DEPLOY_COMMAND="cd $REPO_PATH/deploy/kubernetes/scripts ; ./remove_deployment.sh ; ./deploy.sh "
+if [ $DEPLOY_ONLY = true ]; then
+    deploy
+    exit 0
+fi
 
 if [ ${#servers[@]} -eq 0 ];then
     build_locally
-
-    if [ "$DEPLOY" ]; then
-        echo "Deploying YAML files locally.."
-        eval $DEPLOY_COMMAND
-    fi
-
-else
-    build_on_remote_machines
-
-    if [ "$DEPLOY" ]; then
-        echo "Deploying YAML files on ($server).."
-        ssh ${servers[0]} "$DEPLOY_COMMAND"
-    fi
+    build_k8s_deployment_file
 
     if [ "$BUILD_TESTS" ]; then
-        build_testsing_containers_on_remote_machines
+        build_testsing_containers
     fi
+
+    if [ $DEPLOY = true ]; then
+        deploy
+    fi
+else
+    build_on_remote_machines
 fi
