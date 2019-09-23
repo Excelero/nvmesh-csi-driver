@@ -130,10 +130,6 @@ class NVMeshControllerService(ControllerServicer):
 		self._validate_volume_exists(nvmesh_vol_name)
 		self._validate_node_exists(request.node_id)
 
-		err, out = self.mgmtClient.attachVolume(nodeID=request.node_id,volumeID=nvmesh_vol_name)
-
-		if err:
-			raise DriverError(StatusCode.FAILED_PRECONDITION, err)
 
 		return ControllerPublishVolumeResponse()
 
@@ -145,19 +141,6 @@ class NVMeshControllerService(ControllerServicer):
 		self._validate_volume_exists(nvmesh_vol_name)
 		self._validate_node_exists(request.node_id)
 
-		def try_detach_from_management():
-			err, out = self.mgmtClient.detachVolume(nodeID=request.node_id, volumeID=nvmesh_vol_name)
-			if err:
-				raise DriverError(StatusCode.FAILED_PRECONDITION, err)
-
-		retries = 0
-		while retries < 10:
-			try:
-				try_detach_from_management()
-			except ManagementTimeout as ex:
-				# get random timeout between 1 - 4 seconds
-				timeout = (random.random() * 3) + 1
-				time.sleep(timeout)
 
 		return ControllerUnpublishVolumeResponse()
 
