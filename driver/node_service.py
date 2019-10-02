@@ -5,11 +5,11 @@ import os
 from google.protobuf.json_format import MessageToJson
 from grpc import StatusCode
 
-from driver.FileSystemManager import FileSystemManager
-from driver.common import Utils, CatchServerErrors, DriverError, Consts
-from driver.csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
+from FileSystemManager import FileSystemManager
+from common import Utils, CatchServerErrors, DriverError, Consts
+from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
 	NodeStageVolumeResponse, NodeUnstageVolumeResponse, VolumeCapability, NodeExpandVolumeResponse
-from driver.csi.csi_pb2_grpc import NodeServicer
+from csi.csi_pb2_grpc import NodeServicer
 
 
 class NVMeshNodeService(NodeServicer):

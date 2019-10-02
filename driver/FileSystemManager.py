@@ -4,7 +4,7 @@ import shutil
 
 from grpc import StatusCode
 
-from driver.common import Utils, DriverLogger, DriverError
+from common import Utils, DriverLogger, DriverError
 
 logger = DriverLogger("FileSystemManager")
 

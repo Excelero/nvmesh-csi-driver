@@ -35,14 +35,13 @@ LOCAL_TEST_DIR        = '/opt/infraClient'
 DEFAULT_SSH_USER      = 'orchestrator'
 EXCELERO_REPOS_URL    = 'https://excelero:excelero1234@repo.excelero.com/repos/{}/redhat/{}/'
 SYSLOG_PATH           = '/dev/log'
-TEST_REPOSITORY_DIR   = '{}/testRepository/Tests'.format(BASE)
+TEST_REPOSITORY_DIR   = '{}/testRepository/'.format(BASE)
 SIMULATOR_DIR         = '{}/Simulators/'.format(BASE)
 COMMON_DIR            = '{}/common'.format(BASE)
 LOCAL_UTILS_DIR       = '{}/utils'.format(LOCAL_TEST_DIR)
 TEST_UTILS_SCRIPTS    = '{}/utils/scripts/'.format(BASE)
 TEST_UTILS_NETWORK    = '{}/utils/network/'.format(BASE)
 TEST_UTILS_CONF       = '{}/utils/configurations/'.format(BASE)
-EXECUTION_DIR_TEMPLATE = '/var/opt/infraClient/executions/{0}/'
 NVMESH_SRC            = '/tmp/infraClient/nvmesh'
 BLOCK_UNITEST_DIR     = NVMESH_SRC + '/clnt/block/unitest/'
 PERF_TEST_UNITEST_DIR = NVMESH_SRC + '/perfTest/io_stress'
@@ -310,7 +309,6 @@ class VolumeStatuses(Enum):
 	REBUILDING                = 'rebuilding'
 	DEGRADED                  = 'degraded'
 	MARKED_FOR_DELETION       = 'markedForDeletion'
-	MARKED_FOR_FORCE_DELETION = 'markedForForceDeletion'
 	MARKED_FOR_REBUILD        = 'markedForRebuild'
 	REBUILD_REQUIRED          = 'rebuildRequired'
 	MARKED_FOR_REBUILD_OLD    = 'markedForRebuild_old'
@@ -443,3 +441,45 @@ class CompilatorDefaults(Enum):
 	BUILD_SCRIPT_NAME = 'build_client_server_rpms.py'
 	COMPILE_SCRIPT_NAME = 'compile_for_kernel_and_ofed.sh'
 	BLOCK_SIZE_OPTIONS = ['512B', '4k']
+
+class EndpointRoutes(Enum):
+	CLIENTS = 'clients'
+	SERVERS = 'servers'
+	SERVER_CLASSES = 'serverClasses'
+	DISK_CLASSES = 'diskClasses'
+	DISKS = 'disks'
+	LOGS = 'logs'
+	USERS = 'users'
+	VOLUMES = 'volumes'
+	VPGS = 'volumeProvisioningGroups'
+	LOGIN = 'login'
+	INDEX = '/'
+
+class CLI:
+	NVMESH_CLI_FILES_DIR = '~/.nvmesh_cli_files'
+	API_SECRETS_FILE = '{}/nvmesh_api_secrets'.format(NVMESH_CLI_FILES_DIR)
+	SSH_SECRETS_FILE = '{}/nvmesh_ssh_secrets'.format(NVMESH_CLI_FILES_DIR)
+	HISTORY_FILE = '{}/nvmesh_cli_history'.format(NVMESH_CLI_FILES_DIR)
+
+class ControlJobs(Enum):
+	SHUTDOWN_ALL = 'shutdownAll'
+	ATTACH = 'toBeAttached'
+	DETACH = 'toBeDetached'
+
+
+class RAIDLevels(Enum):
+	CONCATENATED = 'Concatenated'
+	JBOD = 'LVM/JBOD'
+	STRIPED_RAID_0 = 'Striped RAID-0'
+	MIRRORED_RAID_1 = 'Mirrored RAID-1'
+	STRIPED_AND_MIRRORED_RAID_10 = 'Striped & Mirrored RAID-10'
+	ERASURE_CODING = 'Erasure Coding'
+
+class VolumeDefaults(Enum):
+	STRIPE_SIZE = 32
+	NUMBER_OF_MIRRORS = 1
+
+class ControlJobsScriptCmds(Enum):
+    ATTACH_VOLUMES = 'nvmesh_attach_volumes'
+    DETACH_VOLUMES = 'nvmesh_detach_volumes'
+

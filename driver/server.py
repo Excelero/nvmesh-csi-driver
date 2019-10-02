@@ -2,15 +2,43 @@ import grpc
 import time
 import signal
 
+import sys
 from concurrent import futures
-from common import ServerLoggingInterceptor, DriverLogger
+from common import ServerLoggingInterceptor, DriverLogger, Utils
 from controller_service import NVMeshControllerService
 from csi import csi_pb2_grpc
-from driver.config import Config
+from config import Config
 from identity_service import NVMeshIdentityService
 from node_service import NVMeshNodeService
+from NVMeshSDK.ConnectionManager import ConnectionManager, ManagementTimeout
 
-_ONE_DAY_IN_SECONDS = 60 * 60 * 24
+def log(msg):
+	print(msg)
+	sys.stdout.flush()
+
+def init_sdk():
+
+	protocol = Config.MANAGEMENT_PROTOCOL
+	managementServers = Config.MANAGEMENT_SERVERS
+	user = Config.MANAGEMENT_USERNAME
+	password = Config.MANAGEMENT_PASSWORD
+
+	serversWithProtocol = ['{0}://{1}'.format(protocol, server) for server in managementServers.split(',')]
+
+	return ConnectionManager.getInstance(managementServer=serversWithProtocol, user=user, password=password, logToSysLog=False)
+
+def wait_for_connection_to_management():
+	connected = False
+
+	while not connected:
+		try:
+			init_sdk()
+			connected = ConnectionManager.getInstance().isAlive()
+		except ManagementTimeout as ex:
+			log("Waiting for NVMesh Management server on {}".format(Config.MANAGEMENT_SERVERS))
+			Utils.interruptable_sleep(10)
+
+	print("Connected to NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
 
 class NVMeshCSIDriverServer(object):
 	def __init__(self):
@@ -36,8 +64,9 @@ class NVMeshCSIDriverServer(object):
 	def wait_forever(self):
 		try:
 			while self.shouldContinue:
-				time.sleep(_ONE_DAY_IN_SECONDS)
-				self.logger.info("Server Stopped")
+				time.sleep(1)
+
+			self.logger.info("Server Stopped")
 		except KeyboardInterrupt:
 			self.server.stop(0)
 
@@ -47,6 +76,7 @@ class NVMeshCSIDriverServer(object):
 		self.server.stop(0)
 
 if __name__ == '__main__':
+	wait_for_connection_to_management()
 	driver = NVMeshCSIDriverServer()
 
 	def sigterm_handler(signum, frame):

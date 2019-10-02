@@ -1,6 +1,6 @@
 import os
 
-from driver.common import Consts
+from common import Consts
 
 class ConfigError(Exception):
 	pass
