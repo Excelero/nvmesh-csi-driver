@@ -73,8 +73,9 @@ build_locally() {
 
 build_k8s_deployment_file() {
     # build Kubernetes deployment.yaml
-    cd deploy/kubernetes/scripts
+    cd ../deploy/kubernetes/scripts
     ./build_deployment_file.sh
+    cd -
 }
 
 build_on_remote_machines() {
@@ -129,6 +130,8 @@ deploy() {
     fi
 
     ./deploy.sh
+
+    cd $REPO_PATH
 }
 
 ### MAIN ###
@@ -139,9 +142,10 @@ if [ $DEPLOY_ONLY = true ]; then
     exit 0
 fi
 
+build_k8s_deployment_file
+
 if [ ${#servers[@]} -eq 0 ];then
     build_locally
-    build_k8s_deployment_file
 
     if [ "$BUILD_TESTS" ]; then
         build_testsing_containers

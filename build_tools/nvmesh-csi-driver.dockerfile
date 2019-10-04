@@ -3,6 +3,9 @@ ENV container docker
 
 COPY NVMeshSDK/ /NVMeshSDK/
 COPY requirements.txt ./
+
+USER root
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 RUN apt-get update \
@@ -11,10 +14,9 @@ RUN apt-get update \
     && apt install xfsprogs -y \
     && apt install sudo -y \
     && cd NVMeshSDK && ./install.sh sdk \
-    && rm -rf /NVMeshSDK
+    && cd ../ && rm -rf /NVMeshSDK
 
 COPY driver/ /driver/
 
-USER root
 
 CMD ["python", "driver/server.py"]

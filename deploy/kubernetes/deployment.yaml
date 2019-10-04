@@ -23,10 +23,11 @@ metadata:
   name: nvmesh-csi-config
   namespace: nvmesh-csi
 data:
-  management.protocol: https
-  management.servers: "nvmesh-management:4000"
+  management.protocol: http
+  management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"
   # To combine with nvmesh-management container in kubernetes, please use the following service reference for management.servers
   #management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"
+  # otherwise use ip:port or hostname:port pointing to your management server REST interface
 
 ---
 apiVersion: v1
@@ -332,7 +333,7 @@ spec:
         # NVMesh Driver
         - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
-          image: excelero/nvmesh-csi-driver:v0.0.1
+          image: excelero/nvmesh-csi-driver:v0.0.2
           imagePullPolicy: "IfNotPresent"
           env:
             - name: SOCKET_PATH
@@ -432,7 +433,7 @@ spec:
         # NVMesh Driver
         - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
-          image: excelero/nvmesh-csi-driver:v0.0.1
+          image: excelero/nvmesh-csi-driver:v0.0.2
           imagePullPolicy: "IfNotPresent"
           securityContext:
             privileged: true
