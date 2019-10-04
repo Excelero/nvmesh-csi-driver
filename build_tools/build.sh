@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DRIVER_VERSION=v0.0.1
+DRIVER_VERSION=v0.0.2
 REPO_PATH=~/nvmesh-csi-driver
 servers=()
 DEPLOY=false
@@ -67,7 +67,7 @@ build_locally() {
 
     if [ $? -ne 0 ]; then
         echo "Docker image build failed"
-        exit 1
+        exit 3
     fi
 }
 

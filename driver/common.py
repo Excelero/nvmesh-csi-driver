@@ -10,9 +10,8 @@ from subprocess import Popen, PIPE
 class Consts(object):
 	DEFAULT_VOLUME_SIZE = 5000000000 #5GB
 	DRIVER_NAME = "nvmesh-csi.excelero.com"
-	DRIVER_VERSION = "0.0.1"
+	DRIVER_VERSION = "0.0.2"
 	SPEC_VERSION = "1.1.0"
-	MIN_KUBERNETES_VERSION = "1.13"
 
 	DEFAULT_UDS_PATH = "unix:///tmp/csi.sock"
 	SYSLOG_PATH = "/dev/log"
@@ -66,7 +65,7 @@ def CatchServerErrors(func):
 		try:
 			return func(self, request, context)
 		except DriverError as drvErr:
-			self.logger.warning("Driver Error caught in gRPC call {} - {}".format(func.__name__, str(drvErr.message)))
+			self.logger.warning("Driver Error caught in gRPC call {} - Code: {} Message:{}".format(func.__name__, str(drvErr.code), str(drvErr.message)))
 			context.abort(drvErr.code, str(drvErr.message))
 
 		except Exception as ex:
