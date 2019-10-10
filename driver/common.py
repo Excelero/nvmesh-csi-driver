@@ -1,32 +1,16 @@
-import hashlib
 import logging
-from logging.handlers import SysLogHandler
-import grpc
-import sys
 import os
+import sys
 import time
+from logging.handlers import SysLogHandler
 from subprocess import Popen, PIPE
 
-def read_value_from_file(filename):
-	with open(filename) as file:
-		return file.readline()
+import grpc
 
-class Consts(object):
-	DEFAULT_VOLUME_SIZE = 5000000000 #5GB
-	DRIVER_NAME = "nvmesh-csi.excelero.com"
-	DRIVER_VERSION = read_value_from_file("/version")
-	SPEC_VERSION = "1.1.0"
+from NVMeshSDK.ConnectionManager import ConnectionManager, ManagementTimeout
+from config import Config
+from consts import Consts
 
-	DEFAULT_UDS_PATH = "unix:///tmp/csi.sock"
-	SYSLOG_PATH = "/dev/log"
-
-	class DriverType(object):
-		Controller = 'Controller'
-		Node = 'Node'
-
-	class VolumeAccessType(object):
-		BLOCK = 'block'
-		MOUNT = 'mount'
 
 class ServerLoggingInterceptor(grpc.ServerInterceptor):
 	def __init__(self, logger):
@@ -137,3 +121,33 @@ class Utils(object):
 		# so we will make many short sleeps
 		for i in range(int(duration / sleep_interval)):
 			time.sleep(sleep_interval)
+
+
+class NVMeshSDKHelper(object):
+	logger = DriverLogger("NVMeshSDKHelper")
+
+	@staticmethod
+	def _try_get_sdk_instance():
+		protocol = Config.MANAGEMENT_PROTOCOL
+		managementServers = Config.MANAGEMENT_SERVERS
+		user = Config.MANAGEMENT_USERNAME
+		password = Config.MANAGEMENT_PASSWORD
+
+		serversWithProtocol = ['{0}://{1}'.format(protocol, server) for server in managementServers.split(',')]
+
+		return ConnectionManager.getInstance(managementServer=serversWithProtocol, user=user, password=password, logToSysLog=False)
+
+	@staticmethod
+	def init_sdk():
+		connected = False
+
+		# try until able to connect to NVMesh Management
+		while not connected:
+			try:
+				NVMeshSDKHelper._try_get_sdk_instance()
+				connected = ConnectionManager.getInstance().isAlive()
+			except ManagementTimeout as ex:
+				NVMeshSDKHelper.logger.info("Waiting for NVMesh Management server on {}".format(Config.MANAGEMENT_SERVERS))
+				Utils.interruptable_sleep(10)
+
+		print("Connected to NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))

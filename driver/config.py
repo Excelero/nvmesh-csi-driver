@@ -1,6 +1,7 @@
 import os
 
-from common import Consts
+from consts import Consts
+
 
 class ConfigError(Exception):
 	pass

@@ -3,7 +3,7 @@ import unittest
 
 from grpc import StatusCode
 
-from driver.common import Consts
+from driver.consts import Consts
 from driver.csi.csi_pb2 import NodeServiceCapability, VolumeCapability
 from test.sanity.helpers.test_case_with_server import TestCaseWithServerRunning
 from test.sanity.clients.node_client import NodeClient

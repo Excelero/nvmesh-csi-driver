@@ -6,7 +6,8 @@ from google.protobuf.json_format import MessageToJson
 from grpc import StatusCode
 
 from FileSystemManager import FileSystemManager
-from common import Utils, CatchServerErrors, DriverError, Consts
+from common import Utils, CatchServerErrors, DriverError
+from consts import Consts
 from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
 	NodeStageVolumeResponse, NodeUnstageVolumeResponse, VolumeCapability, NodeExpandVolumeResponse
 from csi.csi_pb2_grpc import NodeServicer

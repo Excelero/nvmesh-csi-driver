@@ -16,12 +16,15 @@ test_files=(
 )
 
 clear_environment() {
-    tests/clear_environment.sh
+    cd tests
+    ./clear_environment.sh
     exit_code=$?
     if [ $exit_code -ne 0 ]; then
         echo "Failed to clear environment"
         exit $exit_code
     fi
+
+    cd ..
 }
 
 create_and_set_namespace() {

@@ -4,41 +4,17 @@ import signal
 
 import sys, os
 from concurrent import futures
-from common import ServerLoggingInterceptor, DriverLogger, Utils, Consts
+from common import ServerLoggingInterceptor, DriverLogger, NVMeshSDKHelper
+from consts import Consts
 from controller_service import NVMeshControllerService
 from csi import csi_pb2_grpc
 from config import Config
 from identity_service import NVMeshIdentityService
 from node_service import NVMeshNodeService
-from NVMeshSDK.ConnectionManager import ConnectionManager, ManagementTimeout
 
 def log(msg):
 	print(msg)
 	sys.stdout.flush()
-
-def init_sdk():
-
-	protocol = Config.MANAGEMENT_PROTOCOL
-	managementServers = Config.MANAGEMENT_SERVERS
-	user = Config.MANAGEMENT_USERNAME
-	password = Config.MANAGEMENT_PASSWORD
-
-	serversWithProtocol = ['{0}://{1}'.format(protocol, server) for server in managementServers.split(',')]
-
-	return ConnectionManager.getInstance(managementServer=serversWithProtocol, user=user, password=password, logToSysLog=False)
-
-def wait_for_connection_to_management():
-	connected = False
-
-	while not connected:
-		try:
-			init_sdk()
-			connected = ConnectionManager.getInstance().isAlive()
-		except ManagementTimeout as ex:
-			log("Waiting for NVMesh Management server on {}".format(Config.MANAGEMENT_SERVERS))
-			Utils.interruptable_sleep(10)
-
-	print("Connected to NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
 
 class NVMeshCSIDriverServer(object):
 	def __init__(self, driver_type):
@@ -100,10 +76,6 @@ def get_driver_type():
 
 if __name__ == '__main__':
 	driver_type = get_driver_type()
-
-	if driver_type == Consts.DriverType.Controller:
-		wait_for_connection_to_management()
-
 	driver = NVMeshCSIDriverServer(driver_type)
 
 	def sigterm_handler(signum, frame):

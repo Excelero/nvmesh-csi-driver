@@ -10,7 +10,8 @@ from NVMeshSDK.Entities.Volume import Volume as NVMeshVolume
 from NVMeshSDK.Consts import RAIDLevels
 from NVMeshSDK import Consts as NVMeshConsts
 from NVMeshSDK.MongoObj import MongoObj
-from common import CatchServerErrors, DriverError, Utils, Consts
+from common import CatchServerErrors, DriverError, Utils, NVMeshSDKHelper
+from consts import Consts
 from csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ControllerPublishVolumeResponse, ControllerUnpublishVolumeResponse, \
 	ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse
 from csi.csi_pb2_grpc import ControllerServicer
@@ -20,6 +21,7 @@ class NVMeshControllerService(ControllerServicer):
 	def __init__(self, logger):
 		ControllerServicer.__init__(self)
 		self.logger = logger
+		NVMeshSDKHelper.init_sdk()
 
 	@CatchServerErrors
 	def CreateVolume(self, request, context):
@@ -170,7 +172,7 @@ class NVMeshControllerService(ControllerServicer):
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
 		#UNUSED - capabilities = request.volume_capabilities
 
-		volume = self.get_nvmesh_volume(nvmesh_vol_name)
+		volume = self.get_nvmesh_volume(nvmesh_vol_name, minimalFields=True)
 
 		actual_capabilities = json.loads(volume['description'])['volume_capabilities']
 		expected_capabilities = MessageToDict(request)['volumeCapabilities']
@@ -272,6 +274,8 @@ class NVMeshControllerService(ControllerServicer):
 
 		# Extend Volume
 		volume.capacity = capacity_in_bytes
+
+		self.logger.debug("ControllerExpandVolume volume={}".format(str(volume)))
 		err, out = VolumeAPI().update([volume])
 
 		if err:
@@ -280,18 +284,23 @@ class NVMeshControllerService(ControllerServicer):
 		self.logger.debug("ControllerExpandVolumeResponse: capacity_in_bytes={}, node_expansion_required={}".format(capacity_in_bytes, node_expansion_required))
 		return ControllerExpandVolumeResponse(capacity_bytes=capacity_in_bytes, node_expansion_required=node_expansion_required)
 
-	def get_nvmesh_volume(self, nvmesh_vol_name):
+	def get_nvmesh_volume(self, nvmesh_vol_name, minimalFields=False):
 		filterObj = [MongoObj(field='_id', value=nvmesh_vol_name)]
-		projection = [
-			MongoObj(field='_id', value=1),
-			MongoObj(field='capacity', value=1),
-			MongoObj(field='status', value=1),
-			MongoObj(field='description', value=1)
-		]
+
+		projection = None
+		if minimalFields:
+			projection = [
+				MongoObj(field='_id', value=1),
+				MongoObj(field='capacity', value=1),
+				MongoObj(field='status', value=1),
+				MongoObj(field='description', value=1)
+			]
 
 		err, out = VolumeAPI().get(filter=filterObj, projection=projection)
 		if err:
 			raise DriverError(StatusCode.INTERNAL, err)
+		if not isinstance(out, list):
+			raise DriverError(StatusCode.INTERNAL, out)
 		if not len(out):
 			raise DriverError(StatusCode.NOT_FOUND, 'Volume {} Could not be found'.format(nvmesh_vol_name))
 
