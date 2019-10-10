@@ -41,9 +41,11 @@ spec:
         # NVMesh Driver
         - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
-          image: excelero/nvmesh-csi-driver:v0.0.2
+          image: excelero/nvmesh-csi-driver:<version>
           imagePullPolicy: "IfNotPresent"
           env:
+            - name: DRIVER_TYPE
+              value: "Controller"
             - name: SOCKET_PATH
               value: unix:///csi/ctrl-csi.sock
             - name: MANAGEMENT_SERVERS
@@ -67,7 +69,7 @@ spec:
                   name: nvmesh-credentials
                   key: password
           volumeMounts:
-            - name: plugin-dir
+            - name: plugin-socket-dir
               mountPath: /csi
         # Provisioner
         - name: csi-provisioner
@@ -78,7 +80,7 @@ spec:
             - "--v=5"
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
-            - name: plugin-dir
+            - name: plugin-socket-dir
               mountPath: /csi
         # Attacher
         - name: csi-attacher
@@ -88,7 +90,7 @@ spec:
             - "--v=5"
             - "--csi-address=/csi/ctrl-csi.sock"
           volumeMounts:
-            - name: plugin-dir
+            - name: plugin-socket-dir
               mountPath: /csi
         # Resizer
         - name: csi-resizer
@@ -99,11 +101,11 @@ spec:
             - "--leader-election"
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
-            - name: plugin-dir
+            - name: plugin-socket-dir
               mountPath: /csi
 
       volumes:
-        - name: plugin-dir
+        - name: plugin-socket-dir
           hostPath:
             path: /var/lib/kubelet/plugins/nvmesh-csi.excelero.com/
             type: DirectoryOrCreate
@@ -141,7 +143,7 @@ spec:
         # NVMesh Driver
         - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
-          image: excelero/nvmesh-csi-driver:v0.0.2
+          image: excelero/nvmesh-csi-driver:<version>
           imagePullPolicy: "IfNotPresent"
           securityContext:
             privileged: true
@@ -149,6 +151,8 @@ spec:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
           env:
+            - name: DRIVER_TYPE
+              value: "Node"
             - name: SOCKET_PATH
               value: unix:///csi/csi.sock
             - name: MANAGEMENT_SERVERS
@@ -172,10 +176,10 @@ spec:
                   name: nvmesh-credentials
                   key: password
           volumeMounts:
-            - name: plugin-dir
+            - name: plugin-socket-dir
               mountPath: /csi
             - name: pods-mount-dir
-              mountPath: /var/lib/kubelet
+              mountPath: /var/lib/kubelet/
               # needed so that any mounts setup inside this container are
               # propagated back to the host machine.
               mountPropagation: "Bidirectional"
@@ -197,12 +201,12 @@ spec:
               exec:
                 command: ["/bin/sh", "-c", "rm -rf /registration/nvmesh-csi.excelero.com /registration/nvmesh-csi.excelero.com-reg.sock"]
           volumeMounts:
-            - name: plugin-dir
+            - name: plugin-socket-dir
               mountPath: /csi
             - name: registration-dir
               mountPath: /registration
       volumes:
-        - name: plugin-dir
+        - name: plugin-socket-dir
           hostPath:
             path: /var/lib/kubelet/plugins/nvmesh-csi.excelero.com/
             type: DirectoryOrCreate
@@ -212,7 +216,7 @@ spec:
             type: Directory
         - name: pods-mount-dir
           hostPath:
-            path: /var/lib/kubelet
+            path: /var/lib/kubelet/
             type: Directory
         - name: device-dir
           hostPath:

@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
-
-DRIVER_VERSION=v0.0.2
+VERSION_FILE_PATH=../version
+DRIVER_VERSION=$(cat $VERSION_FILE_PATH)
 REPO_PATH=~/nvmesh-csi-driver
 servers=()
 DEPLOY=false
 DEPLOY_ONLY=false
+
+if [ -z "$DRIVER_VERSION" ]; then
+    echo "Could not find version in $VERSION_FILE_PATH"
+    exit 1
+fi
 
 show_help() {
     echo "Usage: ./build.sh [--servers s1 s2 s3] [--deploy] [--build-test]"
@@ -75,10 +80,17 @@ build_k8s_deployment_file() {
     # build Kubernetes deployment.yaml
     cd ../deploy/kubernetes/scripts
     ./build_deployment_file.sh
+
+    if [ $? -ne 0 ]; then
+        echo "Error running build_deployment_file.sh"
+        exit 2
+    fi
     cd -
 }
 
 build_on_remote_machines() {
+    sub_process_pids=()
+
     if [ "$BUILD_TESTS" ]; then
         BUILD_TESTS_FLAG="--build-tests"
     fi
@@ -88,27 +100,41 @@ build_on_remote_machines() {
     for server in ${servers[@]}; do
         echo "Sending sources to remote machine ($server).."
         rsync -r ../ $server:$REPO_PATH &> >(sed 's/^/'$server': /') &
+        sub_process_pids+=($!)
     done
 
     # wait for all sources copy to finish
-    for server in ${servers[@]}; do
-        wait
+    for pid in $sub_process_pids; do
+        wait $pid || failed=true
     done
+    sub_process_pids=()
+
+    if [ "$failed" = true ]; then
+        echo "Failed copying sources to remote machines"
+        exit 5
+    fi
 
     for server in ${servers[@]}; do
         echo "running build.sh $BUILD_TESTS_FLAG on $server.."
         ssh $server "cd $REPO_PATH/build_tools/ ; ./build.sh $BUILD_TESTS_FLAG" &> >(sed 's/^/'$server': /') &
+        sub_process_pids+=($!)
     done
 
     # wait build.sh to finish on all servers
-    for server in ${servers[@]}; do
-        wait
+    for pid in $sub_process_pids; do
+        wait $pid || failed=true
     done
+    sub_process_pids=()
+
+    if [ "$failed" = true ]; then
+        echo "Failed building image on remote machine"
+        exit 3
+    fi
 
     # deploy only on first node (kube-master) n
     if [ $DEPLOY = true ]; then
         echo "Deploying on first node"
-        ssh ${servers[0]} "cd $REPO_PATH/build_tools/ ; ./build.sh --deploy-only" &> >(sed 's/^/'${servers[0]}': /')
+        ssh ${servers[0]} "cd $REPO_PATH/build_tools/ ; ./build.sh --deploy-only" &> >(sed 's/^/'${servers[0]}': /') &
     fi
 }
 

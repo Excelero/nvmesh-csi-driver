@@ -9,14 +9,11 @@ USER root
 RUN pip install --no-cache-dir -r requirements.txt
 
 RUN apt-get update \
-    && apt install parted -y \
-    && apt install udev -y \
-    && apt install xfsprogs -y \
-    && apt install sudo -y \
-    && cd NVMeshSDK && ./install.sh sdk \
-    && cd ../ && rm -rf /NVMeshSDK
+    && apt install parted udev xfsprogs sudo -y \
+    && cd NVMeshSDK && ./install.sh sdk && cd ../ \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY driver/ /driver/
-
+COPY version /version
 
 CMD ["python", "driver/server.py"]
