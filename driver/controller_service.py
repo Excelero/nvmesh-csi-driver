@@ -40,8 +40,7 @@ class NVMeshControllerService(ControllerServicer):
 		reqDict = MessageToDict(request)
 
 		description_meta_data = {
-			'csi_name': name,
-			'volume_capabilities': reqDict['volumeCapabilities']
+			'csi_name': name
 		}
 
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(name)
@@ -73,7 +72,7 @@ class NVMeshControllerService(ControllerServicer):
 		err, data = VolumeAPI().save([volume])
 
 		if err:
-			raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Error: {} Details: {}'.format(err, data))
+			raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Error: {} Details: {} Volume Requested: {}'.format(err, data, str(volume)))
 		elif not type(data) == list and not data[0]['success']:
 			if 'Name already Exists' in data[0]['error']:
 				existing_capacity = self._get_nvmesh_volume_capacity(nvmesh_vol_name)
@@ -172,15 +171,8 @@ class NVMeshControllerService(ControllerServicer):
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
 		#UNUSED - capabilities = request.volume_capabilities
 
-		volume = self.get_nvmesh_volume(nvmesh_vol_name, minimalFields=True)
-
-		actual_capabilities = json.loads(volume['description'])['volume_capabilities']
-		expected_capabilities = MessageToDict(request)['volumeCapabilities']
-
-		if json.dumps(actual_capabilities) == json.dumps(expected_capabilities):
-			confirmed = ValidateVolumeCapabilitiesResponse.Confirmed(volume_capabilities=request.volume_capabilities)
-		else:
-			confirmed = None
+		# always return True
+		confirmed = ValidateVolumeCapabilitiesResponse.Confirmed(volume_capabilities=request.volume_capabilities)
 		return ValidateVolumeCapabilitiesResponse(confirmed=confirmed)
 
 	@CatchServerErrors
