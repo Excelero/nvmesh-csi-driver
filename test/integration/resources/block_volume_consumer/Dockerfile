@@ -5,6 +5,7 @@ RUN apk update \
  && apk upgrade \
  && apk add bash \
  && apk add sudo \
+ && apk add util-linux \
  && rm -rf /var/cache/*/* \
  && echo "" > /root/.ash_history
 
