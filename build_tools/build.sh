@@ -140,11 +140,8 @@ build_on_remote_machines() {
 
 build_testsing_containers() {
     echo "Building testing containers"
-
-    for server in ${servers[@]}; do
-        echo "running local build.sh for testing containers on remote machine ($server).."
-        cd $REPO_PATH/test/integration ; ./build.sh
-    done
+    echo "running local build.sh for testing containers on remote machine ($server).."
+    cd $REPO_PATH/test/integration ; ./build.sh
 }
 
 deploy() {
