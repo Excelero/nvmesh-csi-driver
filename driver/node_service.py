@@ -11,6 +11,7 @@ from consts import Consts
 from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
 	NodeStageVolumeResponse, NodeUnstageVolumeResponse, VolumeCapability, NodeExpandVolumeResponse
 from csi.csi_pb2_grpc import NodeServicer
+from config import Config
 
 
 class NVMeshNodeService(NodeServicer):
@@ -61,7 +62,7 @@ class NVMeshNodeService(NodeServicer):
 
 		elif access_type == Consts.VolumeAccessType.BLOCK:
 			self.logger.info('Requested Block Volume')
-			if access_mode != VolumeCapability.AccessMode.MULTI_NODE_MULTI_WRITER:
+			if Config.ENFORCE_ACCESS_MODES and access_mode != VolumeCapability.AccessMode.MULTI_NODE_MULTI_WRITER:
 				requested_access_mode_name = VolumeCapability.AccessMode.Mode._enum_type.values_by_number[access_mode].name
 				raise DriverError(StatusCode.INVALID_ARGUMENT, 'accessMode {} not supported. Only MULTI_NODE_MULTI_WRITER is supported with block volume'.format(requested_access_mode_name))
 
