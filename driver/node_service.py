@@ -62,27 +62,8 @@ class NVMeshNodeService(NodeServicer):
 
 		elif access_type == Consts.VolumeAccessType.BLOCK:
 			self.logger.info('Requested Block Volume')
-			if Config.ENFORCE_ACCESS_MODES and access_mode != VolumeCapability.AccessMode.MULTI_NODE_MULTI_WRITER:
-				requested_access_mode_name = VolumeCapability.AccessMode.Mode._enum_type.values_by_number[access_mode].name
-				raise DriverError(StatusCode.INVALID_ARGUMENT, 'accessMode {} not supported. Only MULTI_NODE_MULTI_WRITER is supported with block volume'.format(requested_access_mode_name))
-
-			try:
-				if os.path.isfile(staging_target_path):
-					self.logger.debug('staging_target_path {} is a file'.format(staging_target_path))
-				elif os.path.isdir(staging_target_path):
-					self.logger.debug('staging_target_path {} is a dir. removing the dir and creating a file instead'.format(staging_target_path))
-					FileSystemManager.remove_dir(staging_target_path)
-					# create an empty file for bind mount
-					open(staging_target_path, 'w').close()
-				else:
-					self.logger.debug('staging_target_path {} is NOT a file or a dir'.format(staging_target_path))
-					open(staging_target_path, 'w').close()
-
-				self.logger.debug('Trying to bind mount Block volume {} to {}'.format(block_device_path, staging_target_path))
-				FileSystemManager.bind_mount(source=block_device_path, target=staging_target_path)
-			except Exception as ex:
-				errMessage = 'Error Failed to bind mount Block volume {} to {}. Error: {}'.format(block_device_path, staging_target_path, str(ex))
-				raise DriverError(StatusCode.INTERNAL, errMessage)
+			# Do Nothing... NodePublishVolume will mount directly from the block device to the publish_path
+			# This is because Kubernetes automatically creates a directory in the staging_path
 
 		else:
 			self.logger.Info('Unknown AccessType {}'.format(access_type))
@@ -100,17 +81,17 @@ class NVMeshNodeService(NodeServicer):
 		staging_target_path = request.staging_target_path
 		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
 
-		if not os.path.exists(staging_target_path):
-			raise DriverError(StatusCode.NOT_FOUND, 'mount path {} not found'.format(staging_target_path))
-		else:
+		if os.path.exists(staging_target_path):
 			FileSystemManager.umount(target=staging_target_path)
 
-		if os.path.isfile(staging_target_path):
-			self.logger.debug('NodeUnstageVolume removing stage bind file: {}'.format(staging_target_path))
-			os.remove(staging_target_path)
-		elif os.path.isdir(staging_target_path):
-			self.logger.debug('NodeUnstageVolume removing stage dir: {}'.format(staging_target_path))
-			FileSystemManager.remove_dir(staging_target_path)
+			if os.path.isfile(staging_target_path):
+				self.logger.debug('NodeUnstageVolume removing stage bind file: {}'.format(staging_target_path))
+				os.remove(staging_target_path)
+			elif os.path.isdir(staging_target_path):
+				self.logger.debug('NodeUnstageVolume removing stage dir: {}'.format(staging_target_path))
+				FileSystemManager.remove_dir(staging_target_path)
+		else:
+			self.logger.warning('NodeUnstageVolume - mount path {} not found.'.format(staging_target_path))
 
 		# also run detach locally to support future changes to NVMesh
 		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_detach_volumes {}'.format(nvmesh_volume_name))
@@ -132,6 +113,8 @@ class NVMeshNodeService(NodeServicer):
 		readonly = request.readonly
 		access_type = self._get_block_or_mount_volume(request)
 
+		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_volume_name)
+
 		reqJson = MessageToJson(request)
 		self.logger.debug('NodePublishVolume called with request: {}'.format(reqJson))
 
@@ -144,11 +127,15 @@ class NVMeshNodeService(NodeServicer):
 
 		if access_type == Consts.VolumeAccessType.BLOCK:
 			# create an empty file for bind mount
-			with open(publish_path, 'w+'):
+			with open(publish_path, 'w'):
 				pass
 
-		self.logger.debug('NodePublishVolume trying to bind mount {} to {}'.format(staging_target_path, publish_path))
-		FileSystemManager.bind_mount(source=staging_target_path, target=publish_path, flags=flags)
+			# bind directly from block device to publish_path
+			self.logger.debug('NodePublishVolume trying to bind mount as block device {} to {}'.format(block_device_path, publish_path))
+			FileSystemManager.bind_mount(source=block_device_path, target=publish_path, flags=flags)
+		else:
+			self.logger.debug('NodePublishVolume trying to bind mount {} to {}'.format(staging_target_path, publish_path))
+			FileSystemManager.bind_mount(source=staging_target_path, target=publish_path, flags=flags)
 
 		return NodePublishVolumeResponse()
 
