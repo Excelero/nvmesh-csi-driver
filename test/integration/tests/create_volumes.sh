@@ -32,9 +32,9 @@ get_volumes() {
 
 while [ "$ready_volumes" != "$num_of_volumes" ];
 do
-    sleep 1
     get_volumes
     echo "Ready Volumes: $ready_volumes/$num_of_volumes"
+    sleep 1
 done
 echo "all volumes were created..."
 

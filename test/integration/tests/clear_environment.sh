@@ -29,3 +29,5 @@ delete_all_pvcs() {
 delete_all_daemonsets
 delete_all_pods
 delete_all_pvcs
+kubectl delete namespace nvmesh-csi-testing
+kubectl create namespace nvmesh-csi-testing
