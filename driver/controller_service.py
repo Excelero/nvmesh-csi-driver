@@ -5,12 +5,10 @@ from google.protobuf.json_format import MessageToJson, MessageToDict
 from grpc import StatusCode
 
 from NVMeshSDK.APIs.TargetAPI import TargetAPI
-from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
-from NVMeshSDK.Entities.Volume import Volume as NVMeshVolume
 from NVMeshSDK.Consts import RAIDLevels
 from NVMeshSDK import Consts as NVMeshConsts
 from NVMeshSDK.MongoObj import MongoObj
-from common import CatchServerErrors, DriverError, Utils, NVMeshSDKHelper
+from common import CatchServerErrors, DriverError, Utils, NVMeshSDKHelper, CSIVolumeAPI, CSINVMeshVolume
 from consts import Consts
 from csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ControllerPublishVolumeResponse, ControllerUnpublishVolumeResponse, \
 	ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse
@@ -30,7 +28,6 @@ class NVMeshControllerService(ControllerServicer):
 		capacity = self._parse_required_capacity(request.capacity_range)
 		parameters = request.parameters
 
-		#UNUSED - volume_capabilities = request.volume_capabilities
 		#UNUSED - secrets = request.secrets
 		#UNUSED - volume_content_source = request.volume_content_source
 		#UNUSED - accessibility_requirements = request.accessibility_requirements
@@ -38,13 +35,19 @@ class NVMeshControllerService(ControllerServicer):
 		reqJson = MessageToJson(request)
 		self.logger.debug('create volume request: {}'.format(reqJson))
 		reqDict = MessageToDict(request)
+		capabilities = reqDict['volumeCapabilities']
 
-		description_meta_data = {
-			'csi_name': name
+		csi_metadata = {
+			'csi_name': name,
+			'capabilities': capabilities
 		}
 
+		if 'mount' in capabilities[0]:
+			csi_metadata['fsType'] = capabilities[0]['mount']['fsType']
+		else:
+			csi_metadata['block'] = True
+
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(name)
-		description = json.dumps(description_meta_data)
 
 		raid_level = RAIDLevels.CONCATENATED
 		vpg = None
@@ -61,19 +64,19 @@ class NVMeshControllerService(ControllerServicer):
 				# default volume type
 				raid_level = RAIDLevels.CONCATENATED
 
-		volume = NVMeshVolume(
+		volume = CSINVMeshVolume(
 			name=nvmesh_vol_name,
-			description=description,
+			csi_metadata=csi_metadata,
 			capacity=capacity,
 			RAIDLevel=raid_level,
 			VPG=vpg
 		)
 
-		err, data = VolumeAPI().save([volume])
+		err, data = CSIVolumeAPI().save([volume])
 
 		if err:
 			raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Error: {} Details: {} Volume Requested: {}'.format(err, data, str(volume)))
-		elif not type(data) == list and not data[0]['success']:
+		elif not type(data) == list or not data[0]['success']:
 			if 'Name already Exists' in data[0]['error']:
 				existing_capacity = self._get_nvmesh_volume_capacity(nvmesh_vol_name)
 				if capacity == existing_capacity:
@@ -106,9 +109,10 @@ class NVMeshControllerService(ControllerServicer):
 		while volume_status != status and attempts > 0:
 			err, volume = self._get_volume_by_name(volume_id)
 			if err:
-				return err, volume
+				if 'Could Not Find Volume' not in err:
+					return err, volume
 
-			if volume.status == status:
+			if volume and volume.status == status:
 				return None, volume
 
 			attempts -= 1
@@ -124,7 +128,7 @@ class NVMeshControllerService(ControllerServicer):
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(volume_id)
 		#secrets = request.secrets
 
-		err, out = VolumeAPI().delete([NVMeshVolume(_id=nvmesh_vol_name)])
+		err, out = CSIVolumeAPI().delete([CSINVMeshVolume(_id=nvmesh_vol_name)])
 		if err:
 			self.logger.error(err)
 			raise DriverError(StatusCode.INTERNAL, err)
@@ -195,7 +199,7 @@ class NVMeshControllerService(ControllerServicer):
 			MongoObj(field='capacity', value=1)
 		]
 
-		err, nvmeshVolumes = VolumeAPI().get(projection=projection, page=page, count=count)
+		err, nvmeshVolumes = CSIVolumeAPI().get(projection=projection, page=page, count=count)
 
 		if err:
 			raise DriverError(StatusCode.INTERNAL, err)
@@ -256,19 +260,17 @@ class NVMeshControllerService(ControllerServicer):
 		capacity_in_bytes = request.capacity_range.required_bytes
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
 
-		volume = self.get_nvmesh_volume(nvmesh_vol_name)
-		capabilities = json.loads(volume.description)['volume_capabilities']
-		capability = capabilities[0]
+		volume = self.get_nvmesh_volume(nvmesh_vol_name, minimalFields=True)
 
 		# Call Node Expansion Method to Expand a FileSystem
 		# For a Block Device there is no need to do anything on the node
-		node_expansion_required = True if "mount" in capability else False
+		node_expansion_required = True if 'fsType' in volume.csi_metadata else False
 
 		# Extend Volume
 		volume.capacity = capacity_in_bytes
 
 		self.logger.debug("ControllerExpandVolume volume={}".format(str(volume)))
-		err, out = VolumeAPI().update([volume])
+		err, out = CSIVolumeAPI().update([volume])
 
 		if err:
 			raise DriverError(StatusCode.NOT_FOUND, err)
@@ -285,10 +287,10 @@ class NVMeshControllerService(ControllerServicer):
 				MongoObj(field='_id', value=1),
 				MongoObj(field='capacity', value=1),
 				MongoObj(field='status', value=1),
-				MongoObj(field='description', value=1)
+				MongoObj(field='csi_metadata', value=1)
 			]
 
-		err, out = VolumeAPI().get(filter=filterObj, projection=projection)
+		err, out = CSIVolumeAPI().get(filter=filterObj, projection=projection)
 		if err:
 			raise DriverError(StatusCode.INTERNAL, err)
 		if not isinstance(out, list):
@@ -330,7 +332,7 @@ class NVMeshControllerService(ControllerServicer):
 		filterObj = [MongoObj(field='_id', value=nvmesh_vol_name)]
 		projection = [MongoObj(field='_id', value=1), MongoObj(field='capacity', value=1)]
 
-		err, out = VolumeAPI().get(filter=filterObj, projection=projection)
+		err, out = CSIVolumeAPI().get(filter=filterObj, projection=projection)
 		if err or not len(out):
 			raise DriverError(StatusCode.INTERNAL, err)
 
@@ -340,7 +342,7 @@ class NVMeshControllerService(ControllerServicer):
 		filterObj = [MongoObj(field='_id', value=nvmesh_vol_name)]
 		projection = [MongoObj(field='_id', value=1)]
 
-		err, out = VolumeAPI().get(filter=filterObj, projection=projection)
+		err, out = CSIVolumeAPI().get(filter=filterObj, projection=projection)
 		if err or not len(out):
 			raise DriverError(StatusCode.NOT_FOUND, 'Could not find Volume with id {}'.format(nvmesh_vol_name))
 
@@ -354,7 +356,7 @@ class NVMeshControllerService(ControllerServicer):
 
 	def _get_volume_by_name(self, volume_id):
 		filterObj = [MongoObj(field='_id', value=volume_id)]
-		err, data = VolumeAPI().get(filter=filterObj)
+		err, data = CSIVolumeAPI().get(filter=filterObj)
 		if err:
 			return err, data
 		else:

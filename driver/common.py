@@ -4,9 +4,10 @@ import sys
 import time
 from logging.handlers import SysLogHandler
 from subprocess import Popen, PIPE
-
 import grpc
 
+from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
+from NVMeshSDK.Entities.Volume import Volume
 from NVMeshSDK.ConnectionManager import ConnectionManager, ManagementTimeout
 from config import Config
 from consts import Consts
@@ -151,3 +152,14 @@ class NVMeshSDKHelper(object):
 				Utils.interruptable_sleep(10)
 
 		print("Connected to NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
+
+
+class CSINVMeshVolume(Volume):
+	def __init__(self, csi_metadata=None, **kwargs):
+		Volume.__init__(self, **kwargs)
+		self.csi_metadata = csi_metadata
+
+class CSIVolumeAPI(VolumeAPI):
+	# this will make the deserialization use our custom Volume Class
+	def getType(self):
+		return CSINVMeshVolume
