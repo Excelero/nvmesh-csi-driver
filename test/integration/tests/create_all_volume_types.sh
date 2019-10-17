@@ -24,10 +24,7 @@ for raid_type in ${RAID_TYPES[@]} ; do
 done
 
 echo "waiting for all volumes to be created..."
-while [ $(kubectl get pv -o name | wc -l) != "${#RAID_TYPES[@]}" ];
-do
-    sleep 1
-done
+wait_for_volumes "${#RAID_TYPES[@]}"
 
 for raid_type in ${RAID_TYPES[@]} ; do
     echo "Deleting pvc nvmesh-$raid_type"

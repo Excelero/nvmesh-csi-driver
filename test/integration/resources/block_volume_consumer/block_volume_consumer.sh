@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-DATA_FILE=/tmp/data.txt
 VOLUME_PATH=/dev/my_block_dev
 
 graceful_exit() {
@@ -9,42 +8,27 @@ graceful_exit() {
 }
 
 get_info() {
-    ls -l /dev/nvmesh/
+    lsblk
 
-    ls -l /mnt/
+    ls -l /dev/
 
     cat /etc/mtab | grep $VOLUME_PATH
 
     df -h | grep $VOLUME_PATH
 }
 
-create_data_file() {
-    DATA="Block Volume Test\nDate Created:$(date)\nHostname:$(hostname)"
-    echo "Creating Data File at $DATA_FILE"
-    echo "$DATA" > $DATA_FILE
-
-    echo "Testing File Created:"
-    cat $DATA_FILE
-}
-
-work_loop() {
-    echo "Starting Work Loop"
-    TEMP_FILE=/tmp/temp_file.txt
-    DATA_SIZE
+loop_forever() {
     while true
     do
-        echo "Writing Data to Block Volume"
-        dd if=$DATA_FILE of=$VOLUME_PATH
-
-        echo "Reading first 40K from Block Volume into a file"
-        dd if=$VOLUME_PATH of=$TEMP_FILE bs=4096 count=10
-
-        echo "File Contents:"
-        cat $TEMP_FILE
-
+        echo "I'm still here..."
         echo "---------------------------"
         sleep 2
     done
+}
+
+test_latency() {
+    dd if=/dev/zero of=/dev/my_block_dev bs=1M count=100
+    fio $VOLUME_PATH --direct=1 --rw=randrw --norandommap --randrepeat=0 --ioengine=libaio --rwmixread=100 --group_reporting --name=4ktestread --time_based --verify=0 --iodepth=1 --numjobs=1s --size=4k --bs=4k --runtime=30 --random_generator=tausworthe64
 }
 
 trap graceful_exit SIGINT SIGTERM
@@ -53,7 +37,8 @@ set -x
 get_info
 set +x
 
-create_data_file
-work_loop
+test_latency
+loop_forever
+
 
 echo "If this is printed, an error has occurred"

@@ -11,8 +11,9 @@ test_files=(
     expand_volumes.sh
     delete_fs_consumers.sh
     delete_volumes.sh
-    test_multiple_fs_consumers.sh
     test_block_volume.sh
+    test_all_fs_types.sh
+    test_migration.sh
 )
 
 clear_environment() {
@@ -28,7 +29,7 @@ clear_environment() {
 }
 
 create_and_set_namespace() {
-    kubectl create -f resources/nvmesh-csi-testing-namespace.json
+    kubectl create namespace nvmesh-csi-testing
     kubectl config set-context --current --namespace=nvmesh-csi-testing
 }
 

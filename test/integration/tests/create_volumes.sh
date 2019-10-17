@@ -26,16 +26,9 @@ do
 done
 
 echo "waiting for all volumes to be created..."
-get_volumes() {
-    ready_volumes=$(kubectl get pv -o name | wc -l)
-}
 
-while [ "$ready_volumes" != "$num_of_volumes" ];
-do
-    get_volumes
-    echo "Ready Volumes: $ready_volumes/$num_of_volumes"
-    sleep 1
-done
+wait_for_volumes "$num_of_volumes"
+
 echo "all volumes were created..."
 
 
