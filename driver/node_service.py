@@ -190,7 +190,21 @@ class NVMeshNodeService(NodeServicer):
 		self.logger.debug('NodeExpandVolume called with request: {}'.format(reqJson))
 
 		fs_type = FileSystemManager.get_file_system_type(block_device_path)
-		FileSystemManager.expand_file_system(block_device_path, fs_type)
+
+		attempts_left = 20
+		resized = False
+		while not resized and attempts_left:
+			exit_code, stdout, stderr = FileSystemManager.expand_file_system(block_device_path, fs_type)
+			if 'Nothing to do!' in stderr:
+				block_device_size = FileSystemManager.get_block_device_size(block_device_path)
+				self.logger.warning('File System not resized. block device size is {}'.format(block_device_size))
+				attempts_left = attempts_left - 1
+				Utils.interruptable_sleep(2)
+			else:
+				resized = True
+
+		if not attempts_left:
+			raise DriverError(StatusCode.INTERNAL, 'Back-Off trying to expand {} FileSystem on volume {}'.format(fs_type, block_device_path))
 
 		self.logger.debug('Finished Expanding File System of type {} on volume {}'.format(fs_type, block_device_path))
 		return NodeExpandVolumeResponse()

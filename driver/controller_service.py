@@ -260,7 +260,7 @@ class NVMeshControllerService(ControllerServicer):
 		capacity_in_bytes = request.capacity_range.required_bytes
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
 
-		volume = self.get_nvmesh_volume(nvmesh_vol_name, minimalFields=True)
+		volume = self.get_nvmesh_volume(nvmesh_vol_name)
 
 		# Call Node Expansion Method to Expand a FileSystem
 		# For a Block Device there is no need to do anything on the node
