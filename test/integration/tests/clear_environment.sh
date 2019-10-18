@@ -2,32 +2,10 @@
 
 source ./test_utils.sh
 
-delete_all_daemonsets() {
-    for x in $(kubectl get daemonsets | awk '{ if(NR>1) print $1 }') ;
-    do
-        echo "deleting $x"
-        kubectl delete daemonset $x
-    done
-}
+delete_all_objects_of_type daemonset
+delete_all_objects_of_type deployment
+delete_all_objects_of_type pod
+delete_all_objects_of_type pvc
 
-delete_all_pods() {
-    for x in $(kubectl get pods | awk '{ if(NR>1) print $1 }') ;
-    do
-        echo "deleting $x"
-        kubectl delete pod $x
-    done
-}
-
-delete_all_pvcs() {
-    for x in $(kubectl get pvc | awk '{ if(NR>1) print $1 }') ;
-    do
-        echo "deleting $x"
-        kubectl delete pvc $x
-    done
-}
-
-delete_all_daemonsets
-delete_all_pods
-delete_all_pvcs
 kubectl delete namespace nvmesh-csi-testing
 kubectl create namespace nvmesh-csi-testing

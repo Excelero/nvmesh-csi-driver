@@ -64,3 +64,26 @@ wait_for_pods_to_be_removed() {
     done
     echo "all Pods removed"
 }
+
+count_down() {
+    i=$1
+    while [[ $i -gt 0 ]]
+    do
+        echo $i
+        let i--
+        sleep 1
+    done
+}
+
+delete_all_objects_of_type() {
+    if [ -z $1 ]; then
+        echo "No Object given"
+        return
+    fi
+
+    for x in $(kubectl get $1 | awk '{ if(NR>1) print $1 }') ;
+    do
+        echo "deleting $x"
+        kubectl delete $1 $x
+    done
+}

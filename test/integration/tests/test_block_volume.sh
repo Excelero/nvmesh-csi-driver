@@ -17,25 +17,6 @@ create_pod() {
     wait_for_pods 1
 }
 
-do_io() {
-    fio $VOLUME_PATH --direct=1 --rw=randrw --norandommap --randrepeat=0 --ioengine=libaio --rwmixread=100 --group_reporting --name=4ktestread --time_based --verify=0 --iodepth=1 --numjobs=1s --size=$bs --bs=$bs --runtime=$run_time --random_generator=tausworthe64
-}
-
-run_io_tests() {
-    # Run
-    run_time=30
-
-    bs=4k
-    do_io
-
-    bs=8k
-    do_io
-
-    bs=128k
-    do_io
-
-}
-
 delete_pod() {
     echo "Deleting the Pod"
     kubectl delete pod block-volume-consumer-pod
