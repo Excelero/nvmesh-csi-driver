@@ -1,25 +1,17 @@
-import hashlib
 import logging
-from logging.handlers import SysLogHandler
-import grpc
-import sys
 import os
+import sys
 import time
+from logging.handlers import SysLogHandler
 from subprocess import Popen, PIPE
+import grpc
 
-class Consts(object):
-	DEFAULT_VOLUME_SIZE = 5000000000 #5GB
-	DRIVER_NAME = "nvmesh-csi.excelero.com"
-	DRIVER_VERSION = "0.0.1"
-	SPEC_VERSION = "1.1.0"
-	MIN_KUBERNETES_VERSION = "1.13"
+from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
+from NVMeshSDK.Entities.Volume import Volume
+from NVMeshSDK.ConnectionManager import ConnectionManager, ManagementTimeout
+from config import Config
+from consts import Consts
 
-	DEFAULT_UDS_PATH = "unix:///tmp/csi.sock"
-	SYSLOG_PATH = "/dev/log"
-
-	class VolumeAccessType(object):
-		BLOCK = 'block'
-		MOUNT = 'mount'
 
 class ServerLoggingInterceptor(grpc.ServerInterceptor):
 	def __init__(self, logger):
@@ -66,7 +58,7 @@ def CatchServerErrors(func):
 		try:
 			return func(self, request, context)
 		except DriverError as drvErr:
-			self.logger.warning("Driver Error caught in gRPC call {} - {}".format(func.__name__, str(drvErr.message)))
+			self.logger.warning("Driver Error caught in gRPC call {} - Code: {} Message:{}".format(func.__name__, str(drvErr.code), str(drvErr.message)))
 			context.abort(drvErr.code, str(drvErr.message))
 
 		except Exception as ex:
@@ -130,3 +122,44 @@ class Utils(object):
 		# so we will make many short sleeps
 		for i in range(int(duration / sleep_interval)):
 			time.sleep(sleep_interval)
+
+
+class NVMeshSDKHelper(object):
+	logger = DriverLogger("NVMeshSDKHelper")
+
+	@staticmethod
+	def _try_get_sdk_instance():
+		protocol = Config.MANAGEMENT_PROTOCOL
+		managementServers = Config.MANAGEMENT_SERVERS
+		user = Config.MANAGEMENT_USERNAME
+		password = Config.MANAGEMENT_PASSWORD
+
+		serversWithProtocol = ['{0}://{1}'.format(protocol, server) for server in managementServers.split(',')]
+
+		return ConnectionManager.getInstance(managementServer=serversWithProtocol, user=user, password=password, logToSysLog=False)
+
+	@staticmethod
+	def init_sdk():
+		connected = False
+
+		# try until able to connect to NVMesh Management
+		while not connected:
+			try:
+				NVMeshSDKHelper._try_get_sdk_instance()
+				connected = ConnectionManager.getInstance().isAlive()
+			except ManagementTimeout as ex:
+				NVMeshSDKHelper.logger.info("Waiting for NVMesh Management server on {}".format(Config.MANAGEMENT_SERVERS))
+				Utils.interruptable_sleep(10)
+
+		print("Connected to NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
+
+
+class CSINVMeshVolume(Volume):
+	def __init__(self, csi_metadata=None, **kwargs):
+		Volume.__init__(self, **kwargs)
+		self.csi_metadata = csi_metadata
+
+class CSIVolumeAPI(VolumeAPI):
+	# this will make the deserialization use our custom Volume Class
+	def getType(self):
+		return CSINVMeshVolume

@@ -4,16 +4,12 @@ import sys
 import traceback
 
 from logging.handlers import SysLogHandler
-import Consts
+from NVMeshSDK import Consts
 
-def getInfraClientLogger(loggername, logToSysLog=True, logToStdout=False, logToStderr=False, logLevel=logging.DEBUG,
-						 formatString='%(name)s: %(levelname)s: %(message)s'):
-	return getLoggerWithHandler('InfraClient.{0}[{1}]'.format(loggername,os.getpid()), logToSysLog, logToStdout, logToStderr, logLevel, formatString)
-
-def getLoggerWithHandler(loggername, logToSysLog=True, logToStdout=False, logToStderr=False, logLevel=logging.DEBUG,
-						 formatString='%(name)s: %(levelname)s: %(message)s'):
+def getLoggerWithHandler(loggername, logToSysLog=True, logToStdout=False, logToStderr=False, logLevel=logging.DEBUG, propagate=True,
+						formatString='%(name)s[{}]: %(levelname)s: %(message)s'.format(os.getpid())):
 	logger = logging.getLogger(loggername)
-	logger.propagate = False
+	logger.propagate = propagate
 	logger.setLevel(logLevel)
 	loggingFormatter = logging.Formatter(formatString)
 

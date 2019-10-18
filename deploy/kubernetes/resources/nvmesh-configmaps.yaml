@@ -4,7 +4,8 @@ metadata:
   name: nvmesh-csi-config
   namespace: nvmesh-csi
 data:
-  management.protocol: https
-  management.servers: "nvmesh-management:4000"
+  management.protocol: http
+  management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"
   # To combine with nvmesh-management container in kubernetes, please use the following service reference for management.servers
   #management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"
+  # otherwise use ip:port or hostname:port pointing to your management server REST interface

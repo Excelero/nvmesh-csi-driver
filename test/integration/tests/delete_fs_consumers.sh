@@ -10,18 +10,6 @@ do
    kubectl delete pod fs-consumer-$i
 done
 
-echo "waiting for all pods to be removed..."
-get_pods() {
-    pods=$(kubectl get pods -o name | wc -l)
-}
-
-get_pods
-while [ "$pods" != 0 ];
-do
-    sleep 2
-    echo "Waiting for $pods to delete"
-    get_pods
-done
-echo "all pods are removed..."
+wait_for_pods_to_be_removed
 
 exit 0

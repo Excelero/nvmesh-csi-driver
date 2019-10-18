@@ -2,64 +2,44 @@
 
 source ./test_utils.sh
 
-echo "Creating a block volumes"
+create_block_volume() {
+    echo "Creating a block volumes"
 
-kubectl create -f ../resources/block_volume_consumer/block-pvc.yaml
-
-echo "waiting for the volume to be created..."
-get_volumes() {
-    ready_volumes=$(kubectl get pv -o name | wc -l)
+    kubectl create -f ../resources/block_volume_consumer/block-pvc.yaml
+    wait_for_volumes 1
 }
 
-while [ "$ready_volumes" != "1" ];
-do
-    sleep 1
-    get_volumes
-done
-echo "volume was created..."
+create_pod() {
+    echo "Creating a Pod to consume the Block Volume.."
 
-echo "Creating a Pod to consume the Block Volume.."
+    kubectl create -f ../resources/block_volume_consumer/block-volume-consumer.yaml
 
-kubectl create -f ../resources/block_volume_consumer/block-volume-consumer.yaml
-
-echo "waiting for the pod to be running..."
-get_running_pods() {
-    ready_pods=$(kubectl get pods | grep Running | wc -l)
+    wait_for_pods 1
 }
 
-get_running_pods
-while [ "$ready_pods" != "1" ];
-do
-    sleep 2
-    get_running_pods
-done
-echo "The pod started successfully and is running..."
-
-echo "Deleting the Pod"
-kubectl delete pod block-volume-consumer-pod
-echo "Waiting for the Pod to be removed.."
-
-get_pods() {
-    pods=$(kubectl get pods -o name | wc -l)
+delete_pod() {
+    echo "Deleting the Pod"
+    kubectl delete pod block-volume-consumer-pod
+    wait_for_pods_to_be_removed
 }
 
-get_pods
-while [ "$pods" != 0 ];
-do
-    sleep 2
-    echo "Waiting for $pods to delete"
-    get_pods
-done
-echo "The Pod was removed"
+delete_block_volume() {
+    echo "Deleting the Block Volume"
+    kubectl delete pvc block-pvc
+    echo "Waiting for the volume to be removed.."
+    while [ $(kubectl get pv -o name | wc -l) != "0" ];
+    do
+        sleep 1
+    done
 
-echo "Deleting the Block Volume"
-kubectl delete pvc block-pvc
-echo "Waiting for the volume to be removed.."
-while [ $(kubectl get pv -o name | wc -l) != "0" ];
-do
-    sleep 1
-done
+    echo "The volume was deleted"
+}
 
-echo "The volume was deleted"
+
+create_block_volume
+create_pod
+run_io_tests
+delete_pod
+delete_block_volume
 
 exit 0

@@ -2,7 +2,7 @@
 
 source ./test_utils.sh
 
-RAID_TYPES=(concatenated raid0 raid1 raid10)
+RAID_TYPES=(concatenated raid0 raid1 raid10 ec)
 read -r -d '' create_volume_template << EOM
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -24,10 +24,7 @@ for raid_type in ${RAID_TYPES[@]} ; do
 done
 
 echo "waiting for all volumes to be created..."
-while [ $(kubectl get pv -o name | wc -l) != "${#RAID_TYPES[@]}" ];
-do
-    sleep 1
-done
+wait_for_volumes "${#RAID_TYPES[@]}"
 
 for raid_type in ${RAID_TYPES[@]} ; do
     echo "Deleting pvc nvmesh-$raid_type"
@@ -35,9 +32,12 @@ for raid_type in ${RAID_TYPES[@]} ; do
 done
 
 echo "waiting for all volumes to be deleted..."
-while [ $(kubectl get pv -o name | wc -l) != "0" ];
+volumes_left=$(kubectl get pv -o name | wc -l)
+while [ "$volumes_left" != "0" ];
 do
+    echo "$volumes_left Volumes still not deleted.."
     sleep 1
+    volumes_left=$(kubectl get pv -o name | wc -l)
 done
 
 exit 0

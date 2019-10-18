@@ -4,7 +4,7 @@ import shutil
 
 from grpc import StatusCode
 
-from driver.common import Utils, DriverLogger, DriverError
+from common import Utils, DriverLogger, DriverError
 
 logger = DriverLogger("FileSystemManager")
 
@@ -128,8 +128,16 @@ class FileSystemManager(object):
 		if exit_code != 0:
 			raise DriverError(StatusCode.INTERNAL, 'Error expanding File System {} on block device {}'.format(fs_type, block_device_path))
 
+		return exit_code, stdout, stderr
+
 	@staticmethod
 	def get_file_system_type(target_path):
 		cmd = "df -T {} | tail -1 | awk '{{ print $2}}'".format(target_path)
 		exit_code, stdout, stderr = Utils.run_command(cmd)
 		return stdout
+
+	@staticmethod
+	def get_block_device_size(block_device_path):
+		cmd = "lsblk {} --output SIZE | tail -1".format(block_device_path)
+		exit_code, stdout, stderr = Utils.run_command(cmd)
+		return stdout.strip()

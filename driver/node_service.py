@@ -5,11 +5,13 @@ import os
 from google.protobuf.json_format import MessageToJson
 from grpc import StatusCode
 
-from driver.FileSystemManager import FileSystemManager
-from driver.common import Utils, CatchServerErrors, DriverError, Consts
-from driver.csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
+from FileSystemManager import FileSystemManager
+from common import Utils, CatchServerErrors, DriverError
+from consts import Consts
+from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
 	NodeStageVolumeResponse, NodeUnstageVolumeResponse, VolumeCapability, NodeExpandVolumeResponse
-from driver.csi.csi_pb2_grpc import NodeServicer
+from csi.csi_pb2_grpc import NodeServicer
+from config import Config
 
 
 class NVMeshNodeService(NodeServicer):
@@ -60,27 +62,8 @@ class NVMeshNodeService(NodeServicer):
 
 		elif access_type == Consts.VolumeAccessType.BLOCK:
 			self.logger.info('Requested Block Volume')
-			if access_mode != VolumeCapability.AccessMode.MULTI_NODE_MULTI_WRITER:
-				requested_access_mode_name = VolumeCapability.AccessMode.Mode._enum_type.values_by_number[access_mode].name
-				raise DriverError(StatusCode.INVALID_ARGUMENT, 'accessMode {} not supported. Only MULTI_NODE_MULTI_WRITER is supported with block volume'.format(requested_access_mode_name))
-
-			try:
-				if os.path.isfile(staging_target_path):
-					self.logger.debug('staging_target_path {} is a file'.format(staging_target_path))
-				elif os.path.isdir(staging_target_path):
-					self.logger.debug('staging_target_path {} is a dir. removing the dir and creating a file instead'.format(staging_target_path))
-					FileSystemManager.remove_dir(staging_target_path)
-					# create an empty file for bind mount
-					open(staging_target_path, 'w').close()
-				else:
-					self.logger.debug('staging_target_path {} is NOT a file or a dir'.format(staging_target_path))
-					open(staging_target_path, 'w').close()
-
-				self.logger.debug('Trying to bind mount Block volume {} to {}'.format(block_device_path, staging_target_path))
-				FileSystemManager.bind_mount(source=block_device_path, target=staging_target_path)
-			except Exception as ex:
-				errMessage = 'Error Failed to bind mount Block volume {} to {}. Error: {}'.format(block_device_path, staging_target_path, str(ex))
-				raise DriverError(StatusCode.INTERNAL, errMessage)
+			# Do Nothing... NodePublishVolume will mount directly from the block device to the publish_path
+			# This is because Kubernetes automatically creates a directory in the staging_path
 
 		else:
 			self.logger.Info('Unknown AccessType {}'.format(access_type))
@@ -98,17 +81,17 @@ class NVMeshNodeService(NodeServicer):
 		staging_target_path = request.staging_target_path
 		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
 
-		if not os.path.exists(staging_target_path):
-			raise DriverError(StatusCode.NOT_FOUND, 'mount path {} not found'.format(staging_target_path))
-		else:
+		if os.path.exists(staging_target_path):
 			FileSystemManager.umount(target=staging_target_path)
 
-		if os.path.isfile(staging_target_path):
-			self.logger.debug('NodeUnstageVolume removing stage bind file: {}'.format(staging_target_path))
-			os.remove(staging_target_path)
-		elif os.path.isdir(staging_target_path):
-			self.logger.debug('NodeUnstageVolume removing stage dir: {}'.format(staging_target_path))
-			FileSystemManager.remove_dir(staging_target_path)
+			if os.path.isfile(staging_target_path):
+				self.logger.debug('NodeUnstageVolume removing stage bind file: {}'.format(staging_target_path))
+				os.remove(staging_target_path)
+			elif os.path.isdir(staging_target_path):
+				self.logger.debug('NodeUnstageVolume removing stage dir: {}'.format(staging_target_path))
+				FileSystemManager.remove_dir(staging_target_path)
+		else:
+			self.logger.warning('NodeUnstageVolume - mount path {} not found.'.format(staging_target_path))
 
 		# also run detach locally to support future changes to NVMesh
 		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_detach_volumes {}'.format(nvmesh_volume_name))
@@ -130,6 +113,8 @@ class NVMeshNodeService(NodeServicer):
 		readonly = request.readonly
 		access_type = self._get_block_or_mount_volume(request)
 
+		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_volume_name)
+
 		reqJson = MessageToJson(request)
 		self.logger.debug('NodePublishVolume called with request: {}'.format(reqJson))
 
@@ -142,11 +127,15 @@ class NVMeshNodeService(NodeServicer):
 
 		if access_type == Consts.VolumeAccessType.BLOCK:
 			# create an empty file for bind mount
-			with open(publish_path, 'w+'):
+			with open(publish_path, 'w'):
 				pass
 
-		self.logger.debug('NodePublishVolume trying to bind mount {} to {}'.format(staging_target_path, publish_path))
-		FileSystemManager.bind_mount(source=staging_target_path, target=publish_path, flags=flags)
+			# bind directly from block device to publish_path
+			self.logger.debug('NodePublishVolume trying to bind mount as block device {} to {}'.format(block_device_path, publish_path))
+			FileSystemManager.bind_mount(source=block_device_path, target=publish_path, flags=flags)
+		else:
+			self.logger.debug('NodePublishVolume trying to bind mount {} to {}'.format(staging_target_path, publish_path))
+			FileSystemManager.bind_mount(source=staging_target_path, target=publish_path, flags=flags)
 
 		return NodePublishVolumeResponse()
 
@@ -201,7 +190,21 @@ class NVMeshNodeService(NodeServicer):
 		self.logger.debug('NodeExpandVolume called with request: {}'.format(reqJson))
 
 		fs_type = FileSystemManager.get_file_system_type(block_device_path)
-		FileSystemManager.expand_file_system(block_device_path, fs_type)
+
+		attempts_left = 20
+		resized = False
+		while not resized and attempts_left:
+			exit_code, stdout, stderr = FileSystemManager.expand_file_system(block_device_path, fs_type)
+			if 'Nothing to do!' in stderr:
+				block_device_size = FileSystemManager.get_block_device_size(block_device_path)
+				self.logger.warning('File System not resized. block device size is {}'.format(block_device_size))
+				attempts_left = attempts_left - 1
+				Utils.interruptable_sleep(2)
+			else:
+				resized = True
+
+		if not attempts_left:
+			raise DriverError(StatusCode.INTERNAL, 'Back-Off trying to expand {} FileSystem on volume {}'.format(fs_type, block_device_path))
 
 		self.logger.debug('Finished Expanding File System of type {} on volume {}'.format(fs_type, block_device_path))
 		return NodeExpandVolumeResponse()

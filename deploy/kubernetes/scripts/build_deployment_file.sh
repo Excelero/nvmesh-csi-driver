@@ -1,3 +1,11 @@
+VERSION_FILE_PATH=../../../version
+VERSION=$(cat $VERSION_FILE_PATH)
+
+if [ -z "$VERSION" ]; then
+    echo "Could not find version in $VERSION_FILE_PATH"
+    exit 1
+fi
+
 YAML_SEPARATOR="---"
 DEPLOYMENT_FILE_PATH="../deployment.yaml"
 ORDERED_LIST_OF_YAML_FILES=(
@@ -18,5 +26,9 @@ do
     cat $filename >> $DEPLOYMENT_FILE_PATH
     printf "\n$YAML_SEPARATOR\n" >> $DEPLOYMENT_FILE_PATH
 done
+
+echo "Inserting version string \"$VERSION\""
+
+sed -i "s/<version>/$VERSION/g" $DEPLOYMENT_FILE_PATH
 
 echo "Finsihed Building deployment.yaml"
