@@ -123,6 +123,14 @@ class Utils(object):
 		for i in range(int(duration / sleep_interval)):
 			time.sleep(sleep_interval)
 
+	@staticmethod
+	def is_allowed_access_mode(access_mode):
+		return access_mode in Consts.ALLOWED_ACCESS_MODES
+
+	@staticmethod
+	def set_volume_readonly(nvmesh_volume_name):
+		cmd = "echo -n '#{vol_name}|enforce_readonly 1' > /proc/nvmeibc/cli/cli".format(vol_name=nvmesh_volume_name)
+		return Utils.run_command(cmd)
 
 class NVMeshSDKHelper(object):
 	logger = DriverLogger("NVMeshSDKHelper")
@@ -152,14 +160,3 @@ class NVMeshSDKHelper(object):
 				Utils.interruptable_sleep(10)
 
 		print("Connected to NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
-
-
-class CSINVMeshVolume(Volume):
-	def __init__(self, csi_metadata=None, **kwargs):
-		Volume.__init__(self, **kwargs)
-		self.csi_metadata = csi_metadata
-
-class CSIVolumeAPI(VolumeAPI):
-	# this will make the deserialization use our custom Volume Class
-	def getType(self):
-		return CSINVMeshVolume
