@@ -333,7 +333,7 @@ spec:
         # NVMesh Driver
         - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
-          image: excelero/nvmesh-csi-driver:v0.0.2
+          image: excelero/nvmesh-csi-driver:v1.0
           imagePullPolicy: "IfNotPresent"
           env:
             - name: DRIVER_TYPE
@@ -435,7 +435,7 @@ spec:
         # NVMesh Driver
         - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
-          image: excelero/nvmesh-csi-driver:v0.0.2
+          image: excelero/nvmesh-csi-driver:v1.0
           imagePullPolicy: "IfNotPresent"
           securityContext:
             privileged: true
