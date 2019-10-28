@@ -20,4 +20,4 @@ Supported Features in each Kubernetes Release:
 
 
 ## Documentation
-For the full documentation of NVMesh CSI Driver please visit: [NVMesh CSI Driver User Manual](https://www.excelero.com/nvmesh-csi-driver/0.01/en/topic/copyright-and-trademark-information)
+For the full documentation of NVMesh CSI Driver please visit: [NVMesh CSI Driver User Manual](https://www.excelero.com/nvmesh-csi-driver-guide/)
