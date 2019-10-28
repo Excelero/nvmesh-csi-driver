@@ -19,4 +19,4 @@ kubectl apply -f https://raw.githubusercontent.com/Excelero/nvmesh-csi-driver/1.
 
 
 ## Documentation
-For the full documentation of NVMesh CSI Driver please visit: [NVMesh CSI Driver User Manual](https://www.excelero.com/nvmesh-csi-driver-guide/1.0/en/topic/copyright-and-trademark-information)
+For the full documentation of NVMesh CSI Driver please visit: [NVMesh CSI Driver User Manual](https://www.excelero.com/nvmesh-csi-driver-guide/)
