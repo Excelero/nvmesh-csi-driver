@@ -42,9 +42,19 @@ parameters:
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: nvmesh-ec
+  name: nvmesh-ec-dual-target-redundancy
 provisioner: nvmesh-csi.excelero.com
 allowVolumeExpansion: true
 volumeBindingMode: Immediate
 parameters:
-  vpg: DEFAULT_ERASURE_CODING_VPG
+  vpg: DEFAULT_EC_DUAL_TARGET_REDUNDANCY_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-ec-single-target-redundancy
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_EC_SINGLE_TARGET_REDUNDANCY_VPG
