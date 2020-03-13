@@ -14,5 +14,13 @@ fi
 for server in "$@"
 do
     echo "Copying sources to $server.."
-    rsync -r ../ $server:~/nvmesh-csi-driver/
+    rsync -r ../ $server:~/nvmesh-csi-driver/ &
+    pids[${i}]=$!
 done
+
+# wait for all children
+for pid in ${pids[*]}; do
+    wait $pid
+done
+
+echo "Finished Copying sources to all machines"

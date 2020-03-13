@@ -1,0 +1,587 @@
+#
+# This file was generated using the 'build_deployment_file.sh' script
+#
+
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: nvmesh-csi
+  labels:
+    app: nvmesh-csi
+---
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: nvmesh-csi.excelero.com
+spec:
+  attachRequired: false
+  podInfoOnMount: false
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nvmesh-csi-config
+  namespace: nvmesh-csi
+data:
+  management.protocol: http
+  management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"
+  # To combine with nvmesh-management container in kubernetes, please use the following service reference for management.servers
+  #management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"
+  # otherwise use ip:port or hostname:port pointing to your management server REST interface
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nvmesh-credentials
+  namespace: nvmesh-csi
+data:
+  username: YWRtaW5AZXhjZWxlcm8uY29t
+  password: YWRtaW4=
+---
+# This YAML file contains all RBAC objects that are necessary to run external
+# CSI provisioner.
+#
+# In production, each CSI driver deployment has to be customized:
+# - to avoid conflicts, use non-default namespace and different names
+#   for non-namespaced entities like the ClusterRole
+# - decide whether the deployment replicates the external CSI
+#   provisioner, in which case leadership election must be enabled;
+#   this influences the RBAC setup, see below
+
+
+#
+#  Permissions for provisioner
+#
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: external-provisioner-runner
+rules:
+  # The following rule should be uncommented for plugins that require secrets
+  # for provisioning.
+  # - apiGroups: [""]
+  #   resources: ["secrets"]
+  #   verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents"]
+    verbs: ["get", "list"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["csinodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: csi-provisioner-role
+subjects:
+  - kind: ServiceAccount
+    name: nvmesh-csi-controller
+    namespace: nvmesh-csi
+roleRef:
+  kind: ClusterRole
+  name: external-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Provisioner must be able to work with endpoints in current namespace
+# if (and only if) leadership election is enabled
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: nvmesh-csi
+  name: external-provisioner-cfg
+rules:
+# Only one of the following rules for endpoints or leases is required based on
+# what is set for `--leader-election-type`. Endpoints are deprecated in favor of Leases.
+- apiGroups: [""]
+  resources: ["endpoints"]
+  verbs: ["get", "watch", "list", "delete", "update", "create"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "watch", "list", "delete", "update", "create"]
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: csi-provisioner-role-cfg
+  namespace: nvmesh-csi
+subjects:
+  - kind: ServiceAccount
+    name: nvmesh-csi-controller
+    namespace: nvmesh-csi
+roleRef:
+  kind: Role
+  name: external-provisioner-cfg
+  apiGroup: rbac.authorization.k8s.io
+
+
+#
+#  Permissions for attacher
+#
+---
+# Attacher must be able to work with PVs, nodes and VolumeAttachments
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: external-attacher-runner
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["csinodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: csi-attacher-role
+subjects:
+  - kind: ServiceAccount
+    name: nvmesh-csi-controller
+    namespace: nvmesh-csi
+roleRef:
+  kind: ClusterRole
+  name: external-attacher-runner
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Attacher must be able to work with configmaps or leases in the current namespace
+# if (and only if) leadership election is enabled
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: nvmesh-csi
+  name: external-attacher-cfg
+rules:
+# access to configmaps is only supported for backwards compatibility reasons
+# and can be removed once you are uses Leases (--leader-election-type=leases)
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "watch", "list", "delete", "update", "create"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "watch", "list", "delete", "update", "create"]
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: csi-attacher-role-cfg
+  namespace: nvmesh-csi
+subjects:
+  - kind: ServiceAccount
+    name: nvmesh-csi-controller
+    namespace: nvmesh-csi
+roleRef:
+  kind: Role
+  name: external-attacher-cfg
+  apiGroup: rbac.authorization.k8s.io
+
+#
+#  Permissions for resizer
+#
+# This YAML file contains all RBAC objects that are necessary to run external
+# CSI resizer.
+#
+# In production, each CSI driver deployment has to be customized:
+# - to avoid conflicts, use non-default namespace and different names
+#   for non-namespaced entities like the ClusterRole
+# - decide whether the deployment replicates the external CSI
+#   resizer, in which case leadership election must be enabled;
+#   this influences the RBAC setup, see below
+
+---
+# Resizer must be able to work with PVCs, PVs, SCs.
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: external-resizer-runner
+rules:
+  # The following rule should be uncommented for plugins that require secrets
+  # for provisioning.
+  # - apiGroups: [""]
+  #   resources: ["secrets"]
+  #   verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["update", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: csi-resizer-role
+subjects:
+  - kind: ServiceAccount
+    name: nvmesh-csi-controller
+    namespace: nvmesh-csi
+roleRef:
+  kind: ClusterRole
+  name: external-resizer-runner
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Resizer must be able to work with end point in current namespace
+# if (and only if) leadership election is enabled
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: nvmesh-csi
+  name: external-resizer-cfg
+rules:
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "watch", "list", "delete", "update", "create"]
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: csi-resizer-role-cfg
+  namespace: nvmesh-csi
+subjects:
+  - kind: ServiceAccount
+    name: nvmesh-csi-controller
+    namespace: nvmesh-csi
+roleRef:
+  kind: Role
+  name: external-resizer-cfg
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-concatenated
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_CONCATENATED_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-raid0
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+# Immediate, WaitForFirstConsumer
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_RAID_0_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-raid1
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_RAID_1_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-raid10
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_RAID_10_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-ec-dual-target-redundancy
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_EC_DUAL_TARGET_REDUNDANCY_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-ec-single-target-redundancy
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_EC_SINGLE_TARGET_REDUNDANCY_VPG
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nvmesh-csi-controller
+  namespace: nvmesh-csi
+---
+
+# needed for StatefulSet
+kind: Service
+apiVersion: v1
+metadata:
+  name: nvmesh-csi-controller
+  labels:
+    app: nvmesh-csi
+spec:
+  selector:
+    app: nvmesh-csi
+  ports:
+    - name: dummy
+      port: 12345
+---
+#
+# NVMesh CSI Controller Driver StatefulSet Deployment
+#
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: nvmesh-csi-controller
+  namespace: nvmesh-csi
+spec:
+  serviceName: "nvmesh-csi-controller"
+  selector:
+    matchLabels:
+      app: nvmesh-csi
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nvmesh-csi
+    spec:
+      serviceAccount: nvmesh-csi-controller
+      containers:
+        # NVMesh Driver
+        - name: nvmesh-csi-driver
+          # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
+          image: excelero/nvmesh-csi-driver:v1.0.1
+          imagePullPolicy: "IfNotPresent"
+          env:
+            - name: DRIVER_TYPE
+              value: "Controller"
+            - name: SOCKET_PATH
+              value: unix:///csi/ctrl-csi.sock
+            - name: MANAGEMENT_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: nvmesh-csi-config
+                  key: management.servers
+            - name: MANAGEMENT_PROTOCOL
+              valueFrom:
+                configMapKeyRef:
+                  name: nvmesh-csi-config
+                  key: management.protocol
+            - name: MANAGEMENT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: nvmesh-credentials
+                  key: username
+            - name: MANAGEMENT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nvmesh-credentials
+                  key: password
+          volumeMounts:
+            - name: plugin-socket-dir
+              mountPath: /csi
+        # Provisioner
+        - name: csi-provisioner
+          image: quay.io/k8scsi/csi-provisioner:v1.1.0
+          args:
+            - "--provisioner=nvmesh-csi.excelero.com"
+            - "--csi-address=/csi/ctrl-csi.sock"
+            - "--v=5"
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: plugin-socket-dir
+              mountPath: /csi
+        # Attacher
+        - name: csi-attacher
+          image: quay.io/k8scsi/csi-attacher:v1.1.0
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/ctrl-csi.sock"
+          volumeMounts:
+            - name: plugin-socket-dir
+              mountPath: /csi
+        # Resizer
+        - name: csi-resizer
+          image: quay.io/k8scsi/csi-resizer:v0.1.0
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/ctrl-csi.sock"
+            - "--leader-election"
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: plugin-socket-dir
+              mountPath: /csi
+
+      volumes:
+        - name: plugin-socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/nvmesh-csi.excelero.com/
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: Directory
+---
+#
+# NVMesh Node Driver DaemonSet (Per Node) Deployment
+#
+
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: nvmesh-csi-node-driver
+  namespace: nvmesh-csi
+
+spec:
+  selector:
+    matchLabels:
+      app: nvmesh-csi
+  template:
+    metadata:
+      labels:
+        app: nvmesh-csi
+    spec:
+      hostNetwork: true
+      tolerations:
+        # This would make the DaemonSet to be deployed also on the master node
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+          operator: Exists
+      containers:
+        # NVMesh Driver
+        - name: nvmesh-csi-driver
+          # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
+          image: excelero/nvmesh-csi-driver:v1.0.1
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          env:
+            - name: DRIVER_TYPE
+              value: "Node"
+            - name: SOCKET_PATH
+              value: unix:///csi/csi.sock
+            - name: MANAGEMENT_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: nvmesh-csi-config
+                  key: management.servers
+            - name: MANAGEMENT_PROTOCOL
+              valueFrom:
+                configMapKeyRef:
+                  name: nvmesh-csi-config
+                  key: management.protocol
+            - name: MANAGEMENT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: nvmesh-credentials
+                  key: username
+            - name: MANAGEMENT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nvmesh-credentials
+                  key: password
+          volumeMounts:
+            - name: plugin-socket-dir
+              mountPath: /csi
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet/
+              # needed so that any mounts setup inside this container are
+              # propagated back to the host machine.
+              mountPropagation: "Bidirectional"
+            - name: device-dir
+              mountPath: /dev
+            - name: host-bin
+              mountPath: /host/bin
+            - name: var-opt-nvmesh
+              mountPath: /var/opt/NVMesh
+
+        # Registrar
+        - name: csi-driver-registrar
+          image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+          args:
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/nvmesh-csi.excelero.com/csi.sock"
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /registration/nvmesh-csi.excelero.com /registration/nvmesh-csi.excelero.com-reg.sock"]
+          volumeMounts:
+            - name: plugin-socket-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+      volumes:
+        - name: plugin-socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/nvmesh-csi.excelero.com/
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: Directory
+        - name: pods-mount-dir
+          hostPath:
+            path: /var/lib/kubelet/
+            type: Directory
+        - name: device-dir
+          hostPath:
+            path: /dev
+        - name: host-bin
+          hostPath:
+            path: /bin
+        - name: var-opt-nvmesh
+          hostPath:
+            path: /var/opt/NVMesh
+
+---

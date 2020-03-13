@@ -18,8 +18,7 @@ class Utils:
         @wraps(func)
         def wrapper(self, *args, **kargs):
             for name, arg in list(zip(names[1:], args)) + list(kargs.items()):
-                if name in names:
-                    setattr(self, name, arg)
+                setattr(self, name, arg)
 
             for name, default in zip(reversed(names), reversed(defaults)):
                 if not hasattr(self, name):

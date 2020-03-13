@@ -6,29 +6,43 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-YAML_SEPARATOR="---"
-DEPLOYMENT_FILE_PATH="../deployment.yaml"
-ORDERED_LIST_OF_YAML_FILES=(
-    nvmesh-csi-namespace.yaml
-    nvmesh-csi-driver.yaml
-    nvmesh-configmaps.yaml
-    nvmesh-credentials.yaml
-    rbac-permissions.yaml
-    nvmesh-csi-deployment.yaml
-    nvmesh-storage-classes.yaml
-)
-cd ../resources
+build_deployment_file() {
+    YAML_SEPARATOR="---"
+    DEPLOYMENT_FILE_PATH="../deployment$deploy_version.yaml"
 
-printf "#\n# This file was generated using the 'build_deployment_file.sh' script'\n#\n\n" > $DEPLOYMENT_FILE_PATH
-for filename in ${ORDERED_LIST_OF_YAML_FILES[@]}
+    echo "Building $DEPLOYMENT_FILE_PATH"
+    ORDERED_LIST_OF_YAML_FILES=(
+        nvmesh-csi-namespace.yaml
+        nvmesh-csi-driver.yaml
+        nvmesh-configmaps.yaml
+        nvmesh-credentials.yaml
+        rbac-permissions.yaml
+        nvmesh-storage-classes.yaml
+        nvmesh-csi-deployment$deploy_version.yaml
+    )
+
+    cd ../resources
+
+    printf "#\n# This file was generated using the 'build_deployment_file.sh' script\n#\n\n" > $DEPLOYMENT_FILE_PATH
+    for filename in ${ORDERED_LIST_OF_YAML_FILES[@]}
+    do
+        echo "Adding $filename"
+        cat $filename >> $DEPLOYMENT_FILE_PATH
+        printf "\n$YAML_SEPARATOR\n" >> $DEPLOYMENT_FILE_PATH
+    done
+
+    echo "Inserting version string \"$VERSION\""
+
+    sed -i "s/<version>/$VERSION/g" $DEPLOYMENT_FILE_PATH
+
+    echo "Deployment file $DEPLOYMENT_FILE_PATH ready"
+}
+
+
+deployment_versions=("-k8s-1.15" "-k8s-1.17")
+
+for deploy_version in ${deployment_versions[@]}
 do
-    echo "Adding $filename"
-    cat $filename >> $DEPLOYMENT_FILE_PATH
-    printf "\n$YAML_SEPARATOR\n" >> $DEPLOYMENT_FILE_PATH
+    build_deployment_file
 done
 
-echo "Inserting version string \"$VERSION\""
-
-sed -i "s/<version>/$VERSION/g" $DEPLOYMENT_FILE_PATH
-
-echo "Finsihed Building deployment.yaml"

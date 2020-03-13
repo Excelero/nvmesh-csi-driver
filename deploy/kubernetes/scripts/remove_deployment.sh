@@ -3,7 +3,7 @@ kubectl delete statefulsets nvmesh-csi-controller -n nvmesh-csi
 kubectl delete daemonset nvmesh-csi-node-driver -n nvmesh-csi
 
 # Delete Default Storage Classes
-kubectl delete storageclass nvmesh-concatenated nvmesh-raid0 nvmesh-raid1 nvmesh-raid10 nvmesh-ec -n nvmesh-csi
+kubectl delete storageclass nvmesh-concatenated nvmesh-raid0 nvmesh-raid1 nvmesh-raid10 nvmesh-ec nvmesh-ec-single-target-redundancy nvmesh-ec-dual-target-redundancy -n nvmesh-csi
 
 # Delete RBAC Permission objects
 kubectl delete rolebinding csi-attacher-role-cfg csi-provisioner-role-cfg csi-resizer-role-cfg -n nvmesh-csi

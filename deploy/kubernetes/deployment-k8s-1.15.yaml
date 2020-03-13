@@ -1,5 +1,5 @@
 #
-# This file was generated using the 'build_deployment_file.sh' script'
+# This file was generated using the 'build_deployment_file.sh' script
 #
 
 kind: Namespace
@@ -290,6 +290,67 @@ roleRef:
   name: external-resizer-cfg
   apiGroup: rbac.authorization.k8s.io
 ---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-concatenated
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_CONCATENATED_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-raid0
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+# Immediate, WaitForFirstConsumer
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_RAID_0_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-raid1
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_RAID_1_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-raid10
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_RAID_10_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-ec-dual-target-redundancy
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_EC_DUAL_TARGET_REDUNDANCY_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-ec-single-target-redundancy
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_EC_SINGLE_TARGET_REDUNDANCY_VPG
+---
 
 apiVersion: v1
 kind: ServiceAccount
@@ -316,12 +377,15 @@ spec:
 # NVMesh CSI Controller Driver StatefulSet Deployment
 #
 kind: StatefulSet
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 metadata:
   name: nvmesh-csi-controller
   namespace: nvmesh-csi
 spec:
   serviceName: "nvmesh-csi-controller"
+  selector:
+    matchLabels:
+      app: nvmesh-csi
   replicas: 1
   template:
     metadata:
@@ -333,7 +397,7 @@ spec:
         # NVMesh Driver
         - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
-          image: excelero/nvmesh-csi-driver:v0.0.2
+          image: excelero/nvmesh-csi-driver:v1.0.1
           imagePullPolicy: "IfNotPresent"
           env:
             - name: DRIVER_TYPE
@@ -435,7 +499,7 @@ spec:
         # NVMesh Driver
         - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
-          image: excelero/nvmesh-csi-driver:v0.0.2
+          image: excelero/nvmesh-csi-driver:v1.0.1
           imagePullPolicy: "IfNotPresent"
           securityContext:
             privileged: true
@@ -520,55 +584,4 @@ spec:
           hostPath:
             path: /var/opt/NVMesh
 
----
-kind: StorageClass
-apiVersion: storage.k8s.io/v1
-metadata:
-  name: nvmesh-concatenated
-provisioner: nvmesh-csi.excelero.com
-allowVolumeExpansion: true
-volumeBindingMode: Immediate
-parameters:
-  vpg: DEFAULT_CONCATENATED_VPG
----
-kind: StorageClass
-apiVersion: storage.k8s.io/v1
-metadata:
-  name: nvmesh-raid0
-provisioner: nvmesh-csi.excelero.com
-allowVolumeExpansion: true
-# Immediate, WaitForFirstConsumer
-volumeBindingMode: Immediate
-parameters:
-  vpg: DEFAULT_RAID_0_VPG
----
-kind: StorageClass
-apiVersion: storage.k8s.io/v1
-metadata:
-  name: nvmesh-raid1
-provisioner: nvmesh-csi.excelero.com
-allowVolumeExpansion: true
-volumeBindingMode: Immediate
-parameters:
-  vpg: DEFAULT_RAID_1_VPG
----
-kind: StorageClass
-apiVersion: storage.k8s.io/v1
-metadata:
-  name: nvmesh-raid10
-provisioner: nvmesh-csi.excelero.com
-allowVolumeExpansion: true
-volumeBindingMode: Immediate
-parameters:
-  vpg: DEFAULT_RAID_10_VPG
----
-kind: StorageClass
-apiVersion: storage.k8s.io/v1
-metadata:
-  name: nvmesh-ec
-provisioner: nvmesh-csi.excelero.com
-allowVolumeExpansion: true
-volumeBindingMode: Immediate
-parameters:
-  vpg: DEFAULT_ERASURE_CODING_VPG
 ---

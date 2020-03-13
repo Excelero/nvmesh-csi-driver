@@ -5,19 +5,24 @@
 
 
 ## Versions And Compatibility
-Driver Version:     0.0.1
+Driver Version:     1.0
+
 CSI spec version:   1.1.0
 
-Supported version of CSI in Kubernetes:
-[Kubernetes	CSI Spec Compatibility](https://kubernetes-csi.github.io/docs/#kubernetes-releases)
+Kubernetes Version: 1.13 or higher
 
-Supported Features in each Kubernetes Release:
-[Kubernetes CSI Change Log](https://kubernetes-csi.github.io/docs/kubernetes-changelog.html#features-1)
+## Kubernetes Quick Start
+To deploy the driver in Kuberentes simply run the following command from a node with kubectl in your cluster
 
-## Notes
-* Minimum Kubernetes Version 1.13
-* Block Volume Feature requires Kubernetes 1.14 or higher
+Kubernetes 1.17+
+```
+kubectl apply -f https://raw.githubusercontent.com/Excelero/nvmesh-csi-driver/1.0/deploy/kubernetes/deployment-k8s-1.17.yaml
+```
 
+Kubernetes 1.15 - 1.16
+```
+kubectl apply -f https://raw.githubusercontent.com/Excelero/nvmesh-csi-driver/1.0/deploy/kubernetes/deployment-k8s-1.15.yaml
+```
 
 ## Documentation
 For the full documentation of NVMesh CSI Driver please visit: [NVMesh CSI Driver User Manual](https://www.excelero.com/nvmesh-csi-driver-guide/)

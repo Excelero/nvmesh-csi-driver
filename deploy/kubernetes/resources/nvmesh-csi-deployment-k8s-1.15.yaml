@@ -24,12 +24,15 @@ spec:
 # NVMesh CSI Controller Driver StatefulSet Deployment
 #
 kind: StatefulSet
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 metadata:
   name: nvmesh-csi-controller
   namespace: nvmesh-csi
 spec:
   serviceName: "nvmesh-csi-controller"
+  selector:
+    matchLabels:
+      app: nvmesh-csi
   replicas: 1
   template:
     metadata:
