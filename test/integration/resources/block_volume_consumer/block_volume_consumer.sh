@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-VOLUME_PATH=/dev/my_block_dev
+
+## Expects the following environment variables to be set:
+echo "VOLUME_PATH =$VOLUME_PATH"
 
 graceful_exit() {
     echo "Bye Bye!"
@@ -53,6 +55,3 @@ set +x
 
 run_io_tests
 loop_forever
-
-
-echo "If this is printed, an error has occurred"
