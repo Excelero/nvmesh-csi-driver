@@ -6,7 +6,7 @@ from grpc import StatusCode
 
 from NVMeshSDK.APIs.TargetAPI import TargetAPI
 from NVMeshSDK.Entities.Volume import Volume as NVMeshVolume
-from NVMeshSDK.Consts import RAIDLevels
+from NVMeshSDK.Consts import RAIDLevels, EcSeparationTypes
 from NVMeshSDK import Consts as NVMeshConsts
 from NVMeshSDK.MongoObj import MongoObj
 from common import CatchServerErrors, DriverError, Utils, NVMeshSDKHelper
@@ -66,25 +66,27 @@ class NVMeshControllerService(ControllerServicer):
 
 		raid_level = RAIDLevels.CONCATENATED
 		vpg = None
+		nvmesh_params = {}
 
 		self.logger.debug('create volume parameters: {}'.format(parameters))
 
 		if 'vpg' in parameters:
 			self.logger.debug('Creating Volume from VPG {}'.format(parameters['vpg']))
-			vpg = parameters['vpg']
+			nvmesh_params['VPG'] = parameters['vpg']
 		else:
-			if 'raid_level' in parameters:
-				raid_level = self._parse_raid_type(parameters['raid_level'])
-			else:
-				# default volume type
-				raid_level = RAIDLevels.CONCATENATED
+			self.logger.debug('Creating without VPG')
+			for param in parameters:
+				nvmesh_params[param] = parameters[param]
+
+			self._handle_non_vpg_params(nvmesh_params)
+
+		self.logger.debug('nvmesh_params = {}'.format(nvmesh_params))
 
 		volume = NVMeshVolume(
 			name=nvmesh_vol_name,
 			capacity=capacity,
-			RAIDLevel=raid_level,
-			VPG=vpg,
-			csi_metadata=csi_metadata
+			csi_metadata=csi_metadata,
+			**nvmesh_params
 		)
 
 		err, data = VolumeAPI().save([volume])
@@ -114,6 +116,30 @@ class NVMeshControllerService(ControllerServicer):
 
 		csiVolume = Volume(volume_id=name, capacity_bytes=capacity)
 		return CreateVolumeResponse(volume=csiVolume)
+
+	def _handle_non_vpg_params(self, nvmesh_params):
+		# parse raidLevel
+		if 'raidLevel' in nvmesh_params:
+			nvmesh_params['RAIDLevel'] = self._parse_raid_type(nvmesh_params['raidLevel'])
+			del nvmesh_params['raidLevel']
+		else:
+			# default volume type
+			nvmesh_params['RAIDLevel'] = RAIDLevels.CONCATENATED
+
+		raid_level = nvmesh_params['RAIDLevel']
+
+		if raid_level in [RAIDLevels.STRIPED_RAID_0, RAIDLevels.STRIPED_AND_MIRRORED_RAID_10]:
+			nvmesh_params['stripeWidth'] = int(nvmesh_params.get('stripeWidth', 2))
+			nvmesh_params['stripeSize'] = int(nvmesh_params.get('stripeSize', 32))
+
+		if raid_level in [RAIDLevels.MIRRORED_RAID_1, RAIDLevels.STRIPED_AND_MIRRORED_RAID_10]:
+			nvmesh_params['numberOfMirrors'] = 1
+
+		if raid_level == RAIDLevels.ERASURE_CODING:
+			nvmesh_params['dataBlocks'] = int(nvmesh_params.get('dataBlocks', 8))
+			nvmesh_params['parityBlocks'] = int(nvmesh_params.get('parityBlocks', 2))
+			nvmesh_params['protectionLevel'] = nvmesh_params.get('protectionLevel', EcSeparationTypes.FULL)
+			nvmesh_params['stripeSize'] = int(nvmesh_params.get('stripeSize', 32))
 
 	def _wait_for_volume_status(self, volume_id, status):
 
@@ -319,12 +345,13 @@ class NVMeshControllerService(ControllerServicer):
 		raid_type_string = raid_type_string.lower()
 
 		raid_converter = {
+			'concatenated': RAIDLevels.CONCATENATED,
 			'lvm': RAIDLevels.CONCATENATED,
 			'jbod': RAIDLevels.CONCATENATED,
-			'mirrored': RAIDLevels.RAID1,
-			'raid1': RAIDLevels.RAID1,
-			'raid10': RAIDLevels.RAID10,
-			'raid0': RAIDLevels.RAID0,
+			'mirrored': RAIDLevels.MIRRORED_RAID_1,
+			'raid1': RAIDLevels.MIRRORED_RAID_1,
+			'raid10': RAIDLevels.STRIPED_AND_MIRRORED_RAID_10,
+			'raid0': RAIDLevels.STRIPED_RAID_0,
 			'ec': RAIDLevels.ERASURE_CODING
 		}
 
