@@ -71,10 +71,20 @@ if [ "${#SERVERS[@]}" -gt 0 ];then
     ./copy_sources_to_machine.sh "${SERVERS[@]}"
 
     # build on all servers
+    echo "Buildig on all servers"
     for server in "${SERVERS[@]}"
     do
-        ssh $server "cd ~/nvmesh-csi-driver/build_tools ; ./build.sh"
+        echo "Buildig on $server"
+        ssh $server "cd ~/nvmesh-csi-driver/build_tools ; ./build.sh" &
+        pids[${i}]=$!
     done
+
+    # wait for all children
+    for pid in ${pids[*]}; do
+        wait $pid
+    done
+
+    echo "Finished buildig on all servers"
 else
     echo "No remote build servers given. deploying"
     ./copy_sources_to_machine.sh $MASTER
