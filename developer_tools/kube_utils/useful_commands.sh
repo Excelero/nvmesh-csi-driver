@@ -45,3 +45,6 @@ KUBELET_EXTRA_ARGS=--feature-gates=ExpandCSIVolumes=true,ExpandInUsePersistentVo
 # list CSI drivers and show info
 kubectl get csidrivers.storage.k8s.io
 kubectl describe csidrivers.storage.k8s.io
+
+# Developer Rebuild & Deploy
+./rebuild_deploy --servers node1 node2 node3 --master node1 --mgmt 10.0.1.115:4000 --mgmt-protocol https
