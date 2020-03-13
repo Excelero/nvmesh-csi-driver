@@ -82,7 +82,7 @@ fi
 
 if [ ! -z "$MASTER" ]; then
     # deploy on master node
-    ssh $MASTER "cd ~/nvmesh-csi-driver/deploy/kubernetes/scripts ; ./build_deployment_file.sh ; cd .. ; kubectl apply -f ./deployment.yaml"
+    ssh $MASTER "cd ~/nvmesh-csi-driver/deploy/kubernetes/scripts ; ./build_deployment_file.sh ; cd .. ; kubectl apply -f ./deployment-k8s-1.17.yaml"
 
     # set management address
     if [ ! -z "$MANAGMENT_ADDRESS" ]; then
