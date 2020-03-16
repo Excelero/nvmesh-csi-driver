@@ -15,11 +15,6 @@ class Consts(object):
 	DEFAULT_UDS_PATH = "unix:///tmp/csi.sock"
 	SYSLOG_PATH = "/dev/log"
 
-	ALLOWED_ACCESS_MODES = [
-		'MULTI_NODE_MULTI_WRITER',
-		'MULTI_NODE_READER_ONLY'
-	]
-
 	class DriverType(object):
 		Controller = 'Controller'
 		Node = 'Node'
