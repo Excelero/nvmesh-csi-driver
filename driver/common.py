@@ -124,10 +124,6 @@ class Utils(object):
 			time.sleep(sleep_interval)
 
 	@staticmethod
-	def is_allowed_access_mode(access_mode):
-		return access_mode in Consts.ALLOWED_ACCESS_MODES
-
-	@staticmethod
 	def set_volume_readonly(nvmesh_volume_name):
 		cmd = "echo -n '#{vol_name}|enforce_readonly 1' > /proc/nvmeibc/cli/cli".format(vol_name=nvmesh_volume_name)
 		return Utils.run_command(cmd)

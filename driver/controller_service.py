@@ -54,8 +54,8 @@ class NVMeshControllerService(ControllerServicer):
 				csi_metadata['block'] = True
 
 			access_mode = capability['accessMode']['mode']
-			if not Utils.is_allowed_access_mode(access_mode):
-				raise DriverError(StatusCode.INVALID_ARGUMENT,'Error: Access Mode {} not allowed.'.format(access_mode))
+			if access_mode == 'SINGLE_NODE_WRITER':
+				self.logger.warning('Requested mode {} is not enforced'.format(access_mode))
 
 		if is_file_system and is_block_device:
 			raise DriverError(StatusCode.INVALID_ARGUMENT,
@@ -73,6 +73,11 @@ class NVMeshControllerService(ControllerServicer):
 		if 'vpg' in parameters:
 			self.logger.debug('Creating Volume from VPG {}'.format(parameters['vpg']))
 			nvmesh_params['VPG'] = parameters['vpg']
+
+			# This is a workaround since the nvmesh create volume api expects a 'RAIDLevel'
+			# but if 'VPG' is present 'RAIDLevel' field will be ignored
+			# and the RAIDLevel will be fetched from the VPG.
+			nvmesh_params['RAIDLevel'] = RAIDLevels.CONCATENATED
 		else:
 			self.logger.debug('Creating without VPG')
 			for param in parameters:
