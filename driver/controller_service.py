@@ -73,6 +73,11 @@ class NVMeshControllerService(ControllerServicer):
 		if 'vpg' in parameters:
 			self.logger.debug('Creating Volume from VPG {}'.format(parameters['vpg']))
 			nvmesh_params['VPG'] = parameters['vpg']
+
+			# This is a workaround since the nvmesh create volume api expects a 'RAIDLevel'
+			# but if 'VPG' is present 'RAIDLevel' field will be ignored
+			# and the RAIDLevel will be fetched from the VPG.
+			nvmesh_params['RAIDLevel'] = RAIDLevels.CONCATENATED
 		else:
 			self.logger.debug('Creating without VPG')
 			for param in parameters:
