@@ -1,6 +1,6 @@
 import os
 
-from consts import Consts
+import consts as Consts
 
 
 class ConfigError(Exception):

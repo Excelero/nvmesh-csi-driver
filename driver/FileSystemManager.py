@@ -1,5 +1,3 @@
-import os
-
 import shutil
 
 from grpc import StatusCode

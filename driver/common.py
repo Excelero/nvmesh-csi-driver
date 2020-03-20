@@ -12,7 +12,7 @@ from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from NVMeshSDK.Entities.Volume import Volume
 from NVMeshSDK.ConnectionManager import ConnectionManager, ManagementTimeout
 from config import Config
-from consts import Consts
+import consts as Consts
 
 
 class ServerLoggingInterceptor(grpc.ServerInterceptor):

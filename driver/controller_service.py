@@ -10,7 +10,7 @@ from NVMeshSDK.Consts import RAIDLevels, EcSeparationTypes
 from NVMeshSDK import Consts as NVMeshConsts
 from NVMeshSDK.MongoObj import MongoObj
 from common import CatchServerErrors, DriverError, Utils, NVMeshSDKHelper
-from consts import Consts
+import consts as Consts
 from csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ControllerPublishVolumeResponse, ControllerUnpublishVolumeResponse, \
 	ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse
 from csi.csi_pb2_grpc import ControllerServicer
