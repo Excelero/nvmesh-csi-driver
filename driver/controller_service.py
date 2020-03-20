@@ -54,8 +54,8 @@ class NVMeshControllerService(ControllerServicer):
 				csi_metadata['block'] = True
 
 			access_mode = capability['accessMode']['mode']
-			if access_mode == 'SINGLE_NODE_WRITER':
-				self.logger.warning('Requested mode {} is not enforced'.format(access_mode))
+			if access_mode not in Consts.AccessMode.allowedAccessModes():
+				self.logger.warning('Requested mode {} is not enforced by NVMesh Storage backend'.format(access_mode))
 
 		if is_file_system and is_block_device:
 			raise DriverError(StatusCode.INVALID_ARGUMENT,

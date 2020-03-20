@@ -18,6 +18,12 @@ class NVMeshNodeService(NodeServicer):
 	def __init__(self, logger):
 		NodeServicer.__init__(self)
 		self.logger = logger
+		self.nvmesh_feature_support = self.get_all_nvmesh_supported_features()
+
+	def get_all_nvmesh_supported_features(self):
+		features = {}
+		features[Consts.NVMeshFeatures.AccessMode] = Utils.nvmesh_is_access_mode_supported()
+		return features
 
 	@CatchServerErrors
 	def NodeStageVolume(self, request, context):
@@ -41,11 +47,18 @@ class NVMeshNodeService(NodeServicer):
 
 		readonly = False
 
-		if access_mode == VolumeCapability.AccessMode.MULTI_NODE_READER_ONLY:
+		if access_mode == Consts.AccessMode.MULTI_NODE_READER_ONLY:
 			readonly = True
 
 		# run nvmesh attach locally
-		Utils.nvmesh_attach_volume(nvmesh_volume_name)
+		if self.nvmesh_feature_support[Consts.NVMeshFeatures.AccessMode]:
+			requested_nvmesh_access_mode = Consts.AccessMode.toNVMesh(access_mode)
+			Utils.check_if_access_mode_allowed(requested_nvmesh_access_mode, nvmesh_volume_name)
+			Utils.nvmesh_attach_volume(nvmesh_volume_name, requested_nvmesh_access_mode)
+		else:
+			# Backward Compatibility for NVMesh versions without exclusive access feature
+			Utils.nvmesh_attach_volume_legacy(nvmesh_volume_name)
+
 		Utils.wait_for_volume_io_enabled(nvmesh_volume_name)
 
 		if access_type == Consts.VolumeAccessType.MOUNT:
@@ -133,7 +146,7 @@ class NVMeshNodeService(NodeServicer):
 		flags = []
 
 		# K8s Bug Workaround: readonly flag is not sent to CSI, so we try to also infer from the AccessMode
-		if readonly or access_mode == VolumeCapability.AccessMode.MULTI_NODE_READER_ONLY:
+		if readonly or access_mode == Consts.AccessMode.MULTI_NODE_READER_ONLY:
 			flags.append('-o ro')
 
 		if access_type == Consts.VolumeAccessType.BLOCK:
@@ -248,4 +261,5 @@ class NVMeshNodeService(NodeServicer):
 			return Consts.VolumeAccessType.BLOCK
 		else:
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'at least one of volume_capability.block, volume_capability.mount must be set')
+
 

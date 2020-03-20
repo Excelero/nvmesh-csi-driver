@@ -18,18 +18,6 @@ class MountTargetIsBusyError(MountError):
 class FileSystemManager(object):
 
 	@staticmethod
-	def create_fake_nvmesh_block_device(block_device_path):
-		# Creates a Fake block device
-		# This function is used for development, for testing with kubernetes on Host that are unable to actually install NVMesh Core Modules
-		# TODO: remove when not needed
-
-		cmd = 'mkdir -p /dev/nvmesh/'
-		Utils.run_command(cmd)
-
-		cmd = 'dd if=/dev/zero of={} bs=1M count=256'.format(block_device_path)
-		Utils.run_command(cmd)
-
-	@staticmethod
 	def is_mounted(mount_path):
 		cmd = 'grep -qs "{} " /proc/mounts'.format(mount_path)
 		exit_code, stdout, stderr = Utils.run_command(cmd)
