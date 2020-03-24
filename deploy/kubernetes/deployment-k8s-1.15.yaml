@@ -545,7 +545,8 @@ spec:
               mountPath: /host/bin
             - name: var-opt-nvmesh
               mountPath: /var/opt/NVMesh
-
+            - name: opt-nvmesh
+              mountPath: /opt/NVMesh
         # Registrar
         - name: csi-driver-registrar
           image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
@@ -583,5 +584,7 @@ spec:
         - name: var-opt-nvmesh
           hostPath:
             path: /var/opt/NVMesh
-
+        - name: opt-nvmesh
+          hostPath:
+            path: /opt/NVMesh
 ---

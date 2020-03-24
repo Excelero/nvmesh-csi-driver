@@ -2,6 +2,7 @@
 
 source ./test_utils.sh
 
+
 create_block_volume() {
     echo "Creating a block volume"
 
@@ -9,17 +10,17 @@ create_block_volume() {
     wait_for_volumes 1
 }
 
-create_pod() {
-    echo "Creating a Pod to consume the Block Volume.."
+create_replica_set() {
+    echo "Creating a ReplicaSet to consume the Block Volume using multiple Pods.."
 
-    kubectl create -f ../resources/block_volume_consumer/block-volume-consumer.yaml
+    kubectl create -f ../resources/block_volume_consumer/multiple-block-consumers.yaml
 
-    wait_for_pods 1
+    wait_for_pods 3
 }
 
-delete_pod() {
-    echo "Deleting the Pod"
-    kubectl delete pod block-volume-consumer-pod
+delete_replica_set() {
+    echo "Deleting the ReplicaSet"
+    kubectl delete replicaset block-multi-consumer-rs
     wait_for_pods_to_be_removed
 }
 
@@ -36,8 +37,8 @@ delete_block_volume() {
 }
 
 create_block_volume
-create_pod
-delete_pod
+create_replica_set
+delete_replica_set
 delete_block_volume
 
 exit 0

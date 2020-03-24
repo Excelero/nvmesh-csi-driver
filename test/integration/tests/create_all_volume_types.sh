@@ -2,7 +2,13 @@
 
 source ./test_utils.sh
 
-RAID_TYPES=(concatenated raid0 raid1 raid10 ec)
+RAID_TYPES=(concatenated raid0 raid1 raid10)
+
+if [ -z "$no_ec_volumes" ]; then
+  RAID_TYPES+=("ec-single-target-redundancy")
+  RAID_TYPES+=("ec-dual-target-redundancy")
+fi
+
 read -r -d '' create_volume_template << EOM
 apiVersion: v1
 kind: PersistentVolumeClaim

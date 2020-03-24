@@ -8,7 +8,7 @@ graceful_exit() {
 trap graceful_exit SIGINT SIGTERM
 
 if [ -z "$num_of_volumes" ]; then
-    num_of_volumes=30
+    num_of_volumes=3
 fi
 
 get_running_pods() {

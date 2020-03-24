@@ -45,12 +45,8 @@ class NVMeshNodeService(NodeServicer):
 			readonly = True
 
 		# run nvmesh attach locally
-		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_attach_volumes {}'.format(nvmesh_volume_name))
-		if exit_code != 0:
-			raise DriverError(StatusCode.INTERNAL, "local attach failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
-
-		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
-			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(nvmesh_volume_name))
+		Utils.nvmesh_attach_volume(nvmesh_volume_name)
+		Utils.wait_for_volume_io_enabled(nvmesh_volume_name)
 
 		if access_type == Consts.VolumeAccessType.MOUNT:
 			mount_request = volume_capability.mount
@@ -108,10 +104,7 @@ class NVMeshNodeService(NodeServicer):
 		else:
 			self.logger.warning('NodeUnstageVolume - mount path {} not found.'.format(staging_target_path))
 
-		# also run detach locally to support future changes to NVMesh
-		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_detach_volumes {}'.format(nvmesh_volume_name))
-		if exit_code != 0:
-			raise DriverError(StatusCode.INTERNAL, "local detach failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
+		Utils.nvmesh_detach_volume(nvmesh_volume_name)
 
 		return NodeUnstageVolumeResponse()
 

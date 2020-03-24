@@ -1,8 +1,6 @@
 
 # Excelero NVMesh - Container Storage Interface (CSI) Driver
 
-# ==== Driver in Development ====
-
 
 ## Versions And Compatibility
 Driver Version:     1.0
