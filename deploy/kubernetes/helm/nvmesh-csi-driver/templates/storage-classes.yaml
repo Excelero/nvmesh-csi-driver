@@ -1,0 +1,62 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-concatenated
+provisioner: {{ .Values.driverName }}
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_CONCATENATED_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-raid0
+provisioner: {{ .Values.driverName }}
+allowVolumeExpansion: true
+# Immediate, WaitForFirstConsumer
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_RAID_0_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-raid1
+provisioner: {{ .Values.driverName }}
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_RAID_1_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-raid10
+provisioner: {{ .Values.driverName }}
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_RAID_10_VPG
+---
+{{- if .Values.features.ecVolumesEnabled -}}
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-ec-dual-target-redundancy
+provisioner: {{ .Values.driverName }}
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_EC_DUAL_TARGET_REDUNDANCY_VPG
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-ec-single-target-redundancy
+provisioner: {{ .Values.driverName }}
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_EC_SINGLE_TARGET_REDUNDANCY_VPG
+{{- end }}

@@ -1,0 +1,56 @@
+# Default values for nvmesh-csi-driver.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+namespace: nvmesh-csi
+appName: nvmesh-csi-driver
+driverName: nvmesh-csi.excelero.com
+
+features:
+  ecVolumesEnabled: true
+
+config:
+  protocol: https
+  servers: your.server.com:4000
+  # use the format of <ip:port> or <hostname:port> pointing to your management server REST interface
+  # To combine with nvmesh-management container in kubernetes, please use the following service reference for management.servers
+  #management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"
+
+  username: YWRtaW5AZXhjZWxlcm8uY29t
+  password: YWRtaW4=
+
+controller:
+  replicaCount: 1
+
+image:
+  repository: excelero/nvmesh-csi-driver
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: nvmesh-csi-controller
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

@@ -1,0 +1,10 @@
+##################################
+#  NVMesh CSI Driver Installed!  #
+##################################
+
+1. Configuration: Make sure the following points to your NVMesh Management Server:
+kubectl --namespace {{ .Values.namespace }} get configmap nvmesh-csi-config
+
+2. Please visit https://www.excelero.com/nvmesh-csi-driver-guide for the NVMesh CSI Driver User Guide
+
+Your are all set !
