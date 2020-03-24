@@ -12,6 +12,7 @@ test_files=(
     delete_fs_consumers.sh
     delete_volumes.sh
     test_block_volume.sh
+    test_multiple_pods_on_same_volume.sh
     test_all_fs_types.sh
     test_migration.sh
 )
