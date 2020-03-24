@@ -35,10 +35,8 @@ delete_block_volume() {
     echo "The volume was deleted"
 }
 
-
 create_block_volume
 create_pod
-run_io_tests
 delete_pod
 delete_block_volume
 
