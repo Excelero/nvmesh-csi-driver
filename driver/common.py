@@ -1,7 +1,9 @@
+import json
 import logging
 import os
 import sys
 import time
+from datetime import datetime, timedelta
 from logging.handlers import SysLogHandler
 from subprocess import Popen, PIPE
 import grpc
@@ -127,6 +129,44 @@ class Utils(object):
 	def set_volume_readonly(nvmesh_volume_name):
 		cmd = "echo -n '#{vol_name}|enforce_readonly 1' > /proc/nvmeibc/cli/cli".format(vol_name=nvmesh_volume_name)
 		return Utils.run_command(cmd)
+
+	@staticmethod
+	def nvmesh_attach_volume(nvmesh_volume_name):
+		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_attach_volumes {}'.format(nvmesh_volume_name))
+		if exit_code != 0:
+			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
+
+	@staticmethod
+	def nvmesh_detach_volume(nvmesh_volume_name):
+		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_detach_volumes {}'.format(nvmesh_volume_name))
+		if exit_code != 0:
+			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_detach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
+
+	@staticmethod
+	def wait_for_volume_io_enabled(nvmesh_volume_name, timeout=30):
+		now = datetime.now()
+		max_time = datetime.now() + timedelta(seconds=timeout)
+		volume_status = None
+
+		while now <= max_time:
+			volume_status = Utils.get_volume_status(nvmesh_volume_name)
+			if volume_status["dbg"] == '0x200':
+				# this means IO is Enabled
+				return True
+
+			Utils.logger.debug("Waiting for volume {} to have IO Enabled. current status is: 'status':'{}', 'dbg':'{}'".format(nvmesh_volume_name, volume_status["status"], volume_status["dbg"]))
+			time.sleep(1)
+			now = datetime.now()
+
+		raise DriverError(grpc.StatusCode.INTERNAL, "Timed-out after waiting {} seconds for volume {} to have IO Enabled. volume status: {}".format(timeout, nvmesh_volume_name, volume_status))
+
+	@staticmethod
+	def get_volume_status(nvmesh_volume_name):
+		volume_status_proc = '/proc/nvmeibc/volumes/{}/status.json'.format(nvmesh_volume_name)
+
+		with open(volume_status_proc) as fp:
+			volume_status = json.load(fp)
+			return volume_status
 
 class NVMeshSDKHelper(object):
 	logger = DriverLogger("NVMeshSDKHelper")
