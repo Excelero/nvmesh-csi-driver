@@ -10,7 +10,7 @@ version: 0.0.1
 
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application.
-appVersion: v1.0.2
+appVersion: v1.0.3
 
 maintainers:
   - name: Gil Vitzinger
