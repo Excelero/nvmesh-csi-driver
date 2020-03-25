@@ -1,7 +1,7 @@
 apiVersion: v2
 name: nvmesh-csi-driver
 description: Excelero NVMesh CSI Driver Helm Chart
-kubeVersion: ">=1.17"
+kubeVersion: ">=1.15"
 type: application
 
 # This is the chart version. This version number should be incremented each time you make changes

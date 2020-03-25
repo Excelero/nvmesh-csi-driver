@@ -54,3 +54,8 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# overrideKubeVersion - this is to workaround the missing flag --kube-version (https://github.com/helm/helm/issues/7326)
+# we should use this only for templating (running `helm template ..`)
+# usage `helm template ./nvmesh-csi-driver --set overrideKubeVersion=1.15
+overrideKubeVersion: false
