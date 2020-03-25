@@ -2,7 +2,7 @@ kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
   name: nvmesh-concatenated
-provisioner: nvmesh-csi.excelero.com
+provisioner: {{ .Values.driverName }}
 allowVolumeExpansion: true
 volumeBindingMode: Immediate
 parameters:
@@ -12,7 +12,7 @@ kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
   name: nvmesh-raid0
-provisioner: nvmesh-csi.excelero.com
+provisioner: {{ .Values.driverName }}
 allowVolumeExpansion: true
 # Immediate, WaitForFirstConsumer
 volumeBindingMode: Immediate
@@ -23,7 +23,7 @@ kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
   name: nvmesh-raid1
-provisioner: nvmesh-csi.excelero.com
+provisioner: {{ .Values.driverName }}
 allowVolumeExpansion: true
 volumeBindingMode: Immediate
 parameters:
@@ -33,17 +33,18 @@ kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
   name: nvmesh-raid10
-provisioner: nvmesh-csi.excelero.com
+provisioner: {{ .Values.driverName }}
 allowVolumeExpansion: true
 volumeBindingMode: Immediate
 parameters:
   vpg: DEFAULT_RAID_10_VPG
 ---
+{{- if .Values.features.ecVolumesEnabled -}}
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
   name: nvmesh-ec-dual-target-redundancy
-provisioner: nvmesh-csi.excelero.com
+provisioner: {{ .Values.driverName }}
 allowVolumeExpansion: true
 volumeBindingMode: Immediate
 parameters:
@@ -53,8 +54,9 @@ kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
   name: nvmesh-ec-single-target-redundancy
-provisioner: nvmesh-csi.excelero.com
+provisioner: {{ .Values.driverName }}
 allowVolumeExpansion: true
 volumeBindingMode: Immediate
 parameters:
   vpg: DEFAULT_EC_SINGLE_TARGET_REDUNDANCY_VPG
+{{- end }}

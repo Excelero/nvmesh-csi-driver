@@ -10,6 +10,11 @@ CSI spec version:   1.1.0
 Kubernetes Version: 1.13 or higher
 
 ## Kubernetes Quick Start
+
+### Using helm
+helm install nvmesh-csi-driver ./nvmesh-csi-driver --set config.servers=<your.mgmt.server>:4000 --set config.protocol=https
+
+### Directly into Kubernetes (using kubectl)
 To deploy the driver in Kuberentes simply run the following command from a node with kubectl in your cluster
 
 Kubernetes 1.17+

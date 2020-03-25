@@ -56,7 +56,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi-controller
-    namespace: nvmesh-csi
+    namespace: {{ .Values.namespace }}
 roleRef:
   kind: ClusterRole
   name: external-provisioner-runner
@@ -68,7 +68,7 @@ roleRef:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: nvmesh-csi
+  namespace: {{ .Values.namespace }}
   name: external-provisioner-cfg
 rules:
 # Only one of the following rules for endpoints or leases is required based on
@@ -85,11 +85,11 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: csi-provisioner-role-cfg
-  namespace: nvmesh-csi
+  namespace: {{ .Values.namespace }}
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi-controller
-    namespace: nvmesh-csi
+    namespace: {{ .Values.namespace }}
 roleRef:
   kind: Role
   name: external-provisioner-cfg
@@ -127,7 +127,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi-controller
-    namespace: nvmesh-csi
+    namespace: {{ .Values.namespace }}
 roleRef:
   kind: ClusterRole
   name: external-attacher-runner
@@ -139,7 +139,7 @@ roleRef:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: nvmesh-csi
+  namespace: {{ .Values.namespace }}
   name: external-attacher-cfg
 rules:
 # access to configmaps is only supported for backwards compatibility reasons
@@ -156,11 +156,11 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: csi-attacher-role-cfg
-  namespace: nvmesh-csi
+  namespace: {{ .Values.namespace }}
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi-controller
-    namespace: nvmesh-csi
+    namespace: {{ .Values.namespace }}
 roleRef:
   kind: Role
   name: external-attacher-cfg
@@ -215,7 +215,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi-controller
-    namespace: nvmesh-csi
+    namespace: {{ .Values.namespace }}
 roleRef:
   kind: ClusterRole
   name: external-resizer-runner
@@ -227,7 +227,7 @@ roleRef:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: nvmesh-csi
+  namespace: {{ .Values.namespace }}
   name: external-resizer-cfg
 rules:
 - apiGroups: ["coordination.k8s.io"]
@@ -239,11 +239,11 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: csi-resizer-role-cfg
-  namespace: nvmesh-csi
+  namespace: {{ .Values.namespace }}
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi-controller
-    namespace: nvmesh-csi
+    namespace: {{ .Values.namespace }}
 roleRef:
   kind: Role
   name: external-resizer-cfg

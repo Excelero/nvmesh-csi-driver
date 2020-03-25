@@ -1,0 +1,6 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name:  {{ .Values.namespace }}
+  labels:
+    {{- include "nvmesh-csi-driver.labels" . | nindent 4 }}

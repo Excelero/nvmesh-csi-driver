@@ -1,0 +1,11 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nvmesh-csi-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "nvmesh-csi-driver.labels" . | nindent 4 }}
+data:
+  management.protocol: {{ .Values.config.protocol }}
+  management.servers: {{ .Values.config.servers }}
+
