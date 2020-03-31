@@ -125,11 +125,6 @@ class Utils(object):
 		for i in range(int(duration / sleep_interval)):
 			time.sleep(sleep_interval)
 
-	@staticmethod
-	def set_volume_readonly(nvmesh_volume_name):
-		cmd = "echo -n '#{vol_name}|enforce_readonly 1' > /proc/nvmeibc/cli/cli".format(vol_name=nvmesh_volume_name)
-		return Utils.run_command(cmd)
-
 	# legacy API of calling nvmesh_attach_volumes before Exclusive Access feature introduced
 	@staticmethod
 	def nvmesh_attach_volume_legacy(nvmesh_volume_name):
