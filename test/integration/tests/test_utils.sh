@@ -28,6 +28,58 @@ wait_for_pods() {
     echo "$num_of_pods pods have started successfully and are running..."
 }
 
+wait_for_pod_status() {
+    pod_name=$1
+    status=$2
+
+    if [ -z "$pod_name" ]; then
+        echo "wait_for_pod_status error, missing pod_name as first parameter"
+        exit 3
+    fi
+
+    if [ -z "$status" ]; then
+        echo "wait_for_pod_status error, missing status as second parameter"
+        exit 3
+    fi
+
+    echo "waiting for pod $pod_name to be in status $status..."
+
+    pod_status=$(kubectl get pods | grep $pod_name | awk '{ print $3 }')
+    while [ "$pod_status" != "$status" ];
+    do
+        echo "Pod $pod_name is in status $pod_status - Waiting.."
+        sleep 1
+        pod_status=$(kubectl get pods | grep $pod_name | awk '{ print $3 }')
+    done
+    echo "Pod $pod_name is in status $status"
+}
+
+wait_for_pv_status() {
+    pv_name=$1
+    status=$2
+
+    if [ -z "$pod_name" ]; then
+        echo "wait_for_pv_status error, missing pv_name as first parameter"
+        exit 3
+    fi
+
+    if [ -z "$status" ]; then
+        echo "wait_for_pv_status error, missing status as second parameter"
+        exit 3
+    fi
+
+    echo "waiting for PersistentVolume $pv_name to be in status $status..."
+
+    pv_status=$(kubectl get pv | grep $pv_name | awk '{ print $5 }')
+    while [ "$pv_status" != "$status" ];
+    do
+        echo "PV $pv_name is in status $pv_status - Waiting.."
+        sleep 1
+        pv_status=$(kubectl get pv | grep $pv_name | awk '{ print $5 }')
+    done
+    echo "PV $pv_status is in status $status"
+}
+
 get_volumes_count() {
     volumes_count=$(kubectl get pv -o name | wc -l)
 }
@@ -85,5 +137,13 @@ delete_all_objects_of_type() {
     do
         echo "deleting $x"
         kubectl delete $1 $x
+    done
+}
+
+wait_with_print() {
+    seconds=$1
+    for i in $(seq $seconds -1 1); do
+        echo "DEBUG - Waiting for another $i seconds"
+        sleep 1
     done
 }

@@ -198,7 +198,7 @@ class Utils(object):
 				# We don't allow a new pod to request Exclusive Access when another Pod already has Exclusive Access
 				# This will only cause the Pod instantiation to fail, the user should configure the Volume consumer Pods in such a way that only one consumer pod is scheduled on each node.
 				# This does not meet the requirement of idempotency. but it prevents a user from causing data corruption by miss-use.
-				error_msg = 'Volume {} is already attached with Exclusive Access ({}) from another Pod'.format(volume_name, Consts.AccessMode.SINGLE_NODE_WRITER)
+				error_msg = 'Volume {} is already attached with Exclusive Access ({}) from another Pod'.format(volume_name, Consts.AccessMode.toString(current))
 				raise DriverError(grpc.StatusCode.FAILED_PRECONDITION, error_msg)
 			else:
 				return True

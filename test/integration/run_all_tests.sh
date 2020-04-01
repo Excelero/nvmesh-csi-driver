@@ -5,6 +5,7 @@ if [ -z "$num_of_volumes" ]; then
 fi
 
 test_files=(
+    test_access_modes.sh
     create_all_volume_types.sh
     create_volumes.sh
     create_fs_consumers.sh

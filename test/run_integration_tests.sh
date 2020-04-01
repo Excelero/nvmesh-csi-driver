@@ -54,7 +54,7 @@ echo "Copying sources to $server.."
 rsync -r integration/ $server:~/k8s_csi_integration/
 
 echo "Running test on remote machine ($server)"
-ssh $server "export num_of_volumes=$num_of_volumes ; export no_ec_volumes=$no_ec_volumes ; cd ~/k8s_csi_integration ; ./run_all_tests.sh"
+time ssh $server "export num_of_volumes=$num_of_volumes ; export no_ec_volumes=$no_ec_volumes ; cd ~/k8s_csi_integration ; ./run_all_tests.sh"
 exit_code=$?
 if [ $exit_code -eq 0 ]; then
     echo "Finished Running Tests on remote machine ($server)"
