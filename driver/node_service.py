@@ -1,3 +1,4 @@
+import json
 import socket
 
 import os
@@ -6,24 +7,22 @@ from google.protobuf.json_format import MessageToJson
 from grpc import StatusCode
 
 from FileSystemManager import FileSystemManager
-from common import Utils, CatchServerErrors, DriverError
+from common import Utils, CatchServerErrors, DriverError, FeatureSupport, FeatureSupportChecks
 import consts as Consts
 from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
 	NodeStageVolumeResponse, NodeUnstageVolumeResponse, VolumeCapability, NodeExpandVolumeResponse
 from csi.csi_pb2_grpc import NodeServicer
-from config import Config
 
 
 class NVMeshNodeService(NodeServicer):
 	def __init__(self, logger):
 		NodeServicer.__init__(self)
 		self.logger = logger
-		self.nvmesh_feature_support = self.get_all_nvmesh_supported_features()
 
-	def get_all_nvmesh_supported_features(self):
-		features = {}
-		features[Consts.NVMeshFeatures.AccessMode] = Utils.nvmesh_is_access_mode_supported()
-		return features
+		self.logger.info('NVMesh Version Info: {}'.format(json.dumps(Consts.NVMESH_VERSION_INFO, indent=4, sort_keys=True)))
+
+		feature_list = json.dumps(FeatureSupportChecks.get_all_features(), indent=4, sort_keys=True)
+		self.logger.info('Supported Features: {}'.format(feature_list))
 
 	@CatchServerErrors
 	def NodeStageVolume(self, request, context):
@@ -46,14 +45,8 @@ class NVMeshNodeService(NodeServicer):
 		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_volume_name)
 
 		# run nvmesh attach locally
-		if self.nvmesh_feature_support[Consts.NVMeshFeatures.AccessMode]:
-			requested_nvmesh_access_mode = Consts.AccessMode.toNVMesh(access_mode)
-			Utils.check_if_access_mode_allowed(requested_nvmesh_access_mode, nvmesh_volume_name)
-			Utils.nvmesh_attach_volume(nvmesh_volume_name, requested_nvmesh_access_mode)
-		else:
-			# Backward Compatibility for NVMesh versions without exclusive access feature
-			Utils.nvmesh_attach_volume_legacy(nvmesh_volume_name)
-
+		requested_nvmesh_access_mode = Consts.AccessMode.to_nvmesh(access_mode)
+		Utils.nvmesh_attach_volume(nvmesh_volume_name, requested_nvmesh_access_mode)
 		Utils.wait_for_volume_io_enabled(nvmesh_volume_name)
 
 		if access_type == Consts.VolumeAccessType.MOUNT:

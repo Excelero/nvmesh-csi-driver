@@ -8,8 +8,6 @@ from logging.handlers import SysLogHandler
 from subprocess import Popen, PIPE
 import grpc
 
-from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
-from NVMeshSDK.Entities.Volume import Volume
 from NVMeshSDK.ConnectionManager import ConnectionManager, ManagementTimeout
 from config import Config
 import consts as Consts
@@ -61,6 +59,7 @@ def CatchServerErrors(func):
 			return func(self, request, context)
 		except DriverError as drvErr:
 			self.logger.warning("Driver Error caught in gRPC call {} - Code: {} Message:{}".format(func.__name__, str(drvErr.code), str(drvErr.message)))
+			self.logger.exception("Driver Error with stack trace")
 			context.abort(drvErr.code, str(drvErr.message))
 
 		except Exception as ex:
@@ -94,12 +93,14 @@ class Utils(object):
 		return exit_code == 0
 
 	@staticmethod
-	def run_command(cmd):
-		Utils.logger.debug("running: {}".format(cmd))
+	def run_command(cmd, debug=True):
+		if debug:
+			Utils.logger.debug("running: {}".format(cmd))
 		p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
 		stdout, stderr = p.communicate()
 		exit_code = p.returncode
-		Utils.logger.debug("cmd: {} return exit_code={} stdout={} stderr={}".format(cmd, exit_code, stdout, stderr))
+		if debug:
+			Utils.logger.debug("cmd: {} return exit_code={} stdout={} stderr={}".format(cmd, exit_code, stdout, stderr))
 		return exit_code, stdout, stderr
 
 	@staticmethod
@@ -127,32 +128,58 @@ class Utils(object):
 
 	# legacy API of calling nvmesh_attach_volumes before Exclusive Access feature introduced
 	@staticmethod
-	def nvmesh_attach_volume_legacy(nvmesh_volume_name):
+	def _attach_volume_legacy(nvmesh_volume_name):
 		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_attach_volumes --wait_for_attach {}'.format(nvmesh_volume_name))
 		if exit_code != 0:
 			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
 
 	@staticmethod
-	def nvmesh_attach_volume(nvmesh_volume_name, nvmesh_access_mode):
-		cmd_template = 'python /host/bin/nvmesh_attach_volumes --wait_for_attach --access {access} {volume}'
-		exit_code, stdout, stderr = Utils.run_command(cmd_template.format(access=nvmesh_access_mode, volume=nvmesh_volume_name))
+	def _attach_volume_with_access_mode(nvmesh_volume_name, nvmesh_access_mode):
+		cmd_template = 'python /host/bin/nvmesh_attach_volumes --wait_for_attach --json --access {access} {volume}'
+		cmd = cmd_template.format(access=nvmesh_access_mode, volume=nvmesh_volume_name)
+		exit_code, stdout, stderr = Utils.run_command(cmd)
 
-		if exit_code == 0:
-			# Parsing the output string, since the return code for an access mode reservation failure will still be 0.
-			# ideally the nvmesh_attach_volumes should have the option to return some machine friendly format
-			if 'reservation mode requested denied' in stdout:
-				raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
-			elif 'is already attached with Reservation mode' in stdout:
-				# this is not a CSI error since the driver should be idempotent.
-				Utils.logger.debug('Volume already attach the requested access mode. output: {}'.format(stdout))
-				return True
-			else:
-				Utils.logger.debug('Volume attached with reservation mode {}'.format(nvmesh_access_mode))
-				# all good, no errors
-				return True
-		else:
-			# exit_code != 0
+		if exit_code != 0:
 			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
+
+		results = json.loads(stdout)
+
+		if results.get('status') == 'failed':
+			# General Script Failure
+			raise DriverError(grpc.StatusCode.INTERNAL,
+							  "nvmesh_attach_volumes failed: error_code: {} error: {} cmd: {}".format(results['error_code'], results['error'], cmd))
+		else:
+			volumes_results = results.get('volumes', [])
+			if nvmesh_volume_name in volumes_results:
+				# volumes_results is an object with volume_name as keys. we only need to handle one volume
+				volume_res = volumes_results[nvmesh_volume_name]
+				volume_status = volume_res['status']
+				if volume_status in ['Attached IO Enabled', 'Attached']:
+					# Success
+					Utils.logger.debug('Volume {} attached with reservation mode {}'.format(nvmesh_volume_name, nvmesh_access_mode))
+				elif volume_status == 'Already Attached':
+					if 'error' in volume_res:
+						raise DriverError(grpc.StatusCode.FAILED_PRECONDITION,
+									  "nvmesh_attach_volumes failed: {} error: {} cmd: {}".format(volume_status, volume_res.get('error', None), cmd))
+					else:
+						Utils.logger.debug('Volume {} is already attached with the requested access mode. output: {}'.format(nvmesh_volume_name, stdout))
+				elif volume_status == 'Reservation Mode Denied':
+					raise DriverError(grpc.StatusCode.FAILED_PRECONDITION,
+									  "nvmesh_attach_volumes failed: {} error: {} cmd: {}".format(volume_status, volume_res.get('error', None), cmd))
+				else:
+					raise DriverError(grpc.StatusCode.INTERNAL,
+									  "nvmesh_attach_volumes failed: {} error: {} cmd: {}".format(volume_status, volume_res.get('error', None), cmd))
+
+	@staticmethod
+	def nvmesh_attach_volume(nvmesh_volume_name, requested_nvmesh_access_mode):
+		if FeatureSupport.AccessMode:
+			Utils.check_if_access_mode_allowed(requested_nvmesh_access_mode, nvmesh_volume_name)
+			Utils.logger.debug('using nvmesh_attach_volume with --access and --json')
+			Utils._attach_volume_with_access_mode(nvmesh_volume_name, requested_nvmesh_access_mode)
+		else:
+			# Backward Compatibility for NVMesh versions without exclusive access feature
+			Utils.logger.debug('using legacy nvmesh_attach_volume without --access or --json')
+			Utils._attach_volume_legacy(nvmesh_volume_name)
 
 	@staticmethod
 	def nvmesh_detach_volume(nvmesh_volume_name):
@@ -167,10 +194,14 @@ class Utils(object):
 		volume_status = None
 
 		while now <= max_time:
-			volume_status = Utils.get_volume_status(nvmesh_volume_name)
-			if volume_status["dbg"] == '0x200':
-				# this means IO is Enabled
-				return True
+			try:
+				volume_status = Utils.get_volume_status(nvmesh_volume_name)
+				if volume_status["dbg"] == '0x200':
+					# this means IO is Enabled
+					return True
+			except IOError as ex:
+				# The volume status.json proc file is not ready.
+				pass
 
 			Utils.logger.debug("Waiting for volume {} to have IO Enabled. current status is: 'status':'{}', 'dbg':'{}'".format(nvmesh_volume_name, volume_status["status"], volume_status["dbg"]))
 			time.sleep(1)
@@ -182,14 +213,12 @@ class Utils(object):
 	def get_volume_status(nvmesh_volume_name):
 		volume_status_proc = '/proc/nvmeibc/volumes/{}/status.json'.format(nvmesh_volume_name)
 
-		with open(volume_status_proc) as fp:
-			volume_status = json.load(fp)
-			return volume_status
-
-	@staticmethod
-	def nvmesh_is_access_mode_supported():
-		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_attach_volumes --help | grep -e "--access"')
-		return exit_code == 0
+		try:
+			with open(volume_status_proc) as fp:
+				volume_status = json.load(fp)
+				return volume_status
+		except ValueError:
+			Utils.logger.error('Failed to parse JSON from file {}'.format(volume_status_proc))
 
 	@staticmethod
 	def verify_nvmesh_access_mode_allowed(current, requested, volume_name):
@@ -198,12 +227,12 @@ class Utils(object):
 				# We don't allow a new pod to request Exclusive Access when another Pod already has Exclusive Access
 				# This will only cause the Pod instantiation to fail, the user should configure the Volume consumer Pods in such a way that only one consumer pod is scheduled on each node.
 				# This does not meet the requirement of idempotency. but it prevents a user from causing data corruption by miss-use.
-				error_msg = 'Volume {} is already attached with Exclusive Access ({}) from another Pod'.format(volume_name, Consts.AccessMode.toString(current))
+				error_msg = 'Volume {} is already attached with {} ({}) from another Pod'.format(volume_name, Consts.AccessMode.to_nvmesh(current), Consts.AccessMode.to_csi_string(current))
 				raise DriverError(grpc.StatusCode.FAILED_PRECONDITION, error_msg)
 			else:
 				return True
 		else:
-			error_msg = 'Volume {} is already attached with a different access mode. current access mode: {}, requested: '.format(volume_name, Consts.AccessMode.toString(current), requested)
+			error_msg = 'Volume {} is already attached with a different access mode. current access mode: {}, requested: '.format(volume_name, Consts.AccessMode.to_csi_string(current), requested)
 			raise DriverError(grpc.StatusCode.FAILED_PRECONDITION, error_msg)
 
 	@staticmethod
@@ -214,8 +243,8 @@ class Utils(object):
 
 		# volume already attached
 		vol_status = Utils.get_volume_status(nvmesh_volume_name)
-		current_access_mode = Consts.AccessMode.fromNVMesh(vol_status['reservation'])
-		requested_access_mode = Consts.AccessMode.fromNVMesh(requested_nvmesh_access_mode)
+		current_access_mode = Consts.AccessMode.from_nvmesh(vol_status['reservation'])
+		requested_access_mode = Consts.AccessMode.from_nvmesh(requested_nvmesh_access_mode)
 
 		# We need to check if we can change from the current access_mode to the new requested access_mode
 		# The following function will throw an Exception if the conversion is not allowed, causing the Stage to fail
@@ -250,3 +279,21 @@ class NVMeshSDKHelper(object):
 				Utils.interruptable_sleep(10)
 
 		print("Connected to NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
+
+class FeatureSupportChecks(object):
+	@staticmethod
+	def get_all_features():
+		features = {}
+		for key, value in FeatureSupport.__dict__.iteritems():
+			if not key.startswith('_') and not callable(value):
+				features[key] = value
+
+		return features
+
+	@staticmethod
+	def is_access_mode_supported():
+		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_attach_volumes --help | grep -e "--access"', debug=False)
+		return exit_code == 0
+
+class FeatureSupport(object):
+	AccessMode = FeatureSupportChecks.is_access_mode_supported()

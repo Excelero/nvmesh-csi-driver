@@ -54,7 +54,7 @@ class NVMeshControllerService(ControllerServicer):
 				csi_metadata['block'] = True
 
 			access_mode = capability['accessMode']['mode']
-			if access_mode not in Consts.AccessMode.allowedAccessModes():
+			if access_mode not in Consts.AccessMode.allowed_access_modes():
 				self.logger.warning('Requested mode {} is not enforced by NVMesh Storage backend'.format(access_mode))
 
 		if is_file_system and is_block_device:
