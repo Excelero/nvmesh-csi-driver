@@ -32,52 +32,54 @@ wait_for_pod_status() {
     pod_name=$1
     status=$2
 
-    if [ -z "$pod_name" ]; then
-        echo "wait_for_pod_status error, missing pod_name as first parameter"
-        exit 3
-    fi
-
-    if [ -z "$status" ]; then
-        echo "wait_for_pod_status error, missing status as second parameter"
-        exit 3
-    fi
-
-    echo "waiting for pod $pod_name to be in status $status..."
-
-    pod_status=$(kubectl get pods | grep $pod_name | awk '{ print $3 }')
-    while [ "$pod_status" != "$status" ];
-    do
-        echo "Pod $pod_name is in status $pod_status - Waiting.."
-        sleep 1
-        pod_status=$(kubectl get pods | grep $pod_name | awk '{ print $3 }')
-    done
-    echo "Pod $pod_name is in status $status"
+    wait_for_object_state pod $pod_name 3 Status $status
 }
 
 wait_for_pv_status() {
     pv_name=$1
     status=$2
 
-    if [ -z "$pod_name" ]; then
-        echo "wait_for_pv_status error, missing pv_name as first parameter"
+    wait_for_object_state pv $pv_name 5 Status $status
+}
+
+wait_for_pvc_status() {
+    pvc_name=$1
+    status=$2
+
+    wait_for_object_state pvc $pvc_name 2 Status Bound
+}
+
+wait_for_pvc_to_bound() {
+    wait_for_pvc_status $1 Bound
+}
+
+wait_for_object_state() {
+    obj_type=$1
+    obj_name=$2
+    column_index=$3
+    column_name=$4
+    expected_value=$5
+
+    if [ -z "$obj_name" ]; then
+        echo "wait_for_object_state Error: missing $obj_type name"
         exit 3
     fi
 
-    if [ -z "$status" ]; then
-        echo "wait_for_pv_status error, missing status as second parameter"
+    if [ -z "$expected_value" ]; then
+        echo "wait_for_object_state Error: missing $column_name value to wait for"
         exit 3
     fi
 
-    echo "waiting for PersistentVolume $pv_name to be in status $status..."
+    echo "waiting for $obj_type $obj_name to be in $column_name $expected_value..."
 
-    pv_status=$(kubectl get pv | grep $pv_name | awk '{ print $5 }')
-    while [ "$pv_status" != "$status" ];
+    current_value=$(kubectl get $obj_type | grep -e "^$obj_name\s" | awk -v col_idx=$column_index '{ print $col_idx }')
+    while [ "$current_value" != "$expected_value" ];
     do
-        echo "PV $pv_name is in status $pv_status - Waiting.."
+        echo "$obj_type $obj_name $column_name=$current_value - Waiting for $column_name=$expected_value.."
         sleep 1
-        pv_status=$(kubectl get pv | grep $pv_name | awk '{ print $5 }')
+        current_value=$(kubectl get $obj_type | grep -e "^$obj_name\s" | awk -v col_idx=$column_index '{ print $col_idx }')
     done
-    echo "PV $pv_status is in status $status"
+    echo "$obj_type $obj_name $column_name=$current_value Done."
 }
 
 get_volumes_count() {
@@ -111,7 +113,7 @@ wait_for_pods_to_be_removed() {
     while [ "$pods" != 0 ];
     do
         sleep 1
-        echo "Waiting for $pods to delete"
+        echo "Waiting for $pods pods to delete"
         get_pods
     done
     echo "all Pods removed"

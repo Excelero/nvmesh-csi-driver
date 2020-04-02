@@ -5,8 +5,8 @@ if [ -z "$num_of_volumes" ]; then
 fi
 
 test_files=(
-    test_access_modes.sh
     create_all_volume_types.sh
+    test_access_modes.sh
     create_volumes.sh
     create_fs_consumers.sh
     expand_volumes.sh
@@ -40,13 +40,20 @@ run_all_tests() {
 
     for file in ${test_files[@]};
     do
-        ./$file
+        echo "---------------------------------------- Running: $file ---------------------------------------"
+        ./$file &
         child_process=$!
+
+        wait $child_process
         exit_code=$?
+
         if [ $exit_code -ne 0 ]; then
-            echo "Test $file Failed"
+            echo "-------------------------------------- Test $file Failed --------------------------------------"
             exit $exit_code
+        else
+            echo "------------------------------ Test $file Finished Successfully -------------------------------"
         fi
+
     done
 }
 

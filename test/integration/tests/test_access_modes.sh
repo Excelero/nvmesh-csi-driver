@@ -51,7 +51,7 @@ create_volume() {
 
    echo "$volume_template" | sed -e "s/{mode}/$mode/" | sed -e "s/{name}/$name/"| kubectl create -f -
 
-    wait_for_volumes 1
+
 }
 
 create_pod() {
@@ -300,7 +300,4 @@ test_read_write_once
 test_read_only_many
 #test_multiple_modes
 
-exit 1
-
-
-
+exit 0

@@ -30,7 +30,11 @@ for raid_type in ${RAID_TYPES[@]} ; do
 done
 
 echo "waiting for all volumes to be created..."
-wait_for_volumes "${#RAID_TYPES[@]}"
+
+for raid_type in ${RAID_TYPES[@]} ; do
+    echo "Creating Volume of type $raid_type"
+    wait_for_pvc_to_bound nvmesh-$raid_type
+done
 
 for raid_type in ${RAID_TYPES[@]} ; do
     echo "Deleting pvc nvmesh-$raid_type"
