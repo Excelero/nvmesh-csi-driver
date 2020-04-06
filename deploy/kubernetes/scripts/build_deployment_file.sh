@@ -1,6 +1,7 @@
 build_deployment_file() {
     DEPLOYMENT_FILE_PATH="../deployment-k8s-$k8s_version.yaml"
-    helm template ../helm/nvmesh-csi-driver --set overrideKubeVersion=$k8s_version > $DEPLOYMENT_FILE_PATH
+    RELEASE_NAME=nvmesh-csi-driver
+    helm template $RELEASE_NAME ../helm/nvmesh-csi-driver --set overrideKubeVersion=$k8s_version > $DEPLOYMENT_FILE_PATH
     echo "Deployment file $DEPLOYMENT_FILE_PATH ready"
 }
 

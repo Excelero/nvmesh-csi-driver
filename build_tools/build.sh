@@ -48,6 +48,10 @@ parse_args() {
             BUILD_TESTS=true
             shift
         ;;
+        --build-helm-pkg)
+            BUILD_HELM_PKG=true
+            shift
+        ;;
         -h|--help)
             show_help
             exit 0
@@ -166,6 +170,14 @@ if [ $DEPLOY_ONLY = true ]; then
 fi
 
 build_k8s_deployment_file
+
+if [ "$BUILD_HELM_PKG" == true ]; then
+    echo "Building Helm Package"
+    last_dir=$(pwd)
+    cd ../deploy/kubernetes/helm
+    helm package nvmesh-csi-driver --destination $last_dir
+    cd $last_dir
+fi
 
 if [ ${#servers[@]} -eq 0 ];then
     build_locally

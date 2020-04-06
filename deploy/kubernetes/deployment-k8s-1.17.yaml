@@ -7,7 +7,7 @@ metadata:
   labels:
     helm.sh/chart: nvmesh-csi-driver-0.0.1
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/instance: nvmesh-csi-driver
     app.kubernetes.io/version: "v1.0.3"
     app.kubernetes.io/managed-by: Helm
 ---
@@ -20,7 +20,7 @@ metadata:
   labels:
     helm.sh/chart: nvmesh-csi-driver-0.0.1
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/instance: nvmesh-csi-driver
     app.kubernetes.io/version: "v1.0.3"
     app.kubernetes.io/managed-by: Helm
 ---
@@ -33,7 +33,7 @@ metadata:
   labels:
     helm.sh/chart: nvmesh-csi-driver-0.0.1
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/instance: nvmesh-csi-driver
     app.kubernetes.io/version: "v1.0.3"
     app.kubernetes.io/managed-by: Helm
 data:
@@ -49,7 +49,7 @@ metadata:
   labels:
     helm.sh/chart: nvmesh-csi-driver-0.0.1
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/instance: nvmesh-csi-driver
     app.kubernetes.io/version: "v1.0.3"
     app.kubernetes.io/managed-by: Helm
 data:
@@ -365,12 +365,12 @@ roleRef:
 apiVersion: v1
 kind: Service
 metadata:
-  name: RELEASE-NAME-nvmesh-csi-driver
+  name: nvmesh-csi-controller
   namespace: nvmesh-csi
   labels:
     helm.sh/chart: nvmesh-csi-driver-0.0.1
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/instance: nvmesh-csi-driver
     app.kubernetes.io/version: "v1.0.3"
     app.kubernetes.io/managed-by: Helm
 spec:
@@ -380,7 +380,7 @@ spec:
       name: dummy
   selector:
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/instance: nvmesh-csi-driver
 ---
 # Source: nvmesh-csi-driver/templates/deployment.yaml
 #
@@ -623,7 +623,7 @@ metadata:
   labels:
     helm.sh/chart: nvmesh-csi-driver-0.0.1
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/instance: nvmesh-csi-driver
     app.kubernetes.io/version: "v1.0.3"
     app.kubernetes.io/managed-by: Helm
 spec:
