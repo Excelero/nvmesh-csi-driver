@@ -77,4 +77,4 @@ fi
 echo "Remove PVC"
 kubectl delete pvc pvc-fs-persistency-test
 
-exit 1
+exit 0

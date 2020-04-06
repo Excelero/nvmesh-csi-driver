@@ -149,3 +149,15 @@ wait_with_print() {
         sleep 1
     done
 }
+
+delete_all_storage_classes_except_default() {
+    all_storage_classes=$(kubectl get sc --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
+
+    for sc in $all_storage_classes;
+    do
+        if [[ "$sc" != nvmesh-* ]]; then
+        echo "Deleting StorageClass $sc"
+            kubectl delete sc $sc
+        fi
+    done
+}
