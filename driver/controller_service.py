@@ -54,7 +54,7 @@ class NVMeshControllerService(ControllerServicer):
 				csi_metadata['block'] = True
 
 			access_mode = capability['accessMode']['mode']
-			if access_mode not in Consts.AccessMode.allowed_access_modes():
+			if Consts.AccessMode.fromCsiString(access_mode) not in Consts.AccessMode.allowed_access_modes():
 				self.logger.warning('Requested mode {} is not enforced by NVMesh Storage backend'.format(access_mode))
 
 		if is_file_system and is_block_device:
@@ -63,9 +63,6 @@ class NVMeshControllerService(ControllerServicer):
 																																						reqJson))
 
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(name)
-
-		raid_level = RAIDLevels.CONCATENATED
-		vpg = None
 		nvmesh_params = {}
 
 		self.logger.debug('create volume parameters: {}'.format(parameters))

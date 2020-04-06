@@ -87,3 +87,13 @@ class AccessMode(object):
 			AccessMode.MULTI_NODE_READER_ONLY,
 			AccessMode.MULTI_NODE_MULTI_WRITER
 		]
+
+	@staticmethod
+	def fromCsiString(access_mode_string):
+		mapping_dict = {
+			'SINGLE_NODE_WRITER': AccessMode.SINGLE_NODE_WRITER,
+			'MULTI_NODE_READER_ONLY': AccessMode.MULTI_NODE_READER_ONLY,
+			'MULTI_NODE_MULTI_WRITER': AccessMode.MULTI_NODE_MULTI_WRITER
+		}
+
+		return mapping_dict.get(access_mode_string, None)
