@@ -15,7 +15,7 @@ while [ $(kubectl get pv | grep "5Gi" | wc -l) != $num_of_volumes ];
 do
     sleep 1
 done
-echo "all volumes were created..."
+echo "all volumes were expanded..."
 
 echo "check file-system size in containers"
 

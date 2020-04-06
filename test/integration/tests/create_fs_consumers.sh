@@ -32,17 +32,6 @@ do
 done
 
 echo "waiting for all pods to be running..."
-get_running_pods() {
-    ready_pods=$(kubectl get pods | grep Running | wc -l)
-}
-
-get_running_pods
-while [ "$ready_pods" != "$num_of_volumes" ];
-do
-    sleep 2
-    get_running_pods
-    echo "Ready Pods: $ready_pods/$num_of_volumes"
-done
-echo "all pods are running..."
+wait_for_pods $num_of_volumes
 
 exit 0
