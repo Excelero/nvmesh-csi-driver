@@ -12,11 +12,13 @@ if [ -z "$DRIVER_VERSION" ]; then
 fi
 
 show_help() {
-    echo "Usage: ./build.sh [--servers s1 s2 s3] [--deploy] [--build-test]"
-    echo "To build to local docker registry use: ./build.sh"
-    echo "To build on remote machines using ssh use: ./build.sh --servers kube-master kube-node-1 kube-node-2"
-    echo "To build and deploy on remote machines using ssh use: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy"
-    echo "To build also the integration testing containers. use: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy --build-tests"
+    echo "Usage: ./build.sh [--servers s1 s2 s3] [--deploy] [--build-test] [--build-helm-pkg]"
+    echo ""
+    echo "  ./build.sh              build locally (using local docker registry)"
+    echo "  --build-helm-pkg        when building locally create also helm package"
+    echo "  --servers               remote servers on which to build the docker image. example: ./build.sh --servers kube-master kube-node-1 kube-node-2"
+    echo "  --deploy                after build deploy using kubectl on the first server. example: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy"
+    echo "  --build-tests           build also the integration testing containers. example: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy --build-tests"
 }
 
 parse_args() {
