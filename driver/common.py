@@ -280,6 +280,23 @@ class NVMeshSDKHelper(object):
 
 		print("Connected to NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
 
+	@staticmethod
+	def get_management_version():
+		err, out = ConnectionManager.getInstance().get('/version')
+		if not err:
+			version_info = {}
+			lines = out.split('\n')
+			for line in lines:
+				try:
+					key_val_pair = line.split('=')
+					key = key_val_pair[0]
+					value = key_val_pair[1].replace('"','')
+					version_info[key] = value
+				except:
+					pass
+			return version_info
+		return None
+
 class FeatureSupportChecks(object):
 	@staticmethod
 	def get_all_features():

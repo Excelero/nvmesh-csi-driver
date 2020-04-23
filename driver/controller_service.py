@@ -21,6 +21,8 @@ class NVMeshControllerService(ControllerServicer):
 		ControllerServicer.__init__(self)
 		self.logger = logger
 		NVMeshSDKHelper.init_sdk()
+		self.management_version_info = NVMeshSDKHelper.get_management_version()
+		self._log_mgmt_version_info()
 
 	@CatchServerErrors
 	def CreateVolume(self, request, context):
@@ -408,5 +410,15 @@ class NVMeshControllerService(ControllerServicer):
 				return "Could Not Find Volume {}".format(volume_id), None
 			else:
 				return None, data[0]
+
+	def _log_mgmt_version_info(self):
+		msg = "Management Version:"
+		if not self.management_version_info:
+			msg += self.management_version_info
+		else:
+			for key, value in self.management_version_info.iteritems():
+				msg += "\n{}={}".format(key, value)
+		self.logger.info(msg)
+
 
 
