@@ -65,6 +65,11 @@ class FileSystemManager(object):
 		if not flags:
 			flags = []
 
+		if fs_type == 'xfs':
+			# without this a FileSystem created on RHEL8 could not be mounted on RHEL7
+			# RedHat Issue: https://access.redhat.com/solutions/4582401
+			flags.append('-m reflink=0')
+
 		cmd = "mkfs.{fs_type} {flags} {target_path}".format(fs_type=fs_type, flags=' '.join(flags), target_path=target_path)
 
 		exit_code, stdout, stderr = Utils.run_command(cmd)
@@ -101,7 +106,7 @@ class FileSystemManager(object):
 	def expand_file_system(block_device_path, fs_type):
 		if fs_type == 'devtmpfs':
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Device not formatted with FileSystem found fs type {}'.format(fs_type))
-		elif fs_type.startswith('ext'):
+		elif fs_type == 'ext4':
 			cmd = 'resize2fs {}'.format(block_device_path)
 		elif fs_type == 'xfs':
 			cmd = 'xfs_growfs {}'.format(block_device_path)
