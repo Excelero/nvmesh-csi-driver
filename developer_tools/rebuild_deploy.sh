@@ -56,12 +56,15 @@ shift # past argument or value
 done
 
 if [ -z "$MASTER" ] && [ "${#SERVERS[@]}" -eq 0 ]; then
-    echo "Error: Please provide atleast one of the folloing flags: --master , --servers"
+    echo "Error: Please provide at least one of the folloing flags: --master , --servers"
     print_help
     exit 1
 fi
 
 if [ ! -z "$MASTER" ]; then
+    # uninstall using helm
+    ssh $MASTER "helm uninstall csi  --namespace default"
+
     # clear deployment from master node
     ssh $MASTER "~/nvmesh-csi-driver/deploy/kubernetes/scripts/remove_deployment.sh"
 fi
@@ -92,10 +95,16 @@ fi
 
 if [ ! -z "$MASTER" ]; then
     # deploy on master node
-    ssh $MASTER "cd ~/nvmesh-csi-driver/deploy/kubernetes/scripts ; ./build_deployment_file.sh ; cd .. ; kubectl apply -f ./deployment-k8s-1.17.yaml"
+    #ssh $MASTER "cd ~/nvmesh-csi-driver/deploy/kubernetes/scripts ; ./build_deployment_file.sh ; cd .. ; kubectl apply -f ./deployment-k8s-1.17.yaml"
+
+    # Deploy Using Helm
+    version=$(cat ../version | cut -c2-)
+    echo "version=$version"
+    helm_install_cmd="helm install --namespace default csi ./nvmesh-csi-driver-$version.tgz --set config.servers=$MANAGMENT_ADDRESS"
+    ssh $MASTER "cd ~/nvmesh-csi-driver/build_tools ; ./build.sh --build-helm-pkg ; $helm_install_cmd ; helm list"
 
     # set management address
-    if [ ! -z "$MANAGMENT_ADDRESS" ]; then
-        ssh $MASTER "~/nvmesh-csi-driver/deploy/kubernetes/scripts/set_mgmt_address.sh --protocol $MANAGMENT_PROTOCOL --address $MANAGMENT_ADDRESS"
-    fi
+    # if [ ! -z "$MANAGMENT_ADDRESS" ]; then
+    #     ssh $MASTER "~/nvmesh-csi-driver/deploy/kubernetes/scripts/set_mgmt_address.sh --protocol $MANAGMENT_PROTOCOL --address $MANAGMENT_ADDRESS"
+    # fi
 fi
