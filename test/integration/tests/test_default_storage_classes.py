@@ -24,11 +24,8 @@ class TestAllRAIDTypes(unittest.TestCase):
         # wait for pvc to bound
         KubeUtils.wait_for_pvc_to_bound(pvc_name)
 
-        # get the pv
-        pv_name = KubeUtils.get_pv_name_from_pvc(pvc_name)
-
         # wait for nvmesh volume to be created
-        nvmesh_vol_name = NVMeshUtils.csi_id_to_nvmesh_name(pv_name)
+        nvmesh_vol_name = KubeUtils.get_nvmesh_vol_name_from_pvc_name(pvc_name)
         NVMeshUtils.wait_for_nvmesh_volume(nvmesh_vol_name)
 
         # verify NVMesh Volumes Properties

@@ -118,7 +118,9 @@ class NVMeshControllerService(ControllerServicer):
 		else:
 			self.logger.debug(details)
 
-		csiVolume = Volume(volume_id=name, capacity_bytes=capacity)
+		# we return the nvmesh_vol_name that we created to the CO
+		# all subsequent requests for this volume will have volume_id of the nvmesh volume name
+		csiVolume = Volume(volume_id=nvmesh_vol_name, capacity_bytes=capacity)
 		return CreateVolumeResponse(volume=csiVolume)
 
 	def _handle_non_vpg_params(self, nvmesh_params):
@@ -170,7 +172,7 @@ class NVMeshControllerService(ControllerServicer):
 		Utils.validate_param_exists(request, 'volume_id')
 
 		volume_id = request.volume_id
-		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(volume_id)
+		nvmesh_vol_name = volume_id
 		#secrets = request.secrets
 
 		err, out = VolumeAPI().delete([NVMeshVolume(_id=nvmesh_vol_name)])
@@ -196,7 +198,7 @@ class NVMeshControllerService(ControllerServicer):
 	def ControllerPublishVolume(self, request, context):
 		Utils.validate_params_exists(request, ['node_id', 'volume_id', 'volume_capability'])
 
-		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
+		nvmesh_vol_name = request.volume_id
 		self._validate_volume_exists(nvmesh_vol_name)
 		self._validate_node_exists(request.node_id)
 
@@ -207,7 +209,7 @@ class NVMeshControllerService(ControllerServicer):
 	def ControllerUnpublishVolume(self, request, context):
 		Utils.validate_params_exists(request, ['node_id', 'volume_id'])
 
-		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
+		nvmesh_vol_name = request.volume_id
 		self._validate_volume_exists(nvmesh_vol_name)
 		self._validate_node_exists(request.node_id)
 
@@ -217,7 +219,7 @@ class NVMeshControllerService(ControllerServicer):
 	@CatchServerErrors
 	def ValidateVolumeCapabilities(self, request, context):
 		Utils.validate_params_exists(request, ['volume_id', 'volume_capabilities'])
-		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
+		nvmesh_vol_name = request.volume_id
 		#UNUSED - capabilities = request.volume_capabilities
 
 		# always return True
@@ -303,7 +305,7 @@ class NVMeshControllerService(ControllerServicer):
 	@CatchServerErrors
 	def ControllerExpandVolume(self, request, context):
 		capacity_in_bytes = request.capacity_range.required_bytes
-		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
+		nvmesh_vol_name = request.volume_id
 
 		volume = self.get_nvmesh_volume(nvmesh_vol_name)
 
