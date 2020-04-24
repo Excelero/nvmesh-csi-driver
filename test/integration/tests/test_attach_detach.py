@@ -4,6 +4,7 @@ import time
 import unittest
 
 import test_utils
+from test.integration.tests.test_utils import get_nvmesh_vol_name_from_pvc_name
 from test_utils import TestUtils, KubeUtils, NVMeshUtils
 
 core_api = test_utils.core_api
@@ -77,8 +78,7 @@ class TestAttachDetachExtend(unittest.TestCase):
 			KubeUtils.wait_for_pvc_to_extend(pvc_name, new_size)
 
 			# wait for NVMesh Volume to show the updated size
-			pv_name = KubeUtils.get_pv_name_from_pvc(pvc_name)
-			nvmesh_vol_name = NVMeshUtils.csi_id_to_nvmesh_name(pv_name)
+			nvmesh_vol_name = get_nvmesh_vol_name_from_pvc_name(pvc_name)
 			size_5_gib_in_bytes = 5368709120
 
 			NVMeshUtils.wait_for_nvmesh_vol_properties(nvmesh_vol_name, { 'capacity': size_5_gib_in_bytes }, self, attempts=15)

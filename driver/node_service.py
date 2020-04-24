@@ -7,10 +7,10 @@ from google.protobuf.json_format import MessageToJson
 from grpc import StatusCode
 
 from FileSystemManager import FileSystemManager
-from common import Utils, CatchServerErrors, DriverError, FeatureSupport, FeatureSupportChecks
+from common import Utils, CatchServerErrors, DriverError, FeatureSupportChecks
 import consts as Consts
 from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
-	NodeStageVolumeResponse, NodeUnstageVolumeResponse, VolumeCapability, NodeExpandVolumeResponse
+	NodeStageVolumeResponse, NodeUnstageVolumeResponse, NodeExpandVolumeResponse
 from csi.csi_pb2_grpc import NodeServicer
 
 
@@ -41,7 +41,7 @@ class NVMeshNodeService(NodeServicer):
 		access_mode = volume_capability.access_mode.mode
 		access_type = self._get_block_or_mount_volume(request)
 
-		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
+		nvmesh_volume_name = volume_id
 		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_volume_name)
 
 		# run nvmesh attach locally
@@ -85,7 +85,7 @@ class NVMeshNodeService(NodeServicer):
 
 		volume_id = request.volume_id
 		staging_target_path = request.staging_target_path
-		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
+		nvmesh_volume_name = volume_id
 
 		if os.path.exists(staging_target_path):
 			FileSystemManager.umount(target=staging_target_path)
@@ -109,7 +109,7 @@ class NVMeshNodeService(NodeServicer):
 		Utils.validate_params_exists(request, ['volume_id', 'target_path'])
 
 		volume_id = request.volume_id
-		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
+		nvmesh_volume_name = volume_id
 		staging_target_path = request.staging_target_path
 		publish_path = request.target_path
 		volume_capability = request.volume_capability
@@ -189,7 +189,7 @@ class NVMeshNodeService(NodeServicer):
 		volume_id = request.volume_id
 		volume_path = request.volume_path
 		capacity_range = request.capacity_range
-		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(volume_id)
+		nvmesh_vol_name = volume_id
 		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_vol_name)
 
 		reqJson = MessageToJson(request)

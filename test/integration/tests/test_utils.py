@@ -111,6 +111,17 @@ class KubeUtils(object):
 		KubeUtils.delete_all_non_default_storage_classes()
 
 	@staticmethod
+	def get_nvmesh_vol_name_from_pvc_name(pvc_name):
+		pv_name = KubeUtils.get_pv_name_from_pvc(pvc_name)
+		nvmesh_vol_name = NVMeshUtils.csi_id_to_nvmesh_name(pv_name)
+		return nvmesh_vol_name
+
+	@staticmethod
+	def get_pv_name_from_pvc(pvc_name):
+		pvc = KubeUtils.get_pvc_by_name(pvc_name)
+		return pvc.spec.volume_name
+
+	@staticmethod
 	def delete_all_non_default_storage_classes():
 		sc_list = storage_api.list_storage_class()
 		for storage_class in sc_list.items:
@@ -146,11 +157,6 @@ class KubeUtils(object):
 
 		if found:
 			raise TestError('Timed out waiting for namespace {} to be deleted'.format(ns))
-
-	@staticmethod
-	def get_pv_name_from_pvc(pvc_name):
-		pvc = KubeUtils.get_pvc_by_name(pvc_name)
-		return pvc.spec.volume_name
 
 	@staticmethod
 	def get_storage_class(name, params):
