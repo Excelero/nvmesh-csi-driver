@@ -101,7 +101,7 @@ if [ ! -z "$MASTER" ]; then
     version=$(cat ../version | cut -c2-)
     echo "version=$version"
     helm_install_cmd="helm install --namespace default csi ./nvmesh-csi-driver-$version.tgz --set config.servers=$MANAGMENT_ADDRESS"
-    ssh $MASTER "cd ~/nvmesh-csi-driver/build_tools ; ./build.sh --build-helm-pkg ; $helm_install_cmd ; helm list"
+    ssh $MASTER "cd ~/nvmesh-csi-driver/build_tools ; ./build.sh --build-helm-pkg ; $helm_install_cmd ; helm list --namespace default"
 
     # set management address
     # if [ ! -z "$MANAGMENT_ADDRESS" ]; then

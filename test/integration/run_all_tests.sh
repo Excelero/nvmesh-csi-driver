@@ -5,18 +5,15 @@ if [ -z "$num_of_volumes" ]; then
 fi
 
 test_files=(
-    create_all_volume_types.sh
-    test_access_modes.sh
-    create_volumes.sh
-    create_fs_consumers.sh
-    expand_volumes.sh
-    delete_fs_consumers.sh
-    delete_volumes.sh
+    test_default_storage_classes.py
+    test_storage_class_params.py
+    test_all_fs_types.sh
+    #test_access_modes.sh
+    test_attach_detach.py
     storage_class_params.py
     filesystem_persistency.sh
     test_block_volume.sh
     test_multiple_pods_on_same_volume.sh
-    test_all_fs_types.sh
     test_migration.sh
 )
 

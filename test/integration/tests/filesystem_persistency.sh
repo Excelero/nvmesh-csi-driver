@@ -56,7 +56,7 @@ wait_for_pod_status $pod_name Completed
 kubectl delete pod $pod_name
 wait_for_pods_to_be_removed
 
-echo "Creating Job - Pod to readf rom the file"
+echo "Creating Job - Pod to read from the file"
 pod_name=read-file-pod
 cmd="cat /vol/file1"
 echo "$pod" | sed -e "s|{{name}}|$pod_name|" | sed -e "s|{{cmd}}|$cmd|" | kubectl create -f -
