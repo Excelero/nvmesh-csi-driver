@@ -104,6 +104,8 @@ class FileSystemManager(object):
 
 	@staticmethod
 	def expand_file_system(block_device_path, fs_type):
+		fs_type = fs_type.strip()
+
 		if fs_type == 'devtmpfs':
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Device not formatted with FileSystem found fs type {}'.format(fs_type))
 		elif fs_type == 'ext4':
