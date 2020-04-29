@@ -526,7 +526,7 @@ class KubeUtils(object):
 		return pod
 
 	@staticmethod
-	def get_shell_pod_template(pod_name, pvc_name, cmd):
+	def get_shell_pod_template(pod_name, pvc_name, cmd, volume_mode_block=False):
 		spec = {
 			'containers': [
 				{
@@ -551,6 +551,14 @@ class KubeUtils(object):
 				}
 			]
 		}
+		if volume_mode_block:
+			del spec['containers'][0]['volumeMounts']
+			spec['containers'][0]['volumeDevices'] = [
+				{
+					'name': 'vol',
+					'devicePath': '/vol'
+				}
+			]
 
 		pod = KubeUtils.get_pod_template(pod_name, spec)
 		return pod
@@ -685,6 +693,10 @@ class KubeUtils(object):
 		unittest_instance.assertEqual(size, new_size, 'Timed out waiting for Block Device to resize')
 
 class NVMeshUtils(object):
+	@staticmethod
+	def getVolumeAPI():
+		return VolumeAPI(NVMESH_MGMT_ADDRESS)
+
 	@staticmethod
 	def delete_all_nvmesh_volumes():
 		projection = [MongoObj(field='_id', value=1)]

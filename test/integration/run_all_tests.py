@@ -8,6 +8,7 @@ from test.integration.tests.test_block_volume import TestBlockVolume
 from test.integration.tests.test_default_storage_classes import TestAllRAIDTypes
 from test.integration.tests.test_file_system_volume import TestFileSystemVolume
 from test.integration.tests.test_migration import TestMigration
+from test.integration.tests.test_static_provisioning import TestStaticProvisioning
 from test.integration.tests.test_storage_class_params import TestStorageClassParameters
 from test.integration.tests.utils import CollectCsiLogsTestResult, TestUtils, TestConfig
 
@@ -33,7 +34,8 @@ if __name__ == '__main__':
 		TestFileSystemVolume,
 		TestBlockVolume,
 		TestMigration,
-		TestAccessModes
+		TestAccessModes,
+		TestStaticProvisioning
 	]
 
 	loader = unittest.TestLoader()
