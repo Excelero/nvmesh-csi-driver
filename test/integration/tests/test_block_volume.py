@@ -20,11 +20,7 @@ class TestBlockVolume(unittest.TestCase):
 		KubeUtils.create_pod(pod)
 		KubeUtils.wait_for_pod_to_be_running(pod_name)
 
-		def cleanup_pod():
-			KubeUtils.delete_pod(pod_name)
-			KubeUtils.wait_for_pod_to_delete(pod_name)
-
-		self.addCleanup(cleanup_pod)
+		self.addCleanup(lambda: KubeUtils.delete_pod_and_wait(pod_name))
 
 	def test_block_volume_extend(self):
 		# Create PVC
@@ -35,7 +31,7 @@ class TestBlockVolume(unittest.TestCase):
 		pod_name = 'extend-block-consumer'
 		pod = KubeUtils.get_block_consumer_pod_template(pod_name, pvc_name)
 		KubeUtils.create_pod(pod)
-		TestUtils.add_cleanup_pod(self, pod_name)
+		self.addCleanup(lambda: KubeUtils.delete_pod_and_wait(pod_name))
 		KubeUtils.wait_for_pod_to_be_running(pod_name)
 
 		# Edit the PVC to increase the volume capacity

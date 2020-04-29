@@ -2,10 +2,15 @@
 
 import unittest
 
-from utils import TestUtils, KubeUtils, NVMeshUtils
+from kubernetes.client.rest import ApiException
+
+from NVMeshSDK.Consts import RAIDLevels
+from NVMeshSDK.Entities.Volume import Volume
+from utils import TestUtils, KubeUtils, NVMeshUtils, TEST_NAMESPACE, core_api
 
 logger = TestUtils.get_logger()
 
+GiB = 1024*1024*1024
 
 class TestAccessModes(unittest.TestCase):
 	StorageClass = 'nvmesh-raid1'
@@ -33,7 +38,8 @@ class TestAccessModes(unittest.TestCase):
 		KubeUtils.delete_pod(pod2_name)
 		KubeUtils.delete_pod(pod3_name)
 
-	@unittest.skipIf(NVMeshUtils.get_nvmesh_version_tuple() < (2,1), 'ExclusiveMode not supported before NVMesh 2.1')
+	# TODO: Currently 2.1 does't have it's own tag, and it will show as 2.0.0, when a 2.1 tag is available - uncomment the next line
+	#@unittest.skipIf(NVMeshUtils.get_nvmesh_version_tuple() < (2,0,1), 'ExclusiveMode not supported before NVMesh 2.1, Installed NVMesh version: {}'.format(NVMeshUtils.get_management_version_info()['version']))
 	def test_read_write_once(self):
 		pvc_name = 'pvc-rwo'
 		KubeUtils.create_pvc_and_wait_to_bound(self, pvc_name, TestAccessModes.StorageClass, access_modes=['ReadWriteOnce'], volumeMode='Block')
@@ -58,7 +64,7 @@ class TestAccessModes(unittest.TestCase):
 		KubeUtils.delete_pod(pod3_name)
 
 	def test_read_only_many(self):
-		pvc_name = 'pvc-rom'
+		pvc_name = 'pvc-rox'
 		KubeUtils.create_pvc_and_wait_to_bound(self, pvc_name, TestAccessModes.StorageClass, access_modes=['ReadOnlyMany'], volumeMode='Block')
 
 		# First Pod Should Succeed
@@ -80,29 +86,127 @@ class TestAccessModes(unittest.TestCase):
 		KubeUtils.delete_pod(pod2_name)
 		KubeUtils.delete_pod(pod3_name)
 
-	@unittest.skip('Not Implemented')
 	def test_mixed_access_modes(self):
-		# TODO: Implement
-		# 1. Create Storage Class with reclaimPolicy: Retain
-		# 2. Create PVC with All Access Modes and VolumeMode FileSystem
-		# 3. Create Pod to create a file on the File System
-		# 4. Delete the PVC
-		# 5. Make PV Available for the next PVC (by removing claimRef field from the PV)
-		# 6. Create PVC With ReadOnlyMany
+		# This test creates a PV with reclaimPolicy: Retain (making sure it is not deleted when the bounded PVC is deleted)
+		# Then will create PVC's with different AccessModes to use the same PV. in between some PV clean needs to be done.
+		# Create Storage Class with reclaimPolicy: Retain
+		sc_name = 'sc-nvmesh-retain'
+		KubeUtils.create_storage_class(sc_name, { 'vpg': 'DEFAULT_RAID_10_VPG'}, reclaimPolicy='Retain')
+		self.addCleanup(lambda: KubeUtils.delete_storage_class(sc_name))
+
+		# Create NVMesh Volume
+		nvmesh_volume_name = "vol1"
+		volume = Volume(name=nvmesh_volume_name,
+						RAIDLevel=RAIDLevels.STRIPED_AND_MIRRORED_RAID_10,
+						VPG='DEFAULT_RAID_10_VPG',
+						capacity=5 * GiB,
+						description="Volume for CSI Driver Static Provisioning"
+						)
+		err, out = NVMeshUtils.getVolumeAPI().save([volume])
+		self.assertIsNone(err, 'Error Creating NVMesh Volume. %s' % err)
+		create_res = out[0]
+		self.assertTrue(create_res['success'], 'Error Creating NVMesh Volume. %s' % create_res['error'])
+
+		self.addCleanup(lambda: NVMeshUtils.getVolumeAPI().delete([volume]))
+
+		# Create PV
+		pv_name = 'csi-testing-pv-vol1'
+		volume_size = '5Gi'
+
+		self.create_pv_for_static_prov(nvmesh_volume_name, pv_name, sc_name, volume_size)
+
+		# Create PVC with accessMode ReadWriteOnce
+		pvc_name = 'pvc-rwo'
+		KubeUtils.create_pvc_and_wait_to_bound(self,
+											   pvc_name,
+											   sc_name,
+											   access_modes=['ReadWriteOnce'],
+											   storage=volume_size,
+											   volumeMode='Filesystem')
+
+		self.addCleanup(lambda: KubeUtils.delete_pvc(pvc_name))
+
+		# Create Pod to create a file on the File System
+		pod_name = 'pod-file-writer'
+		cmd = 'echo hello > /vol/file1'
+		pod = KubeUtils.get_shell_pod_template(pod_name, pvc_name, cmd)
+		KubeUtils.create_pod(pod)
+		self.addCleanup(lambda: KubeUtils.delete_pod_and_wait(pod_name))
+
+		KubeUtils.wait_for_pod_to_complete(pod_name)
+		KubeUtils.delete_pod_and_wait(pod_name)
+
+		# Delete the PVC
+		KubeUtils.delete_pvc(pvc_name)
+		KubeUtils.wait_for_pv_to_be_released(pv_name)
+
+		# Make PV Available for the next PVC (by removing claimRef field from the PV ==OR== deleting and recreating the PV)
+		KubeUtils.delete_pv(pv_name)
+		KubeUtils.wait_for_pv_to_delete(pv_name)
+		self.create_pv_for_static_prov(nvmesh_volume_name, pv_name, sc_name, volume_size)
+
+		# Create PVC With ReadOnlyMany
+		pvc_name = 'pvc-rox'
+		KubeUtils.create_pvc_and_wait_to_bound(self,
+											   pvc_name,
+											   sc_name,
+											   access_modes=['ReadOnlyMany'],
+											   storage=volume_size,
+											   volumeMode='Filesystem')
+
+		self.addCleanup(lambda: KubeUtils.delete_pvc(pvc_name))
+
 		# 7. Create 2 Pods that will read the File System - Should Succeed
+		pod1_name = 'pod-file-reader1'
+		cmd = 'cat /vol/file1'
+		pod = KubeUtils.get_shell_pod_template(pod1_name, pvc_name, cmd)
+		KubeUtils.create_pod(pod)
+		self.addCleanup(lambda: KubeUtils.delete_pod_and_wait(pod1_name))
+
+		pod2_name = 'pod-file-reader2'
+		pod = KubeUtils.get_shell_pod_template(pod2_name, pvc_name, cmd)
+		KubeUtils.create_pod(pod)
+		self.addCleanup(lambda: KubeUtils.delete_pod_and_wait(pod2_name))
+
+		KubeUtils.wait_for_pod_to_complete(pod2_name)
+
 		# 8. Create 1 Pod that will try to write to the FileSystem - Should Fail
-		raise NotImplementedError()
+		pod_name = 'pod-file-writer'
+		cmd = 'echo hello > /vol/file1'
+		pod = KubeUtils.get_shell_pod_template(pod_name, pvc_name, cmd)
+		KubeUtils.create_pod(pod)
+		self.addCleanup(lambda: KubeUtils.delete_pod_and_wait(pod_name))
+
+		KubeUtils.wait_for_pod_to_fail(pod_name)
+
+	def create_pv_for_static_prov(self, nvmesh_volume_name, pv_name, sc_name, volume_size):
+		all_access_modes = ['ReadWriteOnce', 'ReadOnlyMany', 'ReadWriteMany']
+		pv = KubeUtils.get_pv_for_static_provisioning(pv_name=pv_name,
+													  nvmesh_volume_name=nvmesh_volume_name,
+													  accessModes=all_access_modes,
+													  sc_name=sc_name,
+													  volume_size=volume_size,
+													  volumeMode='Filesystem')
+		core_api.create_persistent_volume(pv)
+
+		def pv_cleanup(pv_name):
+			try:
+				KubeUtils.delete_pv(pv_name)
+			except ApiException:
+				pass
+
+		self.addCleanup(lambda: pv_cleanup(pv_name))
+		pv_list = core_api.list_persistent_volume(field_selector='metadata.name={}'.format(pv_name))
+		self.assertIsNotNone(pv_list)
+		self.assertTrue(len(pv_list.items))
+		self.assertEqual(pv_list.items[0].metadata.name, pv_name)
+		return volume_size
 
 	def _create_pod_on_specific_node(self, pod_name, pvc_name, node_index):
 		pod = KubeUtils.get_block_consumer_pod_template(pod_name, pvc_name)
 		pod['spec']['nodeSelector'] = { 'worker-index': str(node_index) }
 		KubeUtils.create_pod(pod)
-
-		def cleanup_pod(name):
-			KubeUtils.delete_pod(name)
-			KubeUtils.wait_for_pod_to_delete(name)
-
-		self.addCleanup(lambda: cleanup_pod(pod_name))
+		self.addCleanup(lambda: KubeUtils.delete_pod_and_wait(pod_name))
 
 
 if __name__ == '__main__':

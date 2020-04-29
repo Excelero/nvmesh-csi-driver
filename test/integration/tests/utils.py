@@ -1,3 +1,4 @@
+import json
 import logging
 import subprocess
 import sys
@@ -26,7 +27,7 @@ apps_api = client.AppsV1Api()
 
 class TestConfig(object):
 	NumberOfVolumes = 1
-	SkipECVolumes = False
+	SkipECVolumes = True
 
 def load_test_config_values_from_env_vars():
 	if 'num_of_volumes' in environ:
@@ -108,17 +109,10 @@ class TestUtils(object):
 		KubeUtils.delete_all_pods()
 		KubeUtils.delete_all_pvcs()
 		KubeUtils.delete_all_non_default_storage_classes()
+		KubeUtils.delete_all_testing_pv()
 
 		# NVMesh Cleanup
 		NVMeshUtils.delete_all_nvmesh_volumes()
-
-	@staticmethod
-	def add_cleanup_pod(unittest_instance, pod_name):
-		def cleanup_pod():
-			KubeUtils.delete_pod(pod_name)
-			KubeUtils.wait_for_pod_to_delete(pod_name)
-
-		unittest_instance.addCleanup(cleanup_pod)
 
 
 class KubeUtils(object):
@@ -227,7 +221,7 @@ class KubeUtils(object):
 			raise TestError('Timed out waiting for namespace {} to be deleted'.format(ns))
 
 	@staticmethod
-	def get_storage_class(name, params):
+	def get_storage_class(name, params, reclaimPolicy='Delete'):
 		return {
 			'apiVersion': 'storage.k8s.io/v1',
 			'kind': 'StorageClass',
@@ -238,13 +232,14 @@ class KubeUtils(object):
 			'provisioner': 'nvmesh-csi.excelero.com',
 			'allowVolumeExpansion': True,
 			'volumeBindingMode': 'Immediate',
+			'reclaimPolicy': reclaimPolicy,
 			'parameters': params
 		}
 
 	@staticmethod
-	def create_storage_class(name, params):
+	def create_storage_class(name, params, reclaimPolicy='Delete'):
 		try:
-			sc = KubeUtils.get_storage_class(name, params)
+			sc = KubeUtils.get_storage_class(name, params, reclaimPolicy)
 			return storage_api.create_storage_class(sc)
 		except kubernetes.client.rest.ApiException as ex:
 			logger.exception(ex)
@@ -421,8 +416,17 @@ class KubeUtils(object):
 		return KubeUtils.wait_for_pod_status(pod_name, 'Running', attempts)
 
 	@staticmethod
-	def wait_for_pod_to_fail(pod_name, attempts=60):
-		return KubeUtils.wait_for_pod_status(pod_name, 'Failed', attempts)
+	def wait_for_pod_to_fail(pod_name, attempts=10):
+		while attempts > 0:
+			pod = KubeUtils.get_pod_by_name(pod_name)
+			if pod:
+				status = pod.status.phase
+				if status == 'Running':
+					raise TestError('Expected pod {} to fail. but it is running'.format(pod_name))
+
+			logger.debug('Waiting to make sure pod {} does not run'.format(pod_name))
+			attempts = attempts - 1
+			time.sleep(1)
 
 	@staticmethod
 	def wait_for_pod_to_complete(pod_name, attempts=60):
@@ -444,6 +448,11 @@ class KubeUtils(object):
 			time.sleep(1)
 
 		raise TestError('Timed out waiting for pod {} to be {}, current status: {}, reason: {}'.format(pod_name, expected_status, status, pod.status.reason))
+
+	@staticmethod
+	def delete_pod_and_wait(pod_name, attempts=60):
+		KubeUtils.delete_pod(pod_name)
+		KubeUtils.wait_for_pod_to_delete(pod_name, attempts)
 
 	@staticmethod
 	def wait_for_pod_to_delete(pod_name, attempts=60):
@@ -528,6 +537,7 @@ class KubeUtils(object):
 	@staticmethod
 	def get_shell_pod_template(pod_name, pvc_name, cmd, volume_mode_block=False):
 		spec = {
+			'restartPolicy': 'OnFailure',
 			'containers': [
 				{
 					'name': 'container-{}'.format(pod_name),
@@ -551,6 +561,7 @@ class KubeUtils(object):
 				}
 			]
 		}
+
 		if volume_mode_block:
 			del spec['containers'][0]['volumeMounts']
 			spec['containers'][0]['volumeDevices'] = [
@@ -691,6 +702,80 @@ class KubeUtils(object):
 			time.sleep(1)
 
 		unittest_instance.assertEqual(size, new_size, 'Timed out waiting for Block Device to resize')
+
+	@staticmethod
+	def get_pv_for_static_provisioning(pv_name, nvmesh_volume_name, accessModes, sc_name, volume_size, volumeMode='Block'):
+		return \
+		{
+			'apiVersion': 'v1',
+			'kind': 'PersistentVolume',
+			'metadata': {
+				'name': pv_name
+			},
+			'spec': {
+				'accessModes': accessModes,
+				'persistentVolumeReclaimPolicy': 'Retain',
+				'capacity': {
+					'storage': volume_size
+				},
+				'volumeMode': volumeMode,
+				'storageClassName': sc_name,
+				'csi': {
+					'driver': 'nvmesh-csi.excelero.com',
+					'volumeHandle': nvmesh_volume_name
+				}
+			}
+		}
+
+	@staticmethod
+	def delete_all_testing_pv():
+		pv_list = core_api.list_persistent_volume()
+		for pv in pv_list.items:
+			if pv.metadata.name.startswith('csi-testing'):
+				KubeUtils.delete_pv(pv.metadata.name)
+
+	@staticmethod
+	def delete_pv(pv_name):
+		return core_api.delete_persistent_volume(pv_name)
+
+	@staticmethod
+	def wait_for_pv_to_be_released(pv_name):
+		KubeUtils.wait_for_pv_status(pv_name, expected_status='Released')
+
+	@staticmethod
+	def wait_for_pv_status(pv_name, expected_status, attempts=30):
+		status = None
+		pv = None
+		while attempts > 0:
+			pv = KubeUtils.get_pv_by_name(pv_name)
+			if pv:
+				status = pv.status.phase
+				if status == expected_status:
+					logger.info('PV {} is {}'.format(pv_name, expected_status))
+					return
+			logger.debug('Waiting for pv {} to be {}, current status: {}'.format(pv_name, expected_status, status))
+			attempts = attempts - 1
+			time.sleep(1)
+
+		raise TestError('Timed out waiting for pv {} to be {}, current status: {}, reason: {}'.format(pv_name, expected_status, status, pv.status.reason))
+
+	@staticmethod
+	def wait_for_pv_to_delete(pv_name, attempts=30):
+		while attempts > 0:
+			try:
+				pv = KubeUtils.get_pv_by_name(pv_name)
+				if pv:
+					logger.debug('Waiting for pv {} to delete'.format(pv_name))
+				else:
+					raise ApiException()
+			except ApiException as ex:
+				logger.debug('pv {} deleted'.format(pv_name))
+				return
+			attempts = attempts - 1
+			time.sleep(1)
+
+		raise TestError('Timed out waiting for pv {} to delete'.format(pv_name))
+
 
 class NVMeshUtils(object):
 	@staticmethod

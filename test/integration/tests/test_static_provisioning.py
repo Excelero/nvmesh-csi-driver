@@ -12,7 +12,7 @@ GiB = 1024*1024*1024
 class TestStaticProvisioning(unittest.TestCase):
 	def test_static_provisioning(self):
 		# Create NVMesh Volume
-		nvmesh_volume_name = "vol-static-prov"
+		nvmesh_volume_name = "csi-testing-static-prov"
 		volume = Volume(name=nvmesh_volume_name,
 						RAIDLevel=RAIDLevels.STRIPED_AND_MIRRORED_RAID_10,
 						VPG='DEFAULT_RAID_10_VPG',
@@ -31,26 +31,7 @@ class TestStaticProvisioning(unittest.TestCase):
 		accessModes = ['ReadWriteOnce']
 		volume_size = '5Gi'
 		sc_name = 'nvmesh-raid10'
-		pv = {
-			'apiVersion': 'v1',
-			'kind': 'PersistentVolume',
-			'metadata': {
-				'name': pv_name
-			},
-			'spec': {
-				'accessModes': accessModes,
-				'persistentVolumeReclaimPolicy': 'Retain',
-				'capacity': {
-					'storage': volume_size
-				},
-				'volumeMode': 'Block',
-				'storageClassName': sc_name,
-				'csi': {
-					'driver': 'nvmesh-csi.excelero.com',
-					'volumeHandle': nvmesh_volume_name
-				}
-			}
-		}
+		pv = KubeUtils.get_pv_for_static_provisioning(pv_name, nvmesh_volume_name, accessModes, sc_name, volume_size)
 
 		core_api.create_persistent_volume(pv)
 
@@ -78,13 +59,10 @@ class TestStaticProvisioning(unittest.TestCase):
 		pod = KubeUtils.get_shell_pod_template(pod_name, pvc_name, cmd, volume_mode_block=True)
 		KubeUtils.create_pod(pod)
 
-		def cleanup_pod():
-			KubeUtils.delete_pod(pod_name)
-			KubeUtils.wait_for_pod_to_delete(pod_name)
-
-		self.addCleanup(cleanup_pod)
+		self.addCleanup(lambda: KubeUtils.delete_pod_and_wait(pod_name))
 
 		KubeUtils.wait_for_pod_to_be_running(pod_name)
+
 
 
 

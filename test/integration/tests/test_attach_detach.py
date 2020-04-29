@@ -35,6 +35,9 @@ class TestAttachDetach(unittest.TestCase):
 		for i in range(TestConfig.NumberOfVolumes):
 			pod_name = 'consumer-{}'.format(i)
 			KubeUtils.delete_pod(pod_name)
+
+		for i in range(TestConfig.NumberOfVolumes):
+			pod_name = 'consumer-{}'.format(i)
 			KubeUtils.wait_for_pod_to_delete(pod_name)
 
 	def test_step_4_delete_volumes(self):
