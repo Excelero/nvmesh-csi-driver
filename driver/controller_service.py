@@ -10,7 +10,7 @@ from NVMeshSDK.Consts import RAIDLevels, EcSeparationTypes
 from NVMeshSDK import Consts as NVMeshConsts
 from NVMeshSDK.MongoObj import MongoObj
 from common import CatchServerErrors, DriverError, Utils, NVMeshSDKHelper
-from consts import Consts
+import consts as Consts
 from csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ControllerPublishVolumeResponse, ControllerUnpublishVolumeResponse, \
 	ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse
 from csi.csi_pb2_grpc import ControllerServicer
@@ -21,6 +21,8 @@ class NVMeshControllerService(ControllerServicer):
 		ControllerServicer.__init__(self)
 		self.logger = logger
 		NVMeshSDKHelper.init_sdk()
+		self.management_version_info = NVMeshSDKHelper.get_management_version()
+		self._log_mgmt_version_info()
 
 	@CatchServerErrors
 	def CreateVolume(self, request, context):
@@ -54,8 +56,8 @@ class NVMeshControllerService(ControllerServicer):
 				csi_metadata['block'] = True
 
 			access_mode = capability['accessMode']['mode']
-			if access_mode == 'SINGLE_NODE_WRITER':
-				self.logger.warning('Requested mode {} is not enforced'.format(access_mode))
+			if Consts.AccessMode.fromCsiString(access_mode) not in Consts.AccessMode.allowed_access_modes():
+				self.logger.warning('Requested mode {} is not enforced by NVMesh Storage backend'.format(access_mode))
 
 		if is_file_system and is_block_device:
 			raise DriverError(StatusCode.INVALID_ARGUMENT,
@@ -63,9 +65,6 @@ class NVMeshControllerService(ControllerServicer):
 																																						reqJson))
 
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(name)
-
-		raid_level = RAIDLevels.CONCATENATED
-		vpg = None
 		nvmesh_params = {}
 
 		self.logger.debug('create volume parameters: {}'.format(parameters))
@@ -119,7 +118,9 @@ class NVMeshControllerService(ControllerServicer):
 		else:
 			self.logger.debug(details)
 
-		csiVolume = Volume(volume_id=name, capacity_bytes=capacity)
+		# we return the nvmesh_vol_name that we created to the CO
+		# all subsequent requests for this volume will have volume_id of the nvmesh volume name
+		csiVolume = Volume(volume_id=nvmesh_vol_name, capacity_bytes=capacity)
 		return CreateVolumeResponse(volume=csiVolume)
 
 	def _handle_non_vpg_params(self, nvmesh_params):
@@ -171,7 +172,7 @@ class NVMeshControllerService(ControllerServicer):
 		Utils.validate_param_exists(request, 'volume_id')
 
 		volume_id = request.volume_id
-		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(volume_id)
+		nvmesh_vol_name = volume_id
 		#secrets = request.secrets
 
 		err, out = VolumeAPI().delete([NVMeshVolume(_id=nvmesh_vol_name)])
@@ -197,7 +198,7 @@ class NVMeshControllerService(ControllerServicer):
 	def ControllerPublishVolume(self, request, context):
 		Utils.validate_params_exists(request, ['node_id', 'volume_id', 'volume_capability'])
 
-		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
+		nvmesh_vol_name = request.volume_id
 		self._validate_volume_exists(nvmesh_vol_name)
 		self._validate_node_exists(request.node_id)
 
@@ -208,7 +209,7 @@ class NVMeshControllerService(ControllerServicer):
 	def ControllerUnpublishVolume(self, request, context):
 		Utils.validate_params_exists(request, ['node_id', 'volume_id'])
 
-		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
+		nvmesh_vol_name = request.volume_id
 		self._validate_volume_exists(nvmesh_vol_name)
 		self._validate_node_exists(request.node_id)
 
@@ -218,7 +219,7 @@ class NVMeshControllerService(ControllerServicer):
 	@CatchServerErrors
 	def ValidateVolumeCapabilities(self, request, context):
 		Utils.validate_params_exists(request, ['volume_id', 'volume_capabilities'])
-		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
+		nvmesh_vol_name = request.volume_id
 		#UNUSED - capabilities = request.volume_capabilities
 
 		# always return True
@@ -304,7 +305,7 @@ class NVMeshControllerService(ControllerServicer):
 	@CatchServerErrors
 	def ControllerExpandVolume(self, request, context):
 		capacity_in_bytes = request.capacity_range.required_bytes
-		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request.volume_id)
+		nvmesh_vol_name = request.volume_id
 
 		volume = self.get_nvmesh_volume(nvmesh_vol_name)
 
@@ -411,5 +412,15 @@ class NVMeshControllerService(ControllerServicer):
 				return "Could Not Find Volume {}".format(volume_id), None
 			else:
 				return None, data[0]
+
+	def _log_mgmt_version_info(self):
+		msg = "Management Version:"
+		if not self.management_version_info:
+			msg += self.management_version_info
+		else:
+			for key, value in self.management_version_info.iteritems():
+				msg += "\n{}={}".format(key, value)
+		self.logger.info(msg)
+
 
 

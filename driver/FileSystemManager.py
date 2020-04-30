@@ -1,5 +1,3 @@
-import os
-
 import shutil
 
 from grpc import StatusCode
@@ -18,18 +16,6 @@ class MountTargetIsBusyError(MountError):
 	pass
 
 class FileSystemManager(object):
-
-	@staticmethod
-	def create_fake_nvmesh_block_device(block_device_path):
-		# Creates a Fake block device
-		# This function is used for development, for testing with kubernetes on Host that are unable to actually install NVMesh Core Modules
-		# TODO: remove when not needed
-
-		cmd = 'mkdir -p /dev/nvmesh/'
-		Utils.run_command(cmd)
-
-		cmd = 'dd if=/dev/zero of={} bs=1M count=256'.format(block_device_path)
-		Utils.run_command(cmd)
 
 	@staticmethod
 	def is_mounted(mount_path):
@@ -79,6 +65,11 @@ class FileSystemManager(object):
 		if not flags:
 			flags = []
 
+		if fs_type == 'xfs':
+			# without this a FileSystem created on RHEL8 could not be mounted on RHEL7
+			# RedHat Issue: https://access.redhat.com/solutions/4582401
+			flags.append('-m reflink=0')
+
 		cmd = "mkfs.{fs_type} {flags} {target_path}".format(fs_type=fs_type, flags=' '.join(flags), target_path=target_path)
 
 		exit_code, stdout, stderr = Utils.run_command(cmd)
@@ -113,9 +104,11 @@ class FileSystemManager(object):
 
 	@staticmethod
 	def expand_file_system(block_device_path, fs_type):
+		fs_type = fs_type.strip()
+
 		if fs_type == 'devtmpfs':
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Device not formatted with FileSystem found fs type {}'.format(fs_type))
-		elif fs_type.startswith('ext'):
+		elif fs_type == 'ext4':
 			cmd = 'resize2fs {}'.format(block_device_path)
 		elif fs_type == 'xfs':
 			cmd = 'xfs_growfs {}'.format(block_device_path)

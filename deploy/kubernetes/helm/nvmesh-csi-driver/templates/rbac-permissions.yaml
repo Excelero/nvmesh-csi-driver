@@ -55,7 +55,7 @@ metadata:
   name: csi-provisioner-role
 subjects:
   - kind: ServiceAccount
-    name: nvmesh-csi-controller
+    name: {{ .Values.serviceAccount.name }}
     namespace: {{ .Values.namespace }}
 roleRef:
   kind: ClusterRole
@@ -88,7 +88,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 subjects:
   - kind: ServiceAccount
-    name: nvmesh-csi-controller
+    name: {{ .Values.serviceAccount.name }}
     namespace: {{ .Values.namespace }}
 roleRef:
   kind: Role
@@ -126,7 +126,7 @@ metadata:
   name: csi-attacher-role
 subjects:
   - kind: ServiceAccount
-    name: nvmesh-csi-controller
+    name: {{ .Values.serviceAccount.name }}
     namespace: {{ .Values.namespace }}
 roleRef:
   kind: ClusterRole
@@ -159,7 +159,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 subjects:
   - kind: ServiceAccount
-    name: nvmesh-csi-controller
+    name: {{ .Values.serviceAccount.name }}
     namespace: {{ .Values.namespace }}
 roleRef:
   kind: Role
@@ -214,7 +214,7 @@ metadata:
   name: csi-resizer-role
 subjects:
   - kind: ServiceAccount
-    name: nvmesh-csi-controller
+    name: {{ .Values.serviceAccount.name }}
     namespace: {{ .Values.namespace }}
 roleRef:
   kind: ClusterRole
@@ -242,7 +242,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 subjects:
   - kind: ServiceAccount
-    name: nvmesh-csi-controller
+    name: {{ .Values.serviceAccount.name }}
     namespace: {{ .Values.namespace }}
 roleRef:
   kind: Role

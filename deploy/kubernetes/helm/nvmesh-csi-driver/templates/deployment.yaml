@@ -54,7 +54,7 @@ spec:
               mountPath: /csi
         # Provisioner
         - name: csi-provisioner
-          image: quay.io/k8scsi/csi-provisioner:v1.1.0
+          image: quay.io/k8scsi/csi-provisioner:v1.6.0
           args:
             - "--provisioner={{ .Values.driverName }}"
             - "--csi-address=/csi/ctrl-csi.sock"
@@ -65,7 +65,7 @@ spec:
               mountPath: /csi
         # Attacher
         - name: csi-attacher
-          image: quay.io/k8scsi/csi-attacher:v1.1.0
+          image: quay.io/k8scsi/csi-attacher:v2.2.0
           imagePullPolicy: "IfNotPresent"
           args:
             - "--v=5"
@@ -75,7 +75,7 @@ spec:
               mountPath: /csi
         # Resizer
         - name: csi-resizer
-          image: quay.io/k8scsi/csi-resizer:v0.1.0
+          image: quay.io/k8scsi/csi-resizer:v0.5.0
           args:
             - "--v=5"
             - "--csi-address=/csi/ctrl-csi.sock"
@@ -113,6 +113,7 @@ spec:
       labels:
         app: nvmesh-csi
     spec:
+      serviceAccount: {{ .Values.serviceAccount.name }}
       hostNetwork: true
       tolerations:
         # This would make the DaemonSet to be deployed also on the master node

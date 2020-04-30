@@ -1,3 +1,4 @@
+import json
 import socket
 
 import os
@@ -6,18 +7,22 @@ from google.protobuf.json_format import MessageToJson
 from grpc import StatusCode
 
 from FileSystemManager import FileSystemManager
-from common import Utils, CatchServerErrors, DriverError
-from consts import Consts
+from common import Utils, CatchServerErrors, DriverError, FeatureSupportChecks
+import consts as Consts
 from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
-	NodeStageVolumeResponse, NodeUnstageVolumeResponse, VolumeCapability, NodeExpandVolumeResponse
+	NodeStageVolumeResponse, NodeUnstageVolumeResponse, NodeExpandVolumeResponse
 from csi.csi_pb2_grpc import NodeServicer
-from config import Config
 
 
 class NVMeshNodeService(NodeServicer):
 	def __init__(self, logger):
 		NodeServicer.__init__(self)
 		self.logger = logger
+
+		self.logger.info('NVMesh Version Info: {}'.format(json.dumps(Consts.NVMESH_VERSION_INFO, indent=4, sort_keys=True)))
+
+		feature_list = json.dumps(FeatureSupportChecks.get_all_features(), indent=4, sort_keys=True)
+		self.logger.info('Supported Features: {}'.format(feature_list))
 
 	@CatchServerErrors
 	def NodeStageVolume(self, request, context):
@@ -36,16 +41,12 @@ class NVMeshNodeService(NodeServicer):
 		access_mode = volume_capability.access_mode.mode
 		access_type = self._get_block_or_mount_volume(request)
 
-		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
+		nvmesh_volume_name = volume_id
 		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_volume_name)
 
-		readonly = False
-
-		if access_mode == VolumeCapability.AccessMode.MULTI_NODE_READER_ONLY:
-			readonly = True
-
 		# run nvmesh attach locally
-		Utils.nvmesh_attach_volume(nvmesh_volume_name)
+		requested_nvmesh_access_mode = Consts.AccessMode.to_nvmesh(access_mode)
+		Utils.nvmesh_attach_volume(nvmesh_volume_name, requested_nvmesh_access_mode)
 		Utils.wait_for_volume_io_enabled(nvmesh_volume_name)
 
 		if access_type == Consts.VolumeAccessType.MOUNT:
@@ -53,8 +54,6 @@ class NVMeshNodeService(NodeServicer):
 			self.logger.info('Requested Mounted FileSystem Volume with fs_type={}'.format(mount_request.fs_type))
 			fs_type = mount_request.fs_type or 'ext4'
 			mount_flags = []
-			if readonly:
-				mount_flags.append('-o ro')
 
 			if mount_request.mount_flags:
 				for flag in mount_request.mount_flags.split(' '):
@@ -65,17 +64,13 @@ class NVMeshNodeService(NodeServicer):
 			if FileSystemManager.is_mounted(staging_target_path):
 				self.logger.warning('path {} is already mounted'.format(staging_target_path))
 
-			FileSystemManager.mount(source=block_device_path, target=staging_target_path, flags=mount_flags)
+			FileSystemManager.mount(source=block_device_path, target=staging_target_path)
 
 		elif access_type == Consts.VolumeAccessType.BLOCK:
 			self.logger.info('Requested Block Volume')
 			# We do not mount here, NodePublishVolume will mount directly from the block device to the publish_path
 			# This is because Kubernetes automatically creates a directory in the staging_path
 
-			if readonly:
-				exit_code, stdout, stderr = Utils.set_volume_readonly(nvmesh_volume_name)
-				if exit_code != 0:
-					raise DriverError(StatusCode.INTERNAL, "setting local NVMesh Volume as ReadOnly failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
 		else:
 			self.logger.Info('Unknown AccessType {}'.format(access_type))
 
@@ -90,7 +85,7 @@ class NVMeshNodeService(NodeServicer):
 
 		volume_id = request.volume_id
 		staging_target_path = request.staging_target_path
-		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
+		nvmesh_volume_name = volume_id
 
 		if os.path.exists(staging_target_path):
 			FileSystemManager.umount(target=staging_target_path)
@@ -114,7 +109,7 @@ class NVMeshNodeService(NodeServicer):
 		Utils.validate_params_exists(request, ['volume_id', 'target_path'])
 
 		volume_id = request.volume_id
-		nvmesh_volume_name = Utils.volume_id_to_nvmesh_name(volume_id)
+		nvmesh_volume_name = volume_id
 		staging_target_path = request.staging_target_path
 		publish_path = request.target_path
 		volume_capability = request.volume_capability
@@ -133,7 +128,7 @@ class NVMeshNodeService(NodeServicer):
 		flags = []
 
 		# K8s Bug Workaround: readonly flag is not sent to CSI, so we try to also infer from the AccessMode
-		if readonly or access_mode == VolumeCapability.AccessMode.MULTI_NODE_READER_ONLY:
+		if readonly or access_mode == Consts.AccessMode.MULTI_NODE_READER_ONLY:
 			flags.append('-o ro')
 
 		if access_type == Consts.VolumeAccessType.BLOCK:
@@ -194,7 +189,7 @@ class NVMeshNodeService(NodeServicer):
 		volume_id = request.volume_id
 		volume_path = request.volume_path
 		capacity_range = request.capacity_range
-		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(volume_id)
+		nvmesh_vol_name = volume_id
 		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_vol_name)
 
 		reqJson = MessageToJson(request)
@@ -248,4 +243,5 @@ class NVMeshNodeService(NodeServicer):
 			return Consts.VolumeAccessType.BLOCK
 		else:
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'at least one of volume_capability.block, volume_capability.mount must be set')
+
 

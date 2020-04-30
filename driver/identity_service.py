@@ -1,6 +1,6 @@
 import google as google
 
-from consts import Consts
+import consts as Consts
 from csi.csi_pb2 import GetPluginInfoResponse, ProbeResponse, GetPluginCapabilitiesResponse, PluginCapability
 from csi.csi_pb2_grpc import IdentityServicer
 

@@ -5,23 +5,23 @@ apiVersion: v1
 metadata:
   name:  nvmesh-csi
   labels:
-    helm.sh/chart: nvmesh-csi-driver-0.0.1
+    helm.sh/chart: nvmesh-csi-driver-1.1.0
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/instance: RELEASE-NAME
-    app.kubernetes.io/version: "v1.0.3"
+    app.kubernetes.io/instance: nvmesh-csi-driver
+    app.kubernetes.io/version: "v1.1.0"
     app.kubernetes.io/managed-by: Helm
 ---
 # Source: nvmesh-csi-driver/templates/serviceaccount.yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: nvmesh-csi-controller
+  name: nvmesh-csi-driver
   namespace: nvmesh-csi
   labels:
-    helm.sh/chart: nvmesh-csi-driver-0.0.1
+    helm.sh/chart: nvmesh-csi-driver-1.1.0
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/instance: RELEASE-NAME
-    app.kubernetes.io/version: "v1.0.3"
+    app.kubernetes.io/instance: nvmesh-csi-driver
+    app.kubernetes.io/version: "v1.1.0"
     app.kubernetes.io/managed-by: Helm
 ---
 # Source: nvmesh-csi-driver/templates/credentials.yaml
@@ -31,10 +31,10 @@ metadata:
   name: nvmesh-credentials
   namespace: nvmesh-csi
   labels:
-    helm.sh/chart: nvmesh-csi-driver-0.0.1
+    helm.sh/chart: nvmesh-csi-driver-1.1.0
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/instance: RELEASE-NAME
-    app.kubernetes.io/version: "v1.0.3"
+    app.kubernetes.io/instance: nvmesh-csi-driver
+    app.kubernetes.io/version: "v1.1.0"
     app.kubernetes.io/managed-by: Helm
 data:
   username: YWRtaW5AZXhjZWxlcm8uY29t
@@ -47,10 +47,10 @@ metadata:
   name: nvmesh-csi-config
   namespace: nvmesh-csi
   labels:
-    helm.sh/chart: nvmesh-csi-driver-0.0.1
+    helm.sh/chart: nvmesh-csi-driver-1.1.0
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/instance: RELEASE-NAME
-    app.kubernetes.io/version: "v1.0.3"
+    app.kubernetes.io/instance: nvmesh-csi-driver
+    app.kubernetes.io/version: "v1.1.0"
     app.kubernetes.io/managed-by: Helm
 data:
   management.protocol: https
@@ -214,7 +214,7 @@ metadata:
   name: csi-provisioner-role
 subjects:
   - kind: ServiceAccount
-    name: nvmesh-csi-controller
+    name: nvmesh-csi-driver
     namespace: nvmesh-csi
 roleRef:
   kind: ClusterRole
@@ -228,7 +228,7 @@ metadata:
   name: csi-attacher-role
 subjects:
   - kind: ServiceAccount
-    name: nvmesh-csi-controller
+    name: nvmesh-csi-driver
     namespace: nvmesh-csi
 roleRef:
   kind: ClusterRole
@@ -242,7 +242,7 @@ metadata:
   name: csi-resizer-role
 subjects:
   - kind: ServiceAccount
-    name: nvmesh-csi-controller
+    name: nvmesh-csi-driver
     namespace: nvmesh-csi
 roleRef:
   kind: ClusterRole
@@ -306,7 +306,7 @@ metadata:
   namespace: nvmesh-csi
 subjects:
   - kind: ServiceAccount
-    name: nvmesh-csi-controller
+    name: nvmesh-csi-driver
     namespace: nvmesh-csi
 roleRef:
   kind: Role
@@ -326,7 +326,7 @@ metadata:
   namespace: nvmesh-csi
 subjects:
   - kind: ServiceAccount
-    name: nvmesh-csi-controller
+    name: nvmesh-csi-driver
     namespace: nvmesh-csi
 roleRef:
   kind: Role
@@ -354,7 +354,7 @@ metadata:
   namespace: nvmesh-csi
 subjects:
   - kind: ServiceAccount
-    name: nvmesh-csi-controller
+    name: nvmesh-csi-driver
     namespace: nvmesh-csi
 roleRef:
   kind: Role
@@ -365,13 +365,13 @@ roleRef:
 apiVersion: v1
 kind: Service
 metadata:
-  name: RELEASE-NAME-nvmesh-csi-driver
+  name: nvmesh-csi-driver
   namespace: nvmesh-csi
   labels:
-    helm.sh/chart: nvmesh-csi-driver-0.0.1
+    helm.sh/chart: nvmesh-csi-driver-1.1.0
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/instance: RELEASE-NAME
-    app.kubernetes.io/version: "v1.0.3"
+    app.kubernetes.io/instance: nvmesh-csi-driver
+    app.kubernetes.io/version: "v1.1.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   type: ClusterIP
@@ -380,7 +380,7 @@ spec:
       name: dummy
   selector:
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/instance: nvmesh-csi-driver
 ---
 # Source: nvmesh-csi-driver/templates/deployment.yaml
 #
@@ -401,6 +401,7 @@ spec:
       labels:
         app: nvmesh-csi
     spec:
+      serviceAccount: nvmesh-csi-driver
       hostNetwork: true
       tolerations:
         # This would make the DaemonSet to be deployed also on the master node
@@ -411,7 +412,7 @@ spec:
         # NVMesh Driver
         - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
-          image: "excelero/nvmesh-csi-driver:v1.0.3"
+          image: "excelero/nvmesh-csi-driver:v1.1.0"
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
@@ -510,7 +511,7 @@ metadata:
   name: nvmesh-csi-controller
   namespace: nvmesh-csi
 spec:
-  serviceName: nvmesh-csi-controller
+  serviceName: nvmesh-csi-driver
   selector:
     matchLabels:
       app: nvmesh-csi
@@ -520,12 +521,12 @@ spec:
       labels:
         app: nvmesh-csi
     spec:
-      serviceAccount: nvmesh-csi-controller
+      serviceAccount: nvmesh-csi-driver
       containers:
         # NVMesh Driver
         - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
-          image: "excelero/nvmesh-csi-driver:v1.0.3"
+          image: "excelero/nvmesh-csi-driver:v1.1.0"
           imagePullPolicy: IfNotPresent
           env:
             - name: DRIVER_TYPE
@@ -557,7 +558,7 @@ spec:
               mountPath: /csi
         # Provisioner
         - name: csi-provisioner
-          image: quay.io/k8scsi/csi-provisioner:v1.1.0
+          image: quay.io/k8scsi/csi-provisioner:v1.6.0
           args:
             - "--provisioner=nvmesh-csi.excelero.com"
             - "--csi-address=/csi/ctrl-csi.sock"
@@ -568,7 +569,7 @@ spec:
               mountPath: /csi
         # Attacher
         - name: csi-attacher
-          image: quay.io/k8scsi/csi-attacher:v1.1.0
+          image: quay.io/k8scsi/csi-attacher:v2.2.0
           imagePullPolicy: "IfNotPresent"
           args:
             - "--v=5"
@@ -578,7 +579,7 @@ spec:
               mountPath: /csi
         # Resizer
         - name: csi-resizer
-          image: quay.io/k8scsi/csi-resizer:v0.1.0
+          image: quay.io/k8scsi/csi-resizer:v0.5.0
           args:
             - "--v=5"
             - "--csi-address=/csi/ctrl-csi.sock"
@@ -621,10 +622,10 @@ metadata:
   name: nvmesh-csi.excelero.com
   namespace: nvmesh-csi
   labels:
-    helm.sh/chart: nvmesh-csi-driver-0.0.1
+    helm.sh/chart: nvmesh-csi-driver-1.1.0
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/instance: RELEASE-NAME
-    app.kubernetes.io/version: "v1.0.3"
+    app.kubernetes.io/instance: nvmesh-csi-driver
+    app.kubernetes.io/version: "v1.1.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   attachRequired: false
