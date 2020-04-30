@@ -103,6 +103,10 @@ if [ ! -z "$MASTER" ]; then
     helm_install_cmd="helm install --namespace default csi ./nvmesh-csi-driver-$version.tgz --set config.servers=$MANAGMENT_ADDRESS"
     ssh $MASTER "cd ~/nvmesh-csi-driver/build_tools ; ./build.sh --build-helm-pkg ; $helm_install_cmd ; helm list --namespace default"
 
+    if [ $? -ne 0 ]; then
+        echo "Error installing helm package."
+        exit 1
+    fi
     # set management address
     # if [ ! -z "$MANAGMENT_ADDRESS" ]; then
     #     ssh $MASTER "~/nvmesh-csi-driver/deploy/kubernetes/scripts/set_mgmt_address.sh --protocol $MANAGMENT_PROTOCOL --address $MANAGMENT_ADDRESS"
