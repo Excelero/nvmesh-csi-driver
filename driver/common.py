@@ -139,13 +139,10 @@ class Utils(object):
 		cmd = cmd_template.format(access=nvmesh_access_mode, volume=nvmesh_volume_name)
 		exit_code, stdout, stderr = Utils.run_command(cmd)
 
-		if exit_code != 0:
-			cmd2_template = 'python /host/bin/nvmesh_attach_volumes --wait_for_attach --access {access} {volume}'
-			cmd2 = cmd_template.format(access=nvmesh_access_mode, volume=nvmesh_volume_name)
-			Utils.run_command(cmd)
+		try:
+			results = json.loads(stdout)
+		except Exception as ex:
 			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
-
-		results = json.loads(stdout)
 
 		if results.get('status') == 'failed':
 			# General Script Failure
