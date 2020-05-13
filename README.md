@@ -17,14 +17,8 @@ helm install nvmesh-csi-driver ./nvmesh-csi-driver --set config.servers=<your.mg
 ### Directly into Kubernetes (using kubectl)
 To deploy the driver in Kuberentes simply run the following command from a node with kubectl in your cluster
 
-Kubernetes 1.17+
 ```
 kubectl apply -f https://raw.githubusercontent.com/Excelero/nvmesh-csi-driver/1.0/deploy/kubernetes/deployment-k8s-1.17.yaml
-```
-
-Kubernetes 1.15 - 1.16
-```
-kubectl apply -f https://raw.githubusercontent.com/Excelero/nvmesh-csi-driver/1.0/deploy/kubernetes/deployment-k8s-1.15.yaml
 ```
 
 ## Documentation
