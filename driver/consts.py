@@ -41,7 +41,7 @@ class AccessMode(object):
 	@staticmethod
 	def from_nvmesh(stringValue):
 		mapping_dict = {
-			'EXCLUSIVE_RW': AccessMode.SINGLE_NODE_WRITER,
+			'EXCLUSIVE_READ_WRITE': AccessMode.SINGLE_NODE_WRITER,
 			'SHARED_READ_ONLY': AccessMode.MULTI_NODE_READER_ONLY,
 			'SHARED_READ_WRITE': AccessMode.MULTI_NODE_MULTI_WRITER
 		}
@@ -55,7 +55,7 @@ class AccessMode(object):
 	@staticmethod
 	def to_nvmesh(integerValue):
 		mapping_dict = {
-			AccessMode.SINGLE_NODE_WRITER: 'EXCLUSIVE_RW',
+			AccessMode.SINGLE_NODE_WRITER: 'EXCLUSIVE_READ_WRITE',
 			AccessMode.MULTI_NODE_READER_ONLY: 'SHARED_READ_ONLY',
 			AccessMode.MULTI_NODE_MULTI_WRITER: 'SHARED_READ_WRITE'
 		}
