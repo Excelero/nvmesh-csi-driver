@@ -67,6 +67,11 @@ def CatchServerErrors(func):
 			exc_tb = exc_tb.tb_next
 			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 
+			if Config.PrintTraceBacks:
+				import traceback
+				tb = traceback.format_exc()
+				print(tb)
+
 			details = "{type}: {msg} in {fname} on line: {lineno}".format(type=exc_type, msg=str(ex), fname=fname, lineno=exc_tb.tb_lineno)
 			self.logger.warning("Error caught in gRPC call {} - {}".format(func.__name__, details))
 			context.abort(grpc.StatusCode.INTERNAL, details)
@@ -270,12 +275,13 @@ class NVMeshSDKHelper(object):
 		connected = False
 
 		# try until able to connect to NVMesh Management
+		print("Looking for a NVMesh Management server using {} from servers {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
 		while not connected:
 			try:
 				NVMeshSDKHelper._try_get_sdk_instance()
 				connected = ConnectionManager.getInstance().isAlive()
 			except ManagementTimeout as ex:
-				NVMeshSDKHelper.logger.info("Waiting for NVMesh Management server on {}".format(Config.MANAGEMENT_SERVERS))
+				NVMeshSDKHelper.logger.info("Waiting for NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
 				Utils.interruptable_sleep(10)
 
 		print("Connected to NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
