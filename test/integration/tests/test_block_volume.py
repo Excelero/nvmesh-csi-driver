@@ -1,5 +1,4 @@
 #!/usr/bin/env python2
-
 import unittest
 
 from utils import TestUtils, KubeUtils, NVMeshUtils
@@ -25,7 +24,7 @@ class TestBlockVolume(unittest.TestCase):
 	def test_block_volume_extend(self):
 		# Create PVC
 		pvc_name = 'pvc-extend-block'
-		KubeUtils.create_pvc_and_wait_to_bound(self, pvc_name, 'nvmesh-raid10', volumeMode='Block')
+		KubeUtils.create_pvc_and_wait_to_bound(self, pvc_name, 'nvmesh-raid10', volumeMode='Block', access_modes=['ReadWriteMany'])
 
 		# Create Pod
 		pod_name = 'extend-block-consumer'

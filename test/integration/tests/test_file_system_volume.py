@@ -61,7 +61,7 @@ class TestFileSystemVolume(unittest.TestCase):
 	def test_extend_fs_volume(self):
 		# Create PVC
 		pvc_name = 'pvc-extend-fs'
-		KubeUtils.create_pvc_and_wait_to_bound(self, pvc_name, 'nvmesh-raid10')
+		KubeUtils.create_pvc_and_wait_to_bound(self, pvc_name, 'nvmesh-raid10', access_modes=['ReadWriteMany'])
 
 		# Create Pod
 		pod_name = 'extend-fs-consumer'
