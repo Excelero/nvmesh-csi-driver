@@ -16,7 +16,7 @@ from NVMeshSDK.Consts import RAIDLevels
 from NVMeshSDK.MongoObj import MongoObj
 
 TEST_NAMESPACE = 'nvmesh-csi-testing'
-NVMESH_MGMT_ADDRESS = os.environ.get('NVMESH_MGMT_ADDRESS') or 'https://10.0.1.117:443'
+NVMESH_MGMT_ADDRESS = environ.get('NVMESH_MGMT_ADDRESS') or 'https://10.0.1.117:443'
 
 config.load_kube_config()
 
