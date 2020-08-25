@@ -11,6 +11,7 @@ show_help() {
 }
 
 no_ec_volumes=false
+num_of_volumes=1
 
 parse_args() {
     while [[ $# -gt 0 ]]
@@ -57,13 +58,16 @@ if [ -z "$server" ];then
     exit 1
 fi
 
+repo_dir=~/nvmesh-csi-driver
+test_dir=$repo_dir/test
+
 echo "Running test on server $server"
 echo "Copying sources to $server.."
-rsync -r ../test $server:~/k8s_csi_integration/
+rsync -r ../test $server:$test_dir
 
 if [ -z "$skip_clear_env" ]; then
     echo "Clearing Test Environment"
-    ssh $server "cd ~/k8s_csi_integration ; python -m test.integration.tests.clear_test_environment"
+    ssh $server "cd $repo_dir ; python -m test.integration.tests.clear_test_environment"
     if [ $? -ne 0 ]; then
         echo "ERROR: Failed to clear environment.\nTo start the tests anyway run again with the flag --skip-clear-env"
         exit 1
@@ -73,7 +77,7 @@ else
 fi
 
 echo "Running test on remote machine ($server)"
-time ssh $server "export num_of_volumes=$num_of_volumes ; export no_ec_volumes=$no_ec_volumes ; cd ~/k8s_csi_integration  ; python -m unittest discover test/integration/tests"
+time ssh $server "export num_of_volumes=$num_of_volumes ; export no_ec_volumes=$no_ec_volumes ; cd $repo_dir ; python -m unittest discover test/integration/tests"
 exit_code=$?
 if [ $exit_code -eq 0 ]; then
     echo "Finished Running Tests on remote machine ($server)"

@@ -55,6 +55,7 @@ metadata:
 data:
   management.protocol: https
   management.servers: your.server.com:4000
+  config: '{}'
 ---
 # Source: nvmesh-csi-driver/templates/storage-classes.yaml
 kind: StorageClass
@@ -445,6 +446,8 @@ spec:
                   name: nvmesh-credentials
                   key: password
           volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
             - name: plugin-socket-dir
               mountPath: /csi
             - name: pods-mount-dir
@@ -476,6 +479,9 @@ spec:
             - name: registration-dir
               mountPath: /registration
       volumes:
+        - name: config-volume
+          configMap:
+            name: nvmesh-csi-config
         - name: plugin-socket-dir
           hostPath:
             path: /var/lib/kubelet/plugins/nvmesh-csi.excelero.com/
@@ -505,6 +511,9 @@ spec:
 #
 # NVMesh CSI Controller Driver StatefulSet Deployment
 #
+
+# TODO: remove "hard-coded" namespace field.
+# let the customer decide on which namespace they want the driver installed
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
@@ -554,6 +563,8 @@ spec:
                   name: nvmesh-credentials
                   key: password
           volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
             - name: plugin-socket-dir
               mountPath: /csi
         # Provisioner
@@ -588,8 +599,10 @@ spec:
           volumeMounts:
             - name: plugin-socket-dir
               mountPath: /csi
-
       volumes:
+        - name: config-volume
+          configMap:
+            name: nvmesh-csi-config
         - name: plugin-socket-dir
           hostPath:
             path: /var/lib/kubelet/plugins/nvmesh-csi.excelero.com/

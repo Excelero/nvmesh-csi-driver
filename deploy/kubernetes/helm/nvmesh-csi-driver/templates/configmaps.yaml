@@ -8,4 +8,4 @@ metadata:
 data:
   management.protocol: {{ .Values.config.protocol }}
   management.servers: {{ .Values.config.servers }}
-
+  config: '{}'

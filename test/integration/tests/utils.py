@@ -1,4 +1,3 @@
-import json
 import logging
 import subprocess
 import sys
@@ -17,7 +16,7 @@ from NVMeshSDK.Consts import RAIDLevels
 from NVMeshSDK.MongoObj import MongoObj
 
 TEST_NAMESPACE = 'nvmesh-csi-testing'
-NVMESH_MGMT_ADDRESS = 'https://n115:4000'
+NVMESH_MGMT_ADDRESS = environ.get('NVMESH_MGMT_ADDRESS') or 'https://10.0.1.117:443'
 
 config.load_kube_config()
 
@@ -26,7 +25,7 @@ storage_api = client.StorageV1Api()
 apps_api = client.AppsV1Api()
 
 class TestConfig(object):
-	NumberOfVolumes = 1
+	NumberOfVolumes = 3
 	SkipECVolumes = True
 
 def load_test_config_values_from_env_vars():
@@ -872,7 +871,7 @@ class NVMeshUtils(object):
 		return parsed_value
 
 	@staticmethod
-	def wait_for_nvmesh_volume(nvmesh_vol_name, attempts=5):
+	def wait_for_nvmesh_volume(nvmesh_vol_name, attempts=15):
 		while attempts > 0:
 			volume = NVMeshUtils.get_nvmesh_volume_by_name(nvmesh_vol_name)
 			if not volume:

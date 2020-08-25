@@ -93,6 +93,7 @@ class NVMeshControllerService(ControllerServicer):
 			**nvmesh_params
 		)
 
+		self.logger.debug('Creating volume: {}'.format(str(volume)))
 		err, data = VolumeAPI().save([volume])
 
 		if err:

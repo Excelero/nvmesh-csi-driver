@@ -67,6 +67,11 @@ def CatchServerErrors(func):
 			exc_tb = exc_tb.tb_next
 			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 
+			if Config.PrintTraceBacks:
+				import traceback
+				tb = traceback.format_exc()
+				print(tb)
+
 			details = "{type}: {msg} in {fname} on line: {lineno}".format(type=exc_type, msg=str(ex), fname=fname, lineno=exc_tb.tb_lineno)
 			self.logger.warning("Error caught in gRPC call {} - {}".format(func.__name__, details))
 			context.abort(grpc.StatusCode.INTERNAL, details)
@@ -188,26 +193,36 @@ class Utils(object):
 			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_detach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
 
 	@staticmethod
-	def wait_for_volume_io_enabled(nvmesh_volume_name, timeout=30):
-		now = datetime.now()
-		max_time = datetime.now() + timedelta(seconds=timeout)
-		volume_status = None
-
-		while now <= max_time:
-			try:
-				volume_status = Utils.get_volume_status(nvmesh_volume_name)
-				if volume_status["dbg"] == '0x200':
-					# this means IO is Enabled
-					return True
-			except IOError as ex:
-				# The volume status.json proc file is not ready.
-				pass
-
-			Utils.logger.debug("Waiting for volume {} to have IO Enabled. current status is: 'status':'{}', 'dbg':'{}'".format(nvmesh_volume_name, volume_status["status"], volume_status["dbg"]))
-			time.sleep(1)
+	def wait_for_volume_io_enabled(nvmesh_volume_name):
+		try:
 			now = datetime.now()
+			max_time = datetime.now() + timedelta(seconds=Config.ATTACH_IO_ENABLED_TIMEOUT)
+			volume_status = None
 
-		raise DriverError(grpc.StatusCode.INTERNAL, "Timed-out after waiting {} seconds for volume {} to have IO Enabled. volume status: {}".format(timeout, nvmesh_volume_name, volume_status))
+			while now <= max_time:
+				try:
+					volume_status = Utils.get_volume_status(nvmesh_volume_name)
+					if volume_status.get("dbg") == '0x200':
+						# IO is Enabled
+						return True
+					else:
+						msg = "Waiting for volume {} to have IO Enabled. current status is: 'status':'{}', 'dbg':'{}'"
+						Utils.logger.debug(msg.format(nvmesh_volume_name, volume_status.get("status", volume_status.get("dbg"))))
+				except IOError as ex:
+					# The volume status.json proc file is not ready.
+					Utils.logger.debug("Waiting for volume {} to have IO Enabled. Error: ".format(nvmesh_volume_name, ex))
+					pass
+
+					time.sleep(1)
+					now = datetime.now()
+		except Exception as ex:
+			import traceback
+			tb = traceback.format_exc()
+			print(tb)
+			raise DriverError(grpc.StatusCode.INTERNAL,
+							  "Error while trying to wait_for_volume_io_enabled. Error: {}.\nTraceback: {}".format(ex, tb))
+
+		raise DriverError(grpc.StatusCode.INTERNAL, "Timed-out after waiting {} seconds for volume {} to have IO Enabled. volume status: {}".format(Config.ATTACH_IO_ENABLED_TIMEOUT, nvmesh_volume_name, volume_status))
 
 	@staticmethod
 	def get_volume_status(nvmesh_volume_name):
@@ -243,6 +258,10 @@ class Utils(object):
 
 		# volume already attached
 		vol_status = Utils.get_volume_status(nvmesh_volume_name)
+		if vol_status.get('type') != 'visible' or vol_status.get('reservation') == 'Recovery Only':
+			# volume is hidden attached
+			return True
+
 		current_access_mode = Consts.AccessMode.from_nvmesh(vol_status['reservation'])
 		requested_access_mode = Consts.AccessMode.from_nvmesh(requested_nvmesh_access_mode)
 
@@ -270,12 +289,13 @@ class NVMeshSDKHelper(object):
 		connected = False
 
 		# try until able to connect to NVMesh Management
+		print("Looking for a NVMesh Management server using {} from servers {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
 		while not connected:
 			try:
 				NVMeshSDKHelper._try_get_sdk_instance()
 				connected = ConnectionManager.getInstance().isAlive()
 			except ManagementTimeout as ex:
-				NVMeshSDKHelper.logger.info("Waiting for NVMesh Management server on {}".format(Config.MANAGEMENT_SERVERS))
+				NVMeshSDKHelper.logger.info("Waiting for NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
 				Utils.interruptable_sleep(10)
 
 		print("Connected to NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))

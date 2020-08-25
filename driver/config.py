@@ -1,3 +1,4 @@
+import json
 import os
 
 import consts as Consts
@@ -12,6 +13,8 @@ class Config(object):
 	MANAGEMENT_USERNAME = None
 	MANAGEMENT_PASSWORD = None
 	SOCKET_PATH = None
+	ATTACH_IO_ENABLED_TIMEOUT = None
+	PRINT_TRACEBACKS = None
 
 class Parsers(object):
 	@staticmethod
@@ -38,12 +41,25 @@ class ConfigLoader(object):
 			return default
 
 	@staticmethod
+	def _get_json_config():
+		try:
+			with open('/etc/config/config') as fp:
+				jsonConfig = json.load(fp)
+				return jsonConfig
+		except Exception as ex:
+			raise ConfigError('Error parsing json config. Error: {}'.format(ex.message))
+
+	@staticmethod
 	def load():
 		Config.MANAGEMENT_SERVERS = ConfigLoader._get_env_var_or_default('MANAGEMENT_SERVERS', default='')
 		Config.MANAGEMENT_PROTOCOL = ConfigLoader._get_env_var_or_default('MANAGEMENT_PROTOCOL', default='https')
 		Config.MANAGEMENT_USERNAME = ConfigLoader._get_env_var_or_default('MANAGEMENT_USERNAME', default='admin@excelero.com')
 		Config.MANAGEMENT_PASSWORD = ConfigLoader._get_env_var_or_default('MANAGEMENT_PASSWORD', default='admin')
 		Config.SOCKET_PATH = ConfigLoader._get_env_var_or_default('SOCKET_PATH', default=Consts.DEFAULT_UDS_PATH)
+
+		jsonConfig = ConfigLoader._get_json_config()
+		Config.ATTACH_IO_ENABLED_TIMEOUT = jsonConfig.get('attach_io_enabled_timeout', 30)
+		Config.PRINT_TRACEBACKS = jsonConfig.get('print_tracebacks', False)
 
 		if not Config.MANAGEMENT_SERVERS:
 			raise ConfigError("MANAGEMENT_SERVERS environment variable not found or is empty")

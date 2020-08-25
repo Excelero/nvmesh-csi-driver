@@ -15,6 +15,7 @@ SERVERS=()
 MASTER=""
 MANAGMENT_ADDRESS=""
 MANAGMENT_PROTOCOL=https
+package_name_in_helm=nvmesh-csi-driver
 
 while [[ $# -gt 0 ]]
 do
@@ -55,15 +56,22 @@ esac
 shift # past argument or value
 done
 
+if [ -z "$MANAGMENT_ADDRESS" ] || [ -z "$MANAGMENT_PROTOCOL" ]; then
+    echo "Error: Please provide both --mgmt and --mgmt-protocol flags"
+    print_help
+    exit 1
+fi
+
 if [ -z "$MASTER" ] && [ "${#SERVERS[@]}" -eq 0 ]; then
     echo "Error: Please provide at least one of the folloing flags: --master , --servers"
     print_help
     exit 1
 fi
 
+
 if [ ! -z "$MASTER" ]; then
     # uninstall using helm
-    ssh $MASTER "helm uninstall csi  --namespace default"
+    ssh $MASTER "helm uninstall $package_name_in_helm  --namespace default"
 
     # clear deployment from master node
     ssh $MASTER "~/nvmesh-csi-driver/deploy/kubernetes/scripts/remove_deployment.sh"
@@ -99,8 +107,9 @@ if [ ! -z "$MASTER" ]; then
 
     # Deploy Using Helm
     version=$(cat ../version | cut -c2-)
-    echo "version=$version"
-    helm_install_cmd="helm install --namespace default csi ./nvmesh-csi-driver-$version.tgz --set config.servers=$MANAGMENT_ADDRESS"
+    echo "Deploying using Helm: version=$version"
+    helm_install_cmd="helm install --namespace default $package_name_in_helm ./nvmesh-csi-driver-$version.tgz --set config.servers=$MANAGMENT_ADDRESS --set config.protocol=$MANAGMENT_PROTOCOL"
+    echo "running: $helm_install_cmd"
     ssh $MASTER "cd ~/nvmesh-csi-driver/build_tools ; ./build.sh --build-helm-pkg ; $helm_install_cmd ; helm list --namespace default"
 
     if [ $? -ne 0 ]; then
