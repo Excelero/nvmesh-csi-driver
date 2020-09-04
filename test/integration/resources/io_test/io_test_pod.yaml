@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: block-deivce-io-test
+  labels:
+    app: block-deivce-io-test
+spec:
+  containers:
+    - name: block-deivce-io-test
+      image: image-registry.openshift-image-registry.svc:5000/default/block-device-io-test:dev
+      imagePullPolicy: Always
+      env:
+        - name: VOLUME_PATH
+          value: /dev/my_block_dev
+      volumeDevices:
+        - name: block-volume
+          devicePath: /dev/my_block_dev
+  volumes:
+    - name: block-volume
+      persistentVolumeClaim:
+        claimName: block-pvc
