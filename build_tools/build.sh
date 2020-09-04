@@ -5,6 +5,7 @@ REPO_PATH=~/nvmesh-csi-driver
 servers=()
 DEPLOY=false
 DEPLOY_ONLY=false
+DOCKER_OR_PODMAN=docker
 
 if [ -z "$DRIVER_VERSION" ]; then
     echo "Could not find version in $VERSION_FILE_PATH"
@@ -19,6 +20,7 @@ show_help() {
     echo "  --servers               remote servers on which to build the docker image. example: ./build.sh --servers kube-master kube-node-1 kube-node-2"
     echo "  --deploy                after build deploy using kubectl on the first server. example: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy"
     echo "  --build-tests           build also the integration testing containers. example: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy --build-tests"
+    echo "  --podman                use podman instead of docker for building the image"
 }
 
 parse_args() {
@@ -37,6 +39,10 @@ parse_args() {
             shift
         done
 
+        ;;
+        --podman)
+            DOCKER_OR_PODMAN=podman
+            shift
         ;;
         -d|--deploy)
             DEPLOY=true
@@ -68,16 +74,16 @@ parse_args() {
 }
 
 build_locally() {
-    echo "Building Docker image locally"
+    echo "Building $DOCKER_OR_PODMAN image locally"
 
     cd ../
     # using the -f flag allows us to include files from a directory out of the 'context'
     # we need it because the Dockerfile is in build dir and sources are in driver dir
 
-    docker build -f build_tools/nvmesh-csi-driver.dockerfile . --tag excelero/nvmesh-csi-driver:$DRIVER_VERSION
+    $DOCKER_OR_PODMAN build -f build_tools/nvmesh-csi-driver.dockerfile . --tag excelero/nvmesh-csi-driver:$DRIVER_VERSION
 
     if [ $? -ne 0 ]; then
-        echo "Docker image build failed"
+        echo "$DOCKER_OR_PODMAN image build failed"
         exit 3
     fi
 }
