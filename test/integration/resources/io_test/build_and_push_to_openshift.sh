@@ -1,0 +1,1 @@
+podman build . --tag default-route-openshift-image-registry.apps.nvmesh.excelero.com/default/nvmesh-io-test:dev ; podman push --tls-verify=false default-route-openshift-image-registry.apps.nvmesh.excelero.com/default/nvmesh-io-test:dev

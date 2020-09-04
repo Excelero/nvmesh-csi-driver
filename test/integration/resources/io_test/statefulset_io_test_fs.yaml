@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: fs-io-test
+spec:
+  selector:
+    matchLabels:
+      app: fs-io-test
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: fs-io-test
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - io-test
+                topologyKey: kubernetes.io/hostname
+      containers:
+      - name: io-test
+        image: image-registry.openshift-image-registry.svc:5000/default/nvmesh-io-test:dev
+        imagePullPolicy: Always
+        env:
+          - name: VOLUME_TYPE
+            value: Filesystem
+          - name: VOLUME_PATH
+            value: /mnt/vol1
+        volumeMounts:
+          - name: vol1
+            mountPath: /mnt/vol1
+  volumeClaimTemplates:
+  - metadata:
+      name: vol1
+    spec:
+      volumeMode: Filesystem
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "nvmesh-raid0"
+      resources:
+        requests:
+          storage: 10Gi
