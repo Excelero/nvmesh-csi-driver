@@ -67,7 +67,7 @@ def CatchServerErrors(func):
 			exc_tb = exc_tb.tb_next
 			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 
-			if Config.PrintTraceBacks:
+			if Config.PRINT_TRACEBACKS:
 				import traceback
 				tb = traceback.format_exc()
 				print(tb)
