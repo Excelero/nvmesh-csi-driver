@@ -32,6 +32,17 @@ Create chart name and version as used by the chart label.
 {{- end -}}
 
 {{/*
+Allow the release namespace to be overridden for multi-namespace deployments in combined charts
+*/}}
+{{- define "nvmesh-csi-driver.namespace" -}}
+  {{- if .Values.namespaceOverride -}}
+    {{- .Values.namespaceOverride -}}
+  {{- else -}}
+    {{- .Release.Namespace -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
 Common labels
 */}}
 {{- define "nvmesh-csi-driver.labels" -}}

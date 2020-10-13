@@ -7,20 +7,22 @@
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
-  name: nvmesh-csi-controller
-  namespace: {{ .Values.namespace }}
+  name: {{ template "nvmesh-csi-driver.fullname" . }}-controller
+  namespace: {{ template "nvmesh-csi-driver.namespace" . }}
 spec:
-  serviceName: {{ .Values.serviceAccount.name }}
+  serviceName: {{ template "nvmesh-csi-driver.fullname" . }}
   selector:
     matchLabels:
-      app: nvmesh-csi
+      {{ include "nvmesh-csi-driver.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: controller
   replicas: {{ .Values.controller.replicaCount }}
   template:
     metadata:
       labels:
-        app: nvmesh-csi
+        {{ include "nvmesh-csi-driver.labels" . | nindent 8 }}
+        app.kubernetes.io/component: controller
     spec:
-      serviceAccount: {{ .Values.serviceAccount.name }}
+      serviceAccount: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
       containers:
         # NVMesh Driver
         - name: nvmesh-csi-driver
@@ -59,19 +61,19 @@ spec:
               mountPath: /csi
         # Provisioner
         - name: csi-provisioner
-          image: quay.io/k8scsi/csi-provisioner:v1.6.0
+          image: "{{ .Values.csiExternalProvisioner.repository }}:{{ .Values.csiExternalProvisioner.tag }}"
           args:
             - "--provisioner={{ .Values.driverName }}"
             - "--csi-address=/csi/ctrl-csi.sock"
             - "--v=5"
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: "{{ .Values.csiExternalProvisioner.pullPolicy }}"
           volumeMounts:
             - name: plugin-socket-dir
               mountPath: /csi
         # Attacher
         - name: csi-attacher
-          image: quay.io/k8scsi/csi-attacher:v2.2.0
-          imagePullPolicy: "IfNotPresent"
+          image: "{{ .Values.csiExternalAttacher.repository }}:{{ .Values.csiExternalAttacher.tag }}"
+          imagePullPolicy: "{{ .Values.csiExternalAttacher.pullPolicy }}"
           args:
             - "--v=5"
             - "--csi-address=/csi/ctrl-csi.sock"
@@ -80,12 +82,12 @@ spec:
               mountPath: /csi
         # Resizer
         - name: csi-resizer
-          image: quay.io/k8scsi/csi-resizer:v0.5.0
+          image: "{{ .Values.csiExternalResizer.repository }}:{{ .Values.csiExternalResizer.tag }}"
           args:
             - "--v=5"
             - "--csi-address=/csi/ctrl-csi.sock"
             - "--leader-election"
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: "{{ .Values.csiExternalResizer.pullPolicy }}"
           volumeMounts:
             - name: plugin-socket-dir
               mountPath: /csi
@@ -109,18 +111,20 @@ spec:
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: nvmesh-csi-node-driver
-  namespace: {{ .Values.namespace }}
+  name: {{ template "nvmesh-csi-driver.fullname" . }}-node-driver
+  namespace: {{ template "nvmesh-csi-driver.namespace" . }}
 spec:
   selector:
     matchLabels:
-      app: nvmesh-csi
+      {{ include "nvmesh-csi-driver.selectorLabels" . | nindent 6}}
+      app.kubernetes.io/component: node-driver
   template:
     metadata:
       labels:
-        app: nvmesh-csi
+        {{ include "nvmesh-csi-driver.labels" . | nindent 8 }}
+        app.kubernetes.io/component: node-driver
     spec:
-      serviceAccount: {{ .Values.serviceAccount.name }}
+      serviceAccount: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
       hostNetwork: true
       tolerations:
         # This would make the DaemonSet to be deployed also on the master node
@@ -173,6 +177,10 @@ spec:
               # needed so that any mounts setup inside this container are
               # propagated back to the host machine.
               mountPropagation: "Bidirectional"
+{{ if .Values.systemdHost }}
+            - name: systemd-journal
+              mountPath: /run/systemd/journal
+{{ end }}
             - name: device-dir
               mountPath: /dev
             - name: host-bin
@@ -183,7 +191,8 @@ spec:
               mountPath: /opt/NVMesh
         # Registrar
         - name: csi-driver-registrar
-          image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+          image: "{{ .Values.csiDriverRegistrar.repository }}:{{ .Values.csiDriverRegistrar.tag }}"
+          imagePullPolicy: "{{ .Values.csiDriverRegistrar.pullPolicy }}"
           args:
             - "--csi-address=/csi/csi.sock"
             - "--kubelet-registration-path=/var/lib/kubelet/plugins/{{ .Values.driverName }}/csi.sock"
@@ -212,12 +221,17 @@ spec:
           hostPath:
             path: /var/lib/kubelet/
             type: Directory
+{{ if .Values.systemdHost }}
+        - name: systemd-journal
+          hostPath:
+            path: /run/systemd/journal
+{{ end }}
         - name: device-dir
           hostPath:
             path: /dev
         - name: host-bin
           hostPath:
-            path: /bin
+            path: {{ .Values.hostBinariesPath }}
         - name: var-opt-nvmesh
           hostPath:
             path: /var/opt/NVMesh

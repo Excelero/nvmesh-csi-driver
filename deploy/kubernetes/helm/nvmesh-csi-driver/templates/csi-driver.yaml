@@ -2,7 +2,7 @@ apiVersion: storage.k8s.io/v1beta1
 kind: CSIDriver
 metadata:
   name: {{ .Values.driverName }}
-  namespace: {{ .Values.namespace }}
+  namespace: {{ template "nvmesh-csi-driver.namespace" . }}
   labels:
     {{- include "nvmesh-csi-driver.labels" . | nindent 4 }}
 spec:
