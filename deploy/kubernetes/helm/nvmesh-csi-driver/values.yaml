@@ -1,7 +1,7 @@
 # Default values for nvmesh-csi-driver.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-namespace: nvmesh-csi
+namespaceOverride: ""
 appName: nvmesh-csi-driver
 driverName: nvmesh-csi.excelero.com
 
@@ -18,11 +18,36 @@ config:
   username: YWRtaW5AZXhjZWxlcm8uY29t
   password: YWRtaW4=
 
+hostBinariesPath: /bin
+systemdHost: true
+
 controller:
   replicaCount: 1
 
 image:
   repository: excelero/nvmesh-csi-driver
+  pullPolicy: IfNotPresent
+
+pspEnabled: false
+
+csiDriverRegistrar:
+  repository: quay.io/k8scsi/csi-node-driver-registrar
+  tag: v1.1.0
+  pullPolicy: IfNotPresent
+
+csiExternalProvisioner:
+  repository: quay.io/k8scsi/csi-provisioner
+  tag: v1.6.0
+  pullPolicy: IfNotPresent
+
+csiExternalAttacher:
+  repository: quay.io/k8scsi/csi-attacher
+  tag: v2.2.0
+  pullPolicy: IfNotPresent
+
+csiExternalResizer:
+  repository: quay.io/k8scsi/csi-resizer
+  tag: v0.5.0
   pullPolicy: IfNotPresent
 
 serviceAccount:

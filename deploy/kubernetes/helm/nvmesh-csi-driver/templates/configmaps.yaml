@@ -2,7 +2,7 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: nvmesh-csi-config
-  namespace: {{ .Values.namespace }}
+  namespace: {{ template "nvmesh-csi-driver.namespace" . }}
   labels:
     {{- include "nvmesh-csi-driver.labels" . | nindent 4 }}
 data:

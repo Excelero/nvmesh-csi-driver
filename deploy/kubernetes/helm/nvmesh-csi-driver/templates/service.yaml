@@ -1,8 +1,8 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.serviceAccount.name }}
-  namespace: {{ .Values.namespace }}
+  name: {{ template "nvmesh-csi-driver.fullname" . }}
+  namespace: {{ template "nvmesh-csi-driver.namespace" . }}
   labels:
     {{- include "nvmesh-csi-driver.labels" . | nindent 4 }}
 spec:

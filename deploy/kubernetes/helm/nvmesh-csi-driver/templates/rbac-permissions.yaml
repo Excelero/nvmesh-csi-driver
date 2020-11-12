@@ -16,7 +16,7 @@
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: external-provisioner-runner
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:external-provisioner-runner
 rules:
   # The following rule should be uncommented for plugins that require secrets
   # for provisioning.
@@ -47,19 +47,25 @@ rules:
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "watch"]
+{{ if .Values.pspEnabled }}
+  - apiGroups: ["policy"]
+    resourceNames: ["{{ template "nvmesh-csi-driver.fullname" . }}"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["use"]
+{{ end }}
 
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-provisioner-role
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:csi-provisioner-role
 subjects:
   - kind: ServiceAccount
-    name: {{ .Values.serviceAccount.name }}
-    namespace: {{ .Values.namespace }}
+    name: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
+    namespace: {{ template "nvmesh-csi-driver.namespace" . }}
 roleRef:
   kind: ClusterRole
-  name: external-provisioner-runner
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
 
 ---
@@ -68,8 +74,8 @@ roleRef:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: {{ .Values.namespace }}
-  name: external-provisioner-cfg
+  namespace: {{ template "nvmesh-csi-driver.namespace" . }}
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:external-provisioner-cfg
 rules:
 # Only one of the following rules for endpoints or leases is required based on
 # what is set for `--leader-election-type`. Endpoints are deprecated in favor of Leases.
@@ -84,15 +90,14 @@ rules:
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-provisioner-role-cfg
-  namespace: {{ .Values.namespace }}
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:csi-provisioner-role-cfg
+  namespace: {{ template "nvmesh-csi-driver.namespace" . }}
 subjects:
   - kind: ServiceAccount
-    name: {{ .Values.serviceAccount.name }}
-    namespace: {{ .Values.namespace }}
+    name: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
 roleRef:
   kind: Role
-  name: external-provisioner-cfg
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:external-provisioner-cfg
   apiGroup: rbac.authorization.k8s.io
 
 
@@ -104,7 +109,7 @@ roleRef:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: external-attacher-runner
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:external-attacher-runner
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]
@@ -123,14 +128,14 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-attacher-role
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:csi-attacher-role
 subjects:
   - kind: ServiceAccount
-    name: {{ .Values.serviceAccount.name }}
-    namespace: {{ .Values.namespace }}
+    name: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
+    namespace: {{ template "nvmesh-csi-driver.namespace" . }}
 roleRef:
   kind: ClusterRole
-  name: external-attacher-runner
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:external-attacher-runner
   apiGroup: rbac.authorization.k8s.io
 
 ---
@@ -139,8 +144,8 @@ roleRef:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: {{ .Values.namespace }}
-  name: external-attacher-cfg
+  namespace: {{ template "nvmesh-csi-driver.namespace" . }}
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:external-attacher-cfg
 rules:
 # access to configmaps is only supported for backwards compatibility reasons
 # and can be removed once you are uses Leases (--leader-election-type=leases)
@@ -155,15 +160,14 @@ rules:
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-attacher-role-cfg
-  namespace: {{ .Values.namespace }}
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:csi-attacher-role-cfg
+  namespace: {{ template "nvmesh-csi-driver.namespace" . }}
 subjects:
   - kind: ServiceAccount
-    name: {{ .Values.serviceAccount.name }}
-    namespace: {{ .Values.namespace }}
+    name: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
 roleRef:
   kind: Role
-  name: external-attacher-cfg
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:external-attacher-cfg
   apiGroup: rbac.authorization.k8s.io
 
 #
@@ -184,7 +188,7 @@ roleRef:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: external-resizer-runner
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:external-resizer-runner
 rules:
   # The following rule should be uncommented for plugins that require secrets
   # for provisioning.
@@ -211,14 +215,14 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-resizer-role
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:csi-resizer-role
 subjects:
   - kind: ServiceAccount
-    name: {{ .Values.serviceAccount.name }}
-    namespace: {{ .Values.namespace }}
+    name: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
+    namespace: {{ template "nvmesh-csi-driver.namespace" . }}
 roleRef:
   kind: ClusterRole
-  name: external-resizer-runner
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:external-resizer-runner
   apiGroup: rbac.authorization.k8s.io
 
 ---
@@ -227,8 +231,8 @@ roleRef:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: {{ .Values.namespace }}
-  name: external-resizer-cfg
+  namespace: {{ template "nvmesh-csi-driver.namespace" . }}
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:external-resizer-cfg
 rules:
 - apiGroups: ["coordination.k8s.io"]
   resources: ["leases"]
@@ -238,13 +242,12 @@ rules:
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-resizer-role-cfg
-  namespace: {{ .Values.namespace }}
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:csi-resizer-role-cfg
+  namespace: {{ template "nvmesh-csi-driver.namespace" . }}
 subjects:
   - kind: ServiceAccount
-    name: {{ .Values.serviceAccount.name }}
-    namespace: {{ .Values.namespace }}
+    name: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
 roleRef:
   kind: Role
-  name: external-resizer-cfg
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:external-resizer-cfg
   apiGroup: rbac.authorization.k8s.io
