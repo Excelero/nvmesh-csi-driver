@@ -21,6 +21,8 @@ config:
 hostBinariesPath: /bin
 systemdHost: true
 
+defaultStorageClasses: true
+
 controller:
   replicaCount: 1
 
