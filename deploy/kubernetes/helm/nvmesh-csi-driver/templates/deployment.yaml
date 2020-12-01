@@ -63,12 +63,12 @@ spec:
             - name: MANAGEMENT_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: nvmesh-credentials
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: username
             - name: MANAGEMENT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: nvmesh-credentials
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: password
           volumeMounts:
             - name: config-volume
@@ -183,12 +183,12 @@ spec:
             - name: MANAGEMENT_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: nvmesh-credentials
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: username
             - name: MANAGEMENT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: nvmesh-credentials
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: password
           volumeMounts:
             - name: config-volume
