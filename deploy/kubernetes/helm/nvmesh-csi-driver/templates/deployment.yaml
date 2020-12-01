@@ -53,12 +53,12 @@ spec:
             - name: MANAGEMENT_SERVERS
               valueFrom:
                 configMapKeyRef:
-                  name: nvmesh-csi-config
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-config
                   key: management.servers
             - name: MANAGEMENT_PROTOCOL
               valueFrom:
                 configMapKeyRef:
-                  name: nvmesh-csi-config
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-config
                   key: management.protocol
             - name: MANAGEMENT_USERNAME
               valueFrom:
@@ -110,7 +110,7 @@ spec:
       volumes:
         - name: config-volume
           configMap:
-            name: nvmesh-csi-config
+            name: {{ template "nvmesh-csi-driver.fullname" . }}-config
         - name: plugin-socket-dir
           hostPath:
             path: /var/lib/kubelet/plugins/{{ .Values.driverName }}/
@@ -173,12 +173,12 @@ spec:
             - name: MANAGEMENT_SERVERS
               valueFrom:
                 configMapKeyRef:
-                  name: nvmesh-csi-config
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-config
                   key: management.servers
             - name: MANAGEMENT_PROTOCOL
               valueFrom:
                 configMapKeyRef:
-                  name: nvmesh-csi-config
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-config
                   key: management.protocol
             - name: MANAGEMENT_USERNAME
               valueFrom:
@@ -231,7 +231,7 @@ spec:
       volumes:
         - name: config-volume
           configMap:
-            name: nvmesh-csi-config
+            name: {{ template "nvmesh-csi-driver.fullname" . }}-config
         - name: plugin-socket-dir
           hostPath:
             path: /var/lib/kubelet/plugins/{{ .Values.driverName }}/

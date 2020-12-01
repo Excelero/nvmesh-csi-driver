@@ -3,7 +3,7 @@
 ##################################
 
 1. Configuration: Make sure the following points to your NVMesh Management Server:
-kubectl --namespace {{ template "nvmesh-csi-driver.namespace" . }} get configmap nvmesh-csi-config
+kubectl --namespace {{ template "nvmesh-csi-driver.namespace" . }} get configmap {{ template "nvmesh-csi-driver.fullname" . }}-config
 
 2. Please visit https://www.excelero.com/nvmesh-csi-driver-guide for the NVMesh CSI Driver User Guide
 
