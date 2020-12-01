@@ -25,6 +25,12 @@ defaultStorageClasses: true
 
 controller:
   replicaCount: 1
+  tolerations: []
+nodeDriver:
+  tolerations:
+    - key: node-role.kubernetes.io/master
+      effect: NoSchedule
+      operator: Exists
 
 image:
   repository: excelero/nvmesh-csi-driver
@@ -77,8 +83,6 @@ service:
   port: 80
 
 nodeSelector: {}
-
-tolerations: []
 
 affinity: {}
 

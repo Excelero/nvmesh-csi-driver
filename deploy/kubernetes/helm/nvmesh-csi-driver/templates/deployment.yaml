@@ -21,7 +21,23 @@ spec:
       labels:
         {{ include "nvmesh-csi-driver.labels" . | nindent 8 }}
         app.kubernetes.io/component: controller
+      {{- with .Values.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controller.tolerations }}
+      tolerations:
+        {{ toYaml . | nindent 8 }}
+      {{- end }}
       serviceAccount: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
       containers:
         # NVMesh Driver
@@ -123,14 +139,21 @@ spec:
       labels:
         {{ include "nvmesh-csi-driver.labels" . | nindent 8 }}
         app.kubernetes.io/component: node-driver
+      {{- with .Values.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccount: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{ toYaml . | nindent 8 }}
+      {{- end }}
       hostNetwork: true
+      {{- with .Values.nodeDriver.tolerations }}
       tolerations:
-        # This would make the DaemonSet to be deployed also on the master node
-        - key: node-role.kubernetes.io/master
-          effect: NoSchedule
-          operator: Exists
+        {{ toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         # NVMesh Driver
         - name: nvmesh-csi-driver
