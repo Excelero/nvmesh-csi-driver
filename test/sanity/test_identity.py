@@ -11,7 +11,7 @@ class TestIdentityService(TestCaseWithServerRunning):
 	def test_get_plugin_info(self):
 		identityClient = IdentityClient()
 		msg = identityClient.GetPluginInfo()
-		self.assertEqual(msg.name, Consts.DRIVER_NAME)
+		self.assertEqual(msg.name, Consts.DEFAULT_DRIVER_NAME)
 		self.assertEqual(msg.vendor_version, Consts.DRIVER_VERSION)
 
 	@CatchRequestErrors

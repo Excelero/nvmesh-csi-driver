@@ -32,6 +32,8 @@ spec:
           env:
             - name: DRIVER_TYPE
               value: "Controller"
+            - name: DRIVER_NAME
+              value: "{{ .Values.driverName }}"
             - name: SOCKET_PATH
               value: unix:///csi/ctrl-csi.sock
             - name: MANAGEMENT_SERVERS
@@ -145,6 +147,8 @@ spec:
           env:
             - name: DRIVER_TYPE
               value: "Node"
+            - name: DRIVER_NAME
+              value: "{{ .Values.driverName }}"
             - name: SOCKET_PATH
               value: unix:///csi/csi.sock
             - name: MANAGEMENT_SERVERS

@@ -17,7 +17,7 @@ def read_bash_file(filename):
 	return l
 
 DEFAULT_VOLUME_SIZE = 5000000000 #5GB
-DRIVER_NAME = "nvmesh-csi.excelero.com"
+DEFAULT_DRIVER_NAME = "nvmesh-csi.excelero.com"
 DRIVER_VERSION = read_value_from_file("/version")
 SPEC_VERSION = "1.1.0"
 NVMESH_VERSION_INFO = read_bash_file('/opt/NVMesh/client-repo/version')
