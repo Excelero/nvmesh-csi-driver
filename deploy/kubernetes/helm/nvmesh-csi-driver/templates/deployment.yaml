@@ -21,7 +21,23 @@ spec:
       labels:
         {{ include "nvmesh-csi-driver.labels" . | nindent 8 }}
         app.kubernetes.io/component: controller
+      {{- with .Values.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controller.tolerations }}
+      tolerations:
+        {{ toYaml . | nindent 8 }}
+      {{- end }}
       serviceAccount: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
       containers:
         # NVMesh Driver
@@ -37,22 +53,22 @@ spec:
             - name: MANAGEMENT_SERVERS
               valueFrom:
                 configMapKeyRef:
-                  name: nvmesh-csi-config
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-config
                   key: management.servers
             - name: MANAGEMENT_PROTOCOL
               valueFrom:
                 configMapKeyRef:
-                  name: nvmesh-csi-config
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-config
                   key: management.protocol
             - name: MANAGEMENT_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: nvmesh-credentials
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: username
             - name: MANAGEMENT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: nvmesh-credentials
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: password
           volumeMounts:
             - name: config-volume
@@ -94,7 +110,7 @@ spec:
       volumes:
         - name: config-volume
           configMap:
-            name: nvmesh-csi-config
+            name: {{ template "nvmesh-csi-driver.fullname" . }}-config
         - name: plugin-socket-dir
           hostPath:
             path: /var/lib/kubelet/plugins/{{ .Values.driverName }}/
@@ -123,14 +139,21 @@ spec:
       labels:
         {{ include "nvmesh-csi-driver.labels" . | nindent 8 }}
         app.kubernetes.io/component: node-driver
+      {{- with .Values.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccount: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{ toYaml . | nindent 8 }}
+      {{- end }}
       hostNetwork: true
+      {{- with .Values.nodeDriver.tolerations }}
       tolerations:
-        # This would make the DaemonSet to be deployed also on the master node
-        - key: node-role.kubernetes.io/master
-          effect: NoSchedule
-          operator: Exists
+        {{ toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         # NVMesh Driver
         - name: nvmesh-csi-driver
@@ -150,22 +173,22 @@ spec:
             - name: MANAGEMENT_SERVERS
               valueFrom:
                 configMapKeyRef:
-                  name: nvmesh-csi-config
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-config
                   key: management.servers
             - name: MANAGEMENT_PROTOCOL
               valueFrom:
                 configMapKeyRef:
-                  name: nvmesh-csi-config
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-config
                   key: management.protocol
             - name: MANAGEMENT_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: nvmesh-credentials
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: username
             - name: MANAGEMENT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: nvmesh-credentials
+                  name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: password
           volumeMounts:
             - name: config-volume
@@ -208,7 +231,7 @@ spec:
       volumes:
         - name: config-volume
           configMap:
-            name: nvmesh-csi-config
+            name: {{ template "nvmesh-csi-driver.fullname" . }}-config
         - name: plugin-socket-dir
           hostPath:
             path: /var/lib/kubelet/plugins/{{ .Values.driverName }}/

@@ -21,8 +21,16 @@ config:
 hostBinariesPath: /bin
 systemdHost: true
 
+defaultStorageClasses: true
+
 controller:
   replicaCount: 1
+  tolerations: []
+nodeDriver:
+  tolerations:
+    - key: node-role.kubernetes.io/master
+      effect: NoSchedule
+      operator: Exists
 
 image:
   repository: excelero/nvmesh-csi-driver
@@ -57,7 +65,7 @@ serviceAccount:
   annotations: {}
   # The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template
-  name: nvmesh-csi-driver
+  name:
 
 podSecurityContext: {}
   # fsGroup: 2000
@@ -75,8 +83,6 @@ service:
   port: 80
 
 nodeSelector: {}
-
-tolerations: []
 
 affinity: {}
 

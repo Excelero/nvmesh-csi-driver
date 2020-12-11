@@ -1,3 +1,4 @@
+{{- if .Values.defaultStorageClasses }}
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
@@ -59,4 +60,5 @@ allowVolumeExpansion: true
 volumeBindingMode: Immediate
 parameters:
   vpg: DEFAULT_EC_SINGLE_TARGET_REDUNDANCY_VPG
+{{- end }}
 {{- end }}
