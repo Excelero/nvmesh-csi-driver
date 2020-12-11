@@ -13,6 +13,7 @@ class Config(object):
 	MANAGEMENT_USERNAME = None
 	MANAGEMENT_PASSWORD = None
 	SOCKET_PATH = None
+	DRIVER_NAME = None
 	ATTACH_IO_ENABLED_TIMEOUT = None
 	PRINT_TRACEBACKS = None
 
@@ -56,6 +57,7 @@ class ConfigLoader(object):
 		Config.MANAGEMENT_USERNAME = ConfigLoader._get_env_var_or_default('MANAGEMENT_USERNAME', default='admin@excelero.com')
 		Config.MANAGEMENT_PASSWORD = ConfigLoader._get_env_var_or_default('MANAGEMENT_PASSWORD', default='admin')
 		Config.SOCKET_PATH = ConfigLoader._get_env_var_or_default('SOCKET_PATH', default=Consts.DEFAULT_UDS_PATH)
+		Config.DRIVER_NAME = ConfigLoader._get_env_var_or_default('DRIVER_NAME', default=Consts.DEFAULT_DRIVER_NAME)
 
 		jsonConfig = ConfigLoader._get_json_config()
 		Config.ATTACH_IO_ENABLED_TIMEOUT = jsonConfig.get('attach_io_enabled_timeout', 30)
@@ -64,7 +66,7 @@ class ConfigLoader(object):
 		if not Config.MANAGEMENT_SERVERS:
 			raise ConfigError("MANAGEMENT_SERVERS environment variable not found or is empty")
 
-		print("Loaded Config with SOCKET_PATH={} ,MANAGEMENT_SERVERS={}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS))
+		print("Loaded Config with SOCKET_PATH={}, MANAGEMENT_SERVERS={}, DRIVER_NAME={}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS, Config.DRIVER_NAME))
 
 
 ConfigLoader.load()
