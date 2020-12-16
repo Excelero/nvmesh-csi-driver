@@ -2,12 +2,19 @@
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
-  name: {{ template "nvmesh-csi-driver.fullname" . }}
+  name: psp.{{ template "nvmesh-csi-driver.fullname" . }}
   labels:
 {{ include "nvmesh-csi-driver.labels" . | indent 4 }}
 spec:
   privileged: true
   allowPrivilegeEscalation: true
+  allowedHostPaths:
+  - pathPrefix: /var/lib/kubelet/
+  - pathPrefix: /dev
+  - pathPrefix: /bin
+  - pathPrefix: /var/opt/NVMesh
+  - pathPrefix: /opt/NVMesh
+  - pathPrefix: /run/systemd/journal
   allowedCapabilities:
   - 'SYS_ADMIN'
   volumes:

@@ -47,12 +47,6 @@ rules:
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "watch"]
-{{ if .Values.pspEnabled }}
-  - apiGroups: ["policy"]
-    resourceNames: ["{{ template "nvmesh-csi-driver.fullname" . }}"]
-    resources: ["podsecuritypolicies"]
-    verbs: ["use"]
-{{ end }}
 
 ---
 kind: ClusterRoleBinding
@@ -251,3 +245,29 @@ roleRef:
   kind: Role
   name: {{ template "nvmesh-csi-driver.fullname" . }}:external-resizer-cfg
   apiGroup: rbac.authorization.k8s.io
+
+{{ if .Values.pspEnabled }}
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ template "nvmesh-csi-driver.namespace" . }}-use-psp
+rules:
+  - apiGroups: ["policy"]
+    resourceNames: ["psp.{{ template "nvmesh-csi-driver.fullname" . }}"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["use"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ template "nvmesh-csi-driver.namespace" . }}-use-psp
+subjects:
+  - kind: ServiceAccount
+    name: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
+    namespace: {{ template "nvmesh-csi-driver.namespace" . }}
+roleRef:
+  kind: ClusterRole
+  name: {{ template "nvmesh-csi-driver.namespace" . }}-use-psp
+  apiGroup: rbac.authorization.k8s.io
+{{ end }}
