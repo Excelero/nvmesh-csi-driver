@@ -35,6 +35,7 @@ defaultStorageClasses: true
 controller:
   replicaCount: 1
   tolerations: []
+  hostNetwork: false
 nodeDriver:
   tolerations:
     - key: node-role.kubernetes.io/master

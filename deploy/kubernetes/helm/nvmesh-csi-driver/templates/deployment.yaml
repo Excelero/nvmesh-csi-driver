@@ -38,6 +38,7 @@ spec:
       tolerations:
         {{ toYaml . | nindent 8 }}
       {{- end }}
+      hostNetwork: {{ .Values.controller.hostNetwork }}
       serviceAccount: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
       containers:
         # NVMesh Driver
