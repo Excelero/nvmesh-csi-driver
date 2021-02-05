@@ -31,29 +31,74 @@ class NVMeshControllerService(ControllerServicer):
 	def CreateVolume(self, request, context):
 		Utils.validate_param_exists(request, 'name')
 		name = request.name
-		capacity = self._parse_required_capacity(request.capacity_range)
 		parameters = request.parameters
-
 		#UNUSED - secrets = request.secrets
 		#UNUSED - volume_content_source = request.volume_content_source
-		#UNUSED - accessibility_requirements = request.accessibility_requirements
 
+		reqDict = MessageToDict(request)
 		reqJson = MessageToJson(request)
 		self.logger.debug('create volume request: {}'.format(reqJson))
-		reqDict = MessageToDict(request)
-		capabilities = reqDict['volumeCapabilities']
 
-		is_file_system = False
-		is_block_device = False
+		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(name)
+		capacity = self._parse_required_capacity(request.capacity_range)
+		csi_metadata = self._build_metadata_field(reqDict)
+		nvmesh_params = self._handle_volume_req_parameters(parameters)
+
+		volume = NVMeshVolume(
+			name=nvmesh_vol_name,
+			capacity=capacity,
+			csi_metadata=csi_metadata,
+			**nvmesh_params
+		)
+
+		self.logger.debug('Creating volume: {}'.format(str(volume)))
+		err, data = VolumeAPI().save([volume])
+
+		self._handle_create_volume_errors(err, data, volume)
+
+		err, details = self._wait_for_volume_status(volume._id, NVMeshConsts.VolumeStatuses.ONLINE)
+
+		if err:
+			if err == 'Timed out Waiting for Volume to be Online':
+				raise DriverError(StatusCode.FAILED_PRECONDITION, 'Error: {} Details: {}'.format(err, details))
+			else:
+				raise DriverError(StatusCode.INVALID_ARGUMENT, err)
+		else:
+			self.logger.debug(details)
+
+		# we return the nvmesh_vol_name that we created to the CO
+		# all subsequent requests for this volume will have volume_id of the nvmesh volume name
+		csiVolume = Volume(volume_id=nvmesh_vol_name, capacity_bytes=capacity)
+		return CreateVolumeResponse(volume=csiVolume)
+
+	def _handle_create_volume_errors(self, err, data, volume):
+		if err:
+			raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Error: {} Details: {} Volume Requested: {}'.format(err, data, str(volume)))
+		elif not type(data) == list or not data[0]['success']:
+			if 'Name already Exists' in data[0]['error']:
+				existing_capacity = self._get_nvmesh_volume_capacity(volume.name)
+				if volume.capacity == existing_capacity:
+					# Idempotency - same Name same Capacity - return success
+					pass
+				else:
+					raise DriverError(StatusCode.ALREADY_EXISTS, 'Error: {} Details: {}'.format(err, data))
+			else:
+				raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Error: {} Details: {}'.format(err, data))
+
+	def _build_metadata_field(self, reqDict):
+		capabilities = reqDict['volumeCapabilities']
+		topology_requirements = reqDict.get('accessibilityRequirements')
 
 		csi_metadata = {
-			'csi_name': name,
+			'csi_name': reqDict['name'],
 			'capabilities': capabilities
 		}
 
+		if topology_requirements:
+			csi_metadata['topology_requirements'] = topology_requirements
+
 		for capability in capabilities:
 			if 'mount' in capability:
-				is_file_system = True
 				csi_metadata['fsType'] = capability['mount']['fsType']
 			elif 'block' in capability:
 				csi_metadata['block'] = True
@@ -63,14 +108,17 @@ class NVMeshControllerService(ControllerServicer):
 				if Consts.AccessMode.fromCsiString(access_mode) not in Consts.AccessMode.allowed_access_modes():
 					self.logger.warning('Requested mode {} is not enforced by NVMesh Storage backend'.format(access_mode))
 
-		if is_file_system and is_block_device:
+		if 'fsType' in csi_metadata and 'block' in csi_metadata:
 			raise DriverError(StatusCode.INVALID_ARGUMENT,
-								'Error: Contradicting capabilities both Block Volume and FileSystem Volume were requested for volume {}. request: {}'.format(name,
-																																						reqJson))
+							  'Error: Contradicting capabilities both Block Volume and FileSystem Volume were requested for volume {}. request: {}'.format(reqDict['name'],
+																																						   reqDict))
+		return csi_metadata
 
-		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(name)
+	def _handle_volume_req_parameters(self, reqDict):
+		parameters = reqDict['parameters']
+		#topology_requirements = reqDict['accessibilityRequirements']
+
 		nvmesh_params = {}
-
 		self.logger.debug('create volume parameters: {}'.format(parameters))
 
 		if 'vpg' in parameters:
@@ -87,46 +135,9 @@ class NVMeshControllerService(ControllerServicer):
 				nvmesh_params[param] = parameters[param]
 
 			self._handle_non_vpg_params(nvmesh_params)
-
 		self.logger.debug('nvmesh_params = {}'.format(nvmesh_params))
+		return nvmesh_params
 
-		volume = NVMeshVolume(
-			name=nvmesh_vol_name,
-			capacity=capacity,
-			csi_metadata=csi_metadata,
-			**nvmesh_params
-		)
-
-		self.logger.debug('Creating volume: {}'.format(str(volume)))
-		err, data = VolumeAPI().save([volume])
-
-		if err:
-			raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Error: {} Details: {} Volume Requested: {}'.format(err, data, str(volume)))
-		elif not type(data) == list or not data[0]['success']:
-			if 'Name already Exists' in data[0]['error']:
-				existing_capacity = self._get_nvmesh_volume_capacity(nvmesh_vol_name)
-				if capacity == existing_capacity:
-					# Idempotency - same Name same Capacity - return success
-					pass
-				else:
-					raise DriverError(StatusCode.ALREADY_EXISTS, 'Error: {} Details: {}'.format(err, data))
-			else:
-				raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Error: {} Details: {}'.format(err, data))
-
-		err, details = self._wait_for_volume_status(volume._id, NVMeshConsts.VolumeStatuses.ONLINE)
-
-		if err:
-			if err == 'Timed out Waiting for Volume to be Online':
-				raise DriverError(StatusCode.FAILED_PRECONDITION, 'Error: {} Details: {}'.format(err, details))
-			else:
-				raise DriverError(StatusCode.INVALID_ARGUMENT, err)
-		else:
-			self.logger.debug(details)
-
-		# we return the nvmesh_vol_name that we created to the CO
-		# all subsequent requests for this volume will have volume_id of the nvmesh volume name
-		csiVolume = Volume(volume_id=nvmesh_vol_name, capacity_bytes=capacity)
-		return CreateVolumeResponse(volume=csiVolume)
 
 	def _handle_non_vpg_params(self, nvmesh_params):
 		# parse raidLevel

@@ -38,7 +38,7 @@ def _read_file_contents(filename):
 	with open(filename) as file:
 		return file.readline()
 
-def _read_bash_file(self, filename):
+def _read_bash_file(filename):
 	g = {}
 	l = {}
 

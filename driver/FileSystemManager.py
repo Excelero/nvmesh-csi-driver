@@ -25,9 +25,10 @@ class FileSystemManager(object):
 		return exit_code == 0
 
 	@staticmethod
-	def mount(source, target, flags=None):
+	def mount(source, target, flags=None, mount_options=None):
 		flags_str = ' '.join(flags) if flags else ''
-		cmd = 'mount {flags_str} {source} {target}'.format(flags_str=flags_str, source=source, target=target)
+		mount_opts_str = '-o ' + ','.join(mount_options) if mount_options else ''
+		cmd = 'mount {flags_str} {options} {source} {target}'.format(flags_str=flags_str, options=mount_opts_str, source=source, target=target)
 
 		exit_code, stdout, stderr = Utils.run_command(cmd)
 
@@ -35,12 +36,16 @@ class FileSystemManager(object):
 			raise Exception("mount failed {} {} {}".format(exit_code, stdout, stderr))
 
 	@staticmethod
-	def bind_mount(source, target, flags=None):
-		if not flags:
-			flags = []
+	def bind_mount(source, target, flags=None, mount_options=None):
+		flags = flags or []
 
 		flags.append('--bind')
-		return FileSystemManager.mount(source, target, flags=flags)
+		return FileSystemManager.mount(source, target, flags, mount_options)
+
+	@staticmethod
+	def build_mount_options_string(options_list):
+		if not options_list:
+			return
 
 	@staticmethod
 	def umount(target):

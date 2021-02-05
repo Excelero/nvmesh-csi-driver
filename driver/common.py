@@ -8,7 +8,10 @@ from logging.handlers import SysLogHandler
 from subprocess import Popen, PIPE
 import grpc
 
+from NVMeshSDK.APIs.TargetAPI import TargetAPI
+from NVMeshSDK.APIs.TargetClassAPI import TargetClassAPI
 from NVMeshSDK.ConnectionManager import ConnectionManager, ManagementTimeout
+from NVMeshSDK.MongoObj import MongoObj
 from config import Config
 import consts as Consts
 
@@ -140,14 +143,14 @@ class Utils(object):
 
 	@staticmethod
 	def _attach_volume_with_access_mode(nvmesh_volume_name, nvmesh_access_mode):
-		cmd_template = 'python {}/nvmesh_attach_volumes --wait_for_attach --json --access {access} {volume}'.format(Config.NVMESH_BIN_PATH)
-		cmd = cmd_template.format(access=nvmesh_access_mode, volume=nvmesh_volume_name)
+		cmd_template = 'python {script_dir}/nvmesh_attach_volumes --wait_for_attach --json --access {access} {volume}'
+		cmd = cmd_template.format(script_dir=Config.NVMESH_BIN_PATH, access=nvmesh_access_mode, volume=nvmesh_volume_name)
 		exit_code, stdout, stderr = Utils.run_command(cmd)
 
 		try:
-			results = json.loads(stdout)
+			results = json.loads(stdout or stderr)
 		except Exception as ex:
-			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
+			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: Could not parse output as JSON error_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
 
 		if results.get('status') == 'failed':
 			# General Script Failure
@@ -207,14 +210,14 @@ class Utils(object):
 						return True
 					else:
 						msg = "Waiting for volume {} to have IO Enabled. current status is: 'status':'{}', 'dbg':'{}'"
-						Utils.logger.debug(msg.format(nvmesh_volume_name, volume_status.get("status", volume_status.get("dbg"))))
+						Utils.logger.debug(msg.format(nvmesh_volume_name, volume_status.get("status"), volume_status.get("dbg")))
 				except IOError as ex:
 					# The volume status.json proc file is not ready.
 					Utils.logger.debug("Waiting for volume {} to have IO Enabled. Error: ".format(nvmesh_volume_name, ex))
 					pass
 
-					time.sleep(1)
-					now = datetime.now()
+				time.sleep(1)
+				now = datetime.now()
 		except Exception as ex:
 			import traceback
 			tb = traceback.format_exc()
@@ -232,8 +235,9 @@ class Utils(object):
 			with open(volume_status_proc) as fp:
 				volume_status = json.load(fp)
 				return volume_status
-		except ValueError:
+		except ValueError as ex:
 			Utils.logger.error('Failed to parse JSON from file {}'.format(volume_status_proc))
+			raise ValueError('Failed to parse JSON from file {}'.format(volume_status_proc))
 
 	@staticmethod
 	def verify_nvmesh_access_mode_allowed(current, requested, volume_name):
@@ -257,10 +261,13 @@ class Utils(object):
 			return True
 
 		# volume already attached
-		vol_status = Utils.get_volume_status(nvmesh_volume_name)
-		if vol_status.get('type') != 'visible' or vol_status.get('reservation') == 'Recovery Only':
-			# volume is hidden attached
-			return True
+		try:
+			vol_status = Utils.get_volume_status(nvmesh_volume_name)
+			if vol_status.get('type') != 'visible' or vol_status.get('reservation') == 'Recovery Only':
+				# volume is hidden attached
+				return True
+		except (ValueError, IOError) as ex:
+			raise DriverError(grpc.StatusCode.INTERNAL, 'Failed to run check_if_access_mode_allowed. %s' % ex)
 
 		current_access_mode = Consts.AccessMode.from_nvmesh(vol_status['reservation'])
 		requested_access_mode = Consts.AccessMode.from_nvmesh(requested_nvmesh_access_mode)

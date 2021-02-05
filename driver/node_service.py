@@ -19,8 +19,9 @@ class NVMeshNodeService(NodeServicer):
 	def __init__(self, logger):
 		config_loader.load()
 		NodeServicer.__init__(self)
-		self.logger = logger
+		self.node_id = socket.gethostname()
 
+		self.logger = logger
 		self.logger.info('NVMesh Version Info: {}'.format(json.dumps(Config.NVMESH_VERSION_INFO, indent=4, sort_keys=True)))
 
 		feature_list = json.dumps(FeatureSupportChecks.get_all_features(), indent=4, sort_keys=True)
@@ -46,27 +47,29 @@ class NVMeshNodeService(NodeServicer):
 		nvmesh_volume_name = volume_id
 		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_volume_name)
 
-		# run nvmesh attach locally
-		requested_nvmesh_access_mode = Consts.AccessMode.to_nvmesh(access_mode)
-		Utils.nvmesh_attach_volume(nvmesh_volume_name, requested_nvmesh_access_mode)
+		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
+			# run nvmesh attach locally
+			requested_nvmesh_access_mode = Consts.AccessMode.to_nvmesh(access_mode)
+			Utils.nvmesh_attach_volume(nvmesh_volume_name, requested_nvmesh_access_mode)
+
 		Utils.wait_for_volume_io_enabled(nvmesh_volume_name)
 
 		if access_type == Consts.VolumeAccessType.MOUNT:
 			mount_request = volume_capability.mount
 			self.logger.info('Requested Mounted FileSystem Volume with fs_type={}'.format(mount_request.fs_type))
 			fs_type = mount_request.fs_type or Consts.FSType.EXT4
-			mount_flags = []
+			mount_options = []
 
 			if mount_request.mount_flags:
-				for flag in mount_request.mount_flags.split(' '):
-					mount_flags.append(flag)
+				for flag in mount_request.mount_flags:
+					mount_options.append(flag)
 
 			FileSystemManager.format_block_device(block_device_path, fs_type)
 
 			if FileSystemManager.is_mounted(staging_target_path):
 				self.logger.warning('path {} is already mounted'.format(staging_target_path))
 
-			FileSystemManager.mount(source=block_device_path, target=staging_target_path)
+			FileSystemManager.mount(source=block_device_path, target=staging_target_path, mount_options=mount_options)
 
 		elif access_type == Consts.VolumeAccessType.BLOCK:
 			self.logger.info('Requested Block Volume')
@@ -127,11 +130,15 @@ class NVMeshNodeService(NodeServicer):
 		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
 			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(nvmesh_volume_name))
 
-		flags = []
+		mount_options = []
+
+		if volume_capability.mount.mount_flags:
+			for flag in volume_capability.mount.mount_flags:
+				mount_options.append(flag)
 
 		# K8s Bug Workaround: readonly flag is not sent to CSI, so we try to also infer from the AccessMode
 		if readonly or access_mode == Consts.AccessMode.MULTI_NODE_READER_ONLY:
-			flags.append('-o ro')
+			mount_options.append('ro')
 
 		if access_type == Consts.VolumeAccessType.BLOCK:
 			# create an empty file for bind mount
@@ -140,10 +147,10 @@ class NVMeshNodeService(NodeServicer):
 
 			# bind directly from block device to publish_path
 			self.logger.debug('NodePublishVolume trying to bind mount as block device {} to {}'.format(block_device_path, publish_path))
-			FileSystemManager.bind_mount(source=block_device_path, target=publish_path, flags=flags)
+			FileSystemManager.bind_mount(source=block_device_path, target=publish_path, mount_options=mount_options)
 		else:
 			self.logger.debug('NodePublishVolume trying to bind mount {} to {}'.format(staging_target_path, publish_path))
-			FileSystemManager.bind_mount(source=staging_target_path, target=publish_path, flags=flags)
+			FileSystemManager.bind_mount(source=staging_target_path, target=publish_path, mount_options=mount_options)
 
 		return NodePublishVolumeResponse()
 
@@ -234,7 +241,7 @@ class NVMeshNodeService(NodeServicer):
 
 	@CatchServerErrors
 	def NodeGetInfo(self, request, context):
-		return NodeGetInfoResponse(node_id=socket.gethostname())
+		return NodeGetInfoResponse(node_id=self.node_id)
 
 	def _get_block_or_mount_volume(self, request):
 		volume_capability = request.volume_capability

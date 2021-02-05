@@ -55,7 +55,7 @@ class ConnectionManager:
             self.setManagementServer(managementServer)
             self.user = user
             self.password = password
-            self.logger = LoggerUtils.getLoggerWithHandler('ConnectionManager', logLevel=LoggerUtils.Consts.ManagementLogLevel.INFO, logToSysLog=logToSysLog)
+            self.logger = LoggerUtils.getLoggerWithHandler('ConnectionManager', logLevel=LoggerUtils.Consts.ManagementLogLevel.DEBUG, logToSysLog=logToSysLog)
             self.session = requests.session()
             self.isAlive()
 
@@ -114,7 +114,7 @@ class ConnectionManager:
                 # put it as last
                 self.managementServers.append(self.managementServers.pop(0))
 
-        raise ManagementTimeout(route, "Timeout from all Management Servers")
+        raise ManagementTimeout(route, "Timeout from all Management Servers: %s" % self.managementServers)
 
     def do_request(self, method, route, payload=None, numberOfRetries=0):
         res = None
