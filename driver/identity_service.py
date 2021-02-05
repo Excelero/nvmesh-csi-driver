@@ -1,19 +1,19 @@
 import google as google
 
-from config import Config
-import consts as Consts
+from config import Config, config_loader
 from csi.csi_pb2 import GetPluginInfoResponse, ProbeResponse, GetPluginCapabilitiesResponse, PluginCapability
 from csi.csi_pb2_grpc import IdentityServicer
 
 
 class NVMeshIdentityService(IdentityServicer):
 	def __init__(self, logger):
+		config_loader.load()
 		IdentityServicer.__init__(self)
 		self.logger = logger
 
 	def GetPluginInfo(self, request, context):
 		name = Config.DRIVER_NAME
-		vendor_version = Consts.DRIVER_VERSION
+		vendor_version = Config.DRIVER_VERSION
 		# OPTIONAL FIELD: map <string, string> manifest = 3;
 		return GetPluginInfoResponse(name=name, vendor_version=vendor_version)
 

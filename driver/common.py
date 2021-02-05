@@ -134,13 +134,13 @@ class Utils(object):
 	# legacy API of calling nvmesh_attach_volumes before Exclusive Access feature introduced
 	@staticmethod
 	def _attach_volume_legacy(nvmesh_volume_name):
-		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_attach_volumes --wait_for_attach {}'.format(nvmesh_volume_name))
+		exit_code, stdout, stderr = Utils.run_command('python {}/nvmesh_attach_volumes --wait_for_attach {}'.format(Config.NVMESH_BIN_PATH, nvmesh_volume_name))
 		if exit_code != 0:
 			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
 
 	@staticmethod
 	def _attach_volume_with_access_mode(nvmesh_volume_name, nvmesh_access_mode):
-		cmd_template = 'python /host/bin/nvmesh_attach_volumes --wait_for_attach --json --access {access} {volume}'
+		cmd_template = 'python {}/nvmesh_attach_volumes --wait_for_attach --json --access {access} {volume}'.format(Config.NVMESH_BIN_PATH)
 		cmd = cmd_template.format(access=nvmesh_access_mode, volume=nvmesh_volume_name)
 		exit_code, stdout, stderr = Utils.run_command(cmd)
 
@@ -188,7 +188,7 @@ class Utils(object):
 
 	@staticmethod
 	def nvmesh_detach_volume(nvmesh_volume_name):
-		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_detach_volumes {}'.format(nvmesh_volume_name))
+		exit_code, stdout, stderr = Utils.run_command('python {}/nvmesh_detach_volumes {}'.format(Config.NVMESH_BIN_PATH, nvmesh_volume_name))
 		if exit_code != 0:
 			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_detach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
 
@@ -329,7 +329,7 @@ class FeatureSupportChecks(object):
 
 	@staticmethod
 	def is_access_mode_supported():
-		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_attach_volumes --help | grep -e "--access"', debug=False)
+		exit_code, stdout, stderr = Utils.run_command('python {}/nvmesh_attach_volumes --help | grep -e "--access"'.format(Config.NVMESH_BIN_PATH), debug=False)
 		return exit_code == 0
 
 class FeatureSupport(object):

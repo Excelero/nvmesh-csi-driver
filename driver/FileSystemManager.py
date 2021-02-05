@@ -3,6 +3,7 @@ import shutil
 from grpc import StatusCode
 
 from common import Utils, DriverLogger, DriverError
+import consts as Consts
 
 logger = DriverLogger("FileSystemManager")
 
@@ -105,7 +106,7 @@ class FileSystemManager(object):
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Device not formatted with FileSystem found fs type {}'.format(fs_type))
 		elif fs_type.startswith('ext'):
 			cmd = 'resize2fs {}'.format(block_device_path)
-		elif fs_type == 'xfs':
+		elif fs_type == Consts.FSType.XFS:
 			cmd = 'xfs_growfs {}'.format(block_device_path)
 		else:
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'unknown fs_type {}'.format(fs_type))

@@ -1,3 +1,4 @@
+import json
 import time
 
 from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
@@ -14,10 +15,12 @@ import consts as Consts
 from csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ControllerPublishVolumeResponse, ControllerUnpublishVolumeResponse, \
 	ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse
 from csi.csi_pb2_grpc import ControllerServicer
+from config import config_loader
 
 
 class NVMeshControllerService(ControllerServicer):
 	def __init__(self, logger):
+		config_loader.load()
 		ControllerServicer.__init__(self)
 		self.logger = logger
 		NVMeshSDKHelper.init_sdk()
@@ -52,12 +55,13 @@ class NVMeshControllerService(ControllerServicer):
 			if 'mount' in capability:
 				is_file_system = True
 				csi_metadata['fsType'] = capability['mount']['fsType']
-			else:
+			elif 'block' in capability:
 				csi_metadata['block'] = True
 
-			access_mode = capability['accessMode']['mode']
-			if Consts.AccessMode.fromCsiString(access_mode) not in Consts.AccessMode.allowed_access_modes():
-				self.logger.warning('Requested mode {} is not enforced by NVMesh Storage backend'.format(access_mode))
+			if 'accessMode' in capability:
+				access_mode = capability['accessMode']['mode']
+				if Consts.AccessMode.fromCsiString(access_mode) not in Consts.AccessMode.allowed_access_modes():
+					self.logger.warning('Requested mode {} is not enforced by NVMesh Storage backend'.format(access_mode))
 
 		if is_file_system and is_block_device:
 			raise DriverError(StatusCode.INVALID_ARGUMENT,
@@ -385,7 +389,7 @@ class NVMeshControllerService(ControllerServicer):
 		if err or not len(out):
 			raise DriverError(StatusCode.INTERNAL, err)
 
-		return out[0]['capacity']
+		return out[0].capacity
 
 	def _validate_volume_exists(self, nvmesh_vol_name):
 		filterObj = [MongoObj(field='_id', value=nvmesh_vol_name)]

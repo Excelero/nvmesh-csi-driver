@@ -38,8 +38,7 @@ class TestAccessModes(unittest.TestCase):
 		KubeUtils.delete_pod(pod2_name)
 		KubeUtils.delete_pod(pod3_name)
 
-	# TODO: Currently 2.1 does't have it's own tag, and it will show as 2.0.0, when a 2.1 tag is available - uncomment the next line
-	#@unittest.skipIf(NVMeshUtils.get_nvmesh_version_tuple() < (2,0,1), 'ExclusiveMode not supported before NVMesh 2.1, Installed NVMesh version: {}'.format(NVMeshUtils.get_management_version_info()['version']))
+	@unittest.skipIf(NVMeshUtils.get_nvmesh_version_tuple() < (2,0,1), 'ExclusiveMode not supported before NVMesh 2.1, Installed NVMesh version: {}'.format(NVMeshUtils.get_management_version_info()['version']))
 	def test_read_write_once(self):
 		pvc_name = 'pvc-rwo'
 		KubeUtils.create_pvc_and_wait_to_bound(self, pvc_name, TestAccessModes.StorageClass, access_modes=['ReadWriteOnce'], volumeMode='Block')

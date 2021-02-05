@@ -3,6 +3,10 @@ import os
 import sys
 import unittest
 
+from driver import consts, config
+from test.sanity.helpers import config_loader_mock
+config.config_loader = config_loader_mock.ConfigLoaderMock()
+
 from test.sanity.clients.identity_client import IdentityClient
 from test.sanity.helpers.server_manager import ServerManager
 
@@ -26,15 +30,7 @@ def verify_server_is_running():
 		exit(1)
 
 if __name__ == "__main__":
-
-	driver_server = ServerManager()
-	driver_server.start()
-
-	verify_server_is_running()
-
 	results = run_sanity_tests()
-
-	driver_server.stop()
 
 	print(results)
 	if results.errors or results.failures:

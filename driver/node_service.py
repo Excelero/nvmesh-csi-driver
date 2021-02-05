@@ -12,14 +12,16 @@ import consts as Consts
 from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
 	NodeStageVolumeResponse, NodeUnstageVolumeResponse, NodeExpandVolumeResponse
 from csi.csi_pb2_grpc import NodeServicer
+from config import config_loader, Config
 
 
 class NVMeshNodeService(NodeServicer):
 	def __init__(self, logger):
+		config_loader.load()
 		NodeServicer.__init__(self)
 		self.logger = logger
 
-		self.logger.info('NVMesh Version Info: {}'.format(json.dumps(Consts.NVMESH_VERSION_INFO, indent=4, sort_keys=True)))
+		self.logger.info('NVMesh Version Info: {}'.format(json.dumps(Config.NVMESH_VERSION_INFO, indent=4, sort_keys=True)))
 
 		feature_list = json.dumps(FeatureSupportChecks.get_all_features(), indent=4, sort_keys=True)
 		self.logger.info('Supported Features: {}'.format(feature_list))
@@ -52,7 +54,7 @@ class NVMeshNodeService(NodeServicer):
 		if access_type == Consts.VolumeAccessType.MOUNT:
 			mount_request = volume_capability.mount
 			self.logger.info('Requested Mounted FileSystem Volume with fs_type={}'.format(mount_request.fs_type))
-			fs_type = mount_request.fs_type or 'ext4'
+			fs_type = mount_request.fs_type or Consts.FSType.EXT4
 			mount_flags = []
 
 			if mount_request.mount_flags:

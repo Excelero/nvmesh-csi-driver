@@ -1,5 +1,6 @@
 from driver.csi.csi_pb2 import CreateVolumeRequest, DeleteVolumeRequest, VolumeCapability, CapacityRange, ControllerPublishVolumeRequest, \
-	ControllerUnpublishVolumeRequest, ValidateVolumeCapabilitiesRequest, ListVolumesRequest, ControllerGetCapabilitiesRequest, ControllerExpandVolumeRequest
+	ControllerUnpublishVolumeRequest, ValidateVolumeCapabilitiesRequest, ListVolumesRequest, ControllerGetCapabilitiesRequest, ControllerExpandVolumeRequest, \
+	TopologyRequirement, Topology
 from driver.csi.csi_pb2_grpc import ControllerStub
 from test.sanity.clients.base_client import BaseClient
 
@@ -20,7 +21,7 @@ class ControllerClient(BaseClient):
 		return volume_capabilities
 
 
-	def CreateVolume(self, name, capacity_in_bytes=0, parameters={}):
+	def CreateVolume(self, name, capacity_in_bytes=0, parameters=None, topology=False):
 		name = name # string
 
 		# OPTIONAL - CapacityRange capacity_range = 2;
@@ -31,13 +32,17 @@ class ControllerClient(BaseClient):
 		# OPTIONAL - map < string, string > parameters = 4;
 		# OPTIONAL - map < string, string > secrets = 5[(csi_secret) = true];
 		# OPTIONAL - VolumeContentSource volume_content_source = 6;
-		# OPTIONAL - TopologyRequirement accessibility_requirements = 7;
+
+		topology_requirements = None
+		if topology:
+			topology_requirements = TopologyRequirement(requisite=[Topology(segments={'key':'value'})])
 
 		req = CreateVolumeRequest(
 			name=name,
 			capacity_range=capacity_range,
 			volume_capabilities=volume_capabilities,
-			parameters=parameters
+			parameters=parameters or {},
+			accessibility_requirements=topology_requirements
 		)
 
 		return self.client.CreateVolume(req)
