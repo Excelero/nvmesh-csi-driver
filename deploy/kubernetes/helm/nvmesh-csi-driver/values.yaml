@@ -40,22 +40,22 @@ pspEnabled: true
 
 csiDriverRegistrar:
   repository: quay.io/k8scsi/csi-node-driver-registrar
-  tag: v1.1.0
+  tag: v2.1.0
   pullPolicy: IfNotPresent
 
 csiExternalProvisioner:
   repository: quay.io/k8scsi/csi-provisioner
-  tag: v1.6.0
+  tag: v2.1.0
   pullPolicy: IfNotPresent
 
 csiExternalAttacher:
   repository: quay.io/k8scsi/csi-attacher
-  tag: v2.2.0
+  tag: v3.1.0
   pullPolicy: IfNotPresent
 
 csiExternalResizer:
   repository: quay.io/k8scsi/csi-resizer
-  tag: v0.5.0
+  tag: v1.1.0
   pullPolicy: IfNotPresent
 
 serviceAccount:
