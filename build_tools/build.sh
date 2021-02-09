@@ -111,7 +111,7 @@ build_on_remote_machines() {
 
     for server in ${servers[@]}; do
         echo "Sending sources to remote machine ($server).."
-        rsync -r ../ $server:$REPO_PATH &> >(sed 's/^/'$server': /') &
+        rsync -r --exclude ".*/" ../ $server:$REPO_PATH &> >(sed 's/^/'$server': /') &
         sub_process_pids+=($!)
     done
 
