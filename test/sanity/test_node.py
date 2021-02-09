@@ -37,6 +37,12 @@ class TestNodeService(TestCaseWithServerRunning):
 		res = self._client.NodeGetInfo()
 		self.assertEquals(res.node_id, MOCK_NODE_ID)
 
+	@CatchRequestErrors
+	def test_get_info_with_topology(self):
+		res = self._client.NodeGetInfo()
+		self.assertEquals(res.node_id, MOCK_NODE_ID)
+
+		self.assertEquals(res.accessible_topology.segments, {'node_id': MOCK_NODE_ID})
 
 	@CatchRequestErrors
 	def test_get_capabilities(self):

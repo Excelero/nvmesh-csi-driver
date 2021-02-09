@@ -98,8 +98,7 @@ class FileSystemManager(object):
 			return
 
 		if current_fs_type != '':
-			logger.debug('{} is formatted to {} but requested {}'.format(block_device_path, current_fs_type, fs_type))
-			raise DriverError(StatusCode.INVALID_ARGUMENT, 'block device already formatted to {}. but required: '.format(current_fs_type, ))
+			raise DriverError(StatusCode.INVALID_ARGUMENT, '{} is formatted to {} but requested {}'.format(block_device_path, current_fs_type, fs_type))
 
 		FileSystemManager.mkfs(fs_type=fs_type, target_path=block_device_path, flags=[])
 

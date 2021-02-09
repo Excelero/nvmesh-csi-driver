@@ -5,6 +5,7 @@ from grpc._channel import _Rendezvous
 
 from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from NVMeshSDK.MongoObj import MongoObj
+from driver.csi.csi_pb2 import TopologyRequirement, Topology
 from test.sanity.helpers.setup_and_teardown import start_server
 
 import driver.consts as Consts
@@ -67,6 +68,22 @@ class TestControllerService(TestCaseWithServerRunning):
 		volume_id = msg.volume.volume_id
 		self.ctrl_client.CreateVolume(name=VOL_1_ID, capacity_in_bytes=1 * GB, parameters=parameters)
 		self.ctrl_client.DeleteVolume(volume_id=volume_id)
+
+	@CatchRequestErrors
+	def test_create_volume_with_topology(self):
+		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
+		topology_requirements = TopologyRequirement(requisite=[Topology(segments={'key':'value'})])
+		msg = self.ctrl_client.CreateVolume(
+			name=VOL_1_ID,
+			capacity_in_bytes=5 * GB,
+			parameters=parameters,
+			topology_requirements=topology_requirements)
+
+		volume_id = msg.volume.volume_id
+		self.assertTrue(volume_id)
+
+		msg = self.ctrl_client.DeleteVolume(volume_id=volume_id)
+		self.assertTrue(msg)
 
 	@CatchRequestErrors
 	def test_validate_volume_capabilities(self):

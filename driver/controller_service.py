@@ -44,6 +44,9 @@ class NVMeshControllerService(ControllerServicer):
 		csi_metadata = self._build_metadata_field(reqDict)
 		nvmesh_params = self._handle_volume_req_parameters(parameters)
 
+		topology_requirements = reqDict['accessibilityRequirements']
+		self.logger.debug('CreateVolume received topology requirements {}'.format(topology_requirements))
+
 		volume = NVMeshVolume(
 			name=nvmesh_vol_name,
 			capacity=capacity,
@@ -116,7 +119,6 @@ class NVMeshControllerService(ControllerServicer):
 
 	def _handle_volume_req_parameters(self, reqDict):
 		parameters = reqDict['parameters']
-		#topology_requirements = reqDict['accessibilityRequirements']
 
 		nvmesh_params = {}
 		self.logger.debug('create volume parameters: {}'.format(parameters))

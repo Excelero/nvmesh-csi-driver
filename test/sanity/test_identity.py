@@ -33,7 +33,7 @@ class TestIdentityService(TestCaseWithServerRunning):
 
 		expected = [
 			'service.CONTROLLER_SERVICE',
-			#'service.VOLUME_ACCESSIBILITY_CONSTRAINTS',
+			'service.VOLUME_ACCESSIBILITY_CONSTRAINTS',
 			'volumeExpansion.ONLINE',
 		]
 
@@ -57,7 +57,7 @@ class TestIdentityService(TestCaseWithServerRunning):
 
 		# make sure all expected capabilities were reported
 		for capability in expected:
-			self.assertIn(capability, found, "Missing capability")
+			self.assertIn(capability, found, "Missing capability %s" % capability)
 
 	@CatchRequestErrors
 	def test_probe(self):

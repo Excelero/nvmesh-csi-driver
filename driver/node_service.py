@@ -3,14 +3,14 @@ import socket
 
 import os
 
-from google.protobuf.json_format import MessageToJson
+from google.protobuf.json_format import MessageToJson, MessageToDict
 from grpc import StatusCode
 
 from FileSystemManager import FileSystemManager
 from common import Utils, CatchServerErrors, DriverError, FeatureSupportChecks
 import consts as Consts
 from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
-	NodeStageVolumeResponse, NodeUnstageVolumeResponse, NodeExpandVolumeResponse
+	NodeStageVolumeResponse, NodeUnstageVolumeResponse, NodeExpandVolumeResponse, Topology
 from csi.csi_pb2_grpc import NodeServicer
 from config import config_loader, Config
 
@@ -244,7 +244,10 @@ class NVMeshNodeService(NodeServicer):
 
 	@CatchServerErrors
 	def NodeGetInfo(self, request, context):
-		return NodeGetInfoResponse(node_id=self.node_id)
+		reqDict = MessageToDict(request)
+		self.logger.debug('NodeGetInfo called with request: {}'.format(reqDict))
+		topology = self._get_topology(reqDict)
+		return NodeGetInfoResponse(node_id=self.node_id, accessible_topology=topology)
 
 	def _get_block_or_mount_volume(self, request):
 		volume_capability = request.volume_capability
@@ -269,4 +272,15 @@ class NVMeshNodeService(NodeServicer):
 		}
 
 		return podInfo
+
+	def _get_topology(self, requestDict):
+		self.logger.debug('_get_topology called with request info %s' % requestDict)
+		topology_info = {
+			'node_id': self.node_id,
+			'debug': 'true'
+		}
+
+		self.logger.debug('_get_topology returning %s' % topology_info)
+		return Topology(segments=topology_info)
+
 

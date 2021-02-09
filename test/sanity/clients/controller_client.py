@@ -21,7 +21,7 @@ class ControllerClient(BaseClient):
 		return volume_capabilities
 
 
-	def CreateVolume(self, name, capacity_in_bytes=0, parameters=None, topology=False):
+	def CreateVolume(self, name, capacity_in_bytes=0, parameters=None, topology_requirements=None):
 		name = name # string
 
 		# OPTIONAL - CapacityRange capacity_range = 2;
@@ -32,10 +32,6 @@ class ControllerClient(BaseClient):
 		# OPTIONAL - map < string, string > parameters = 4;
 		# OPTIONAL - map < string, string > secrets = 5[(csi_secret) = true];
 		# OPTIONAL - VolumeContentSource volume_content_source = 6;
-
-		topology_requirements = None
-		if topology:
-			topology_requirements = TopologyRequirement(requisite=[Topology(segments={'key':'value'})])
 
 		req = CreateVolumeRequest(
 			name=name,
