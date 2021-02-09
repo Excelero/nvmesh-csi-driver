@@ -121,11 +121,14 @@ class NVMeshNodeService(NodeServicer):
 		access_mode = volume_capability.access_mode.mode
 		readonly = request.readonly
 		access_type = self._get_block_or_mount_volume(request)
+		volume_context = request.volume_context
+		podInfo = self._extract_pod_info_from_volume_context(volume_context)
 
 		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_volume_name)
 
 		reqJson = MessageToJson(request)
 		self.logger.debug('NodePublishVolume called with request: {}'.format(reqJson))
+		self.logger.debug('NodePublishVolume podInfo: {}'.format(podInfo))
 
 		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
 			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(nvmesh_volume_name))
@@ -253,4 +256,17 @@ class NVMeshNodeService(NodeServicer):
 		else:
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'at least one of volume_capability.block, volume_capability.mount must be set')
 
+	def _extract_pod_info_from_volume_context(self, volume_context):
+		if not volume_context:
+			return {}
+
+		podInfo = {
+			'podName': volume_context.get('csi.storage.k8s.io/pod.name'),
+			'podNamespace': volume_context.get('csi.storage.k8s.io/pod.namespace'),
+			'podUid': volume_context.get('csi.storage.k8s.io/pod.uid'),
+			'ephemeral': volume_context.get('csi.storage.k8s.io/ephemeral'),
+			'serviceAccount': volume_context.get('csi.storage.k8s.io/serviceAccount.name')
+		}
+
+		return podInfo
 
