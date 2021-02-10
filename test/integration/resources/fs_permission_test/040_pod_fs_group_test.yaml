@@ -9,7 +9,7 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: nvmesh-concatenated
+  storageClassName: nvmesh-with-topology
 ---
 apiVersion: v1
 kind: Pod
@@ -18,6 +18,7 @@ metadata:
   labels:
     app: fs-group-test
 spec:
+  nodeName: nvme117.excelero.com
   serviceAccountName: fs-mount-test
   containers:
     - name: fs-group-test
@@ -33,7 +34,7 @@ spec:
         - name: vol1
           mountPath: /mnt/vol1
       securityContext:
-        runAsUser: 2000
+        runAsUser: 0
         runAsGroup: 2000
   securityContext:
     fsGroup: 2000

@@ -6,7 +6,6 @@ config.config_loader = config_loader_mock.ConfigLoaderMock()
 from test.sanity.clients.identity_client import IdentityClient
 from test.sanity.helpers.server_manager import ServerManager
 
-
 def is_server_running():
 	try:
 		identityClient = IdentityClient()

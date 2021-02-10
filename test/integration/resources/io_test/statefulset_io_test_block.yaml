@@ -1,8 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-io-svc
+  labels:
+    nvmesh-csi-testing: ""
+spec:
+  clusterIP: "None"
+  ports:
+    - port: 6000
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: block-io-test
 spec:
+  serviceName: test-io-svc
   selector:
     matchLabels:
       app: block-io-test
@@ -12,6 +24,7 @@ spec:
       labels:
         app: block-io-test
     spec:
+      serviceAccountName: fs-mount-test
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -26,7 +39,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
       - name: block-deivce-io-test
-        image: image-registry.openshift-image-registry.svc:5000/default/block-device-io-test:dev
+        image: excelero/block-device-io-test:dev
         imagePullPolicy: Always
         env:
           - name: VOLUME_Type

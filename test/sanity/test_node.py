@@ -1,15 +1,12 @@
-import json
 import socket
 import unittest
 
-from google.protobuf.json_format import MessageToJson
 from grpc import StatusCode
 import driver.consts as Consts
-from NVMeshSDK.APIs.TargetClassAPI import TargetClassAPI
-from NVMeshSDK.Entities.TargetClass import TargetClass
-from driver.common import NVMeshSDKHelper
+from driver import consts
 
-from driver.csi.csi_pb2 import NodeServiceCapability, VolumeCapability
+from driver.csi.csi_pb2 import NodeServiceCapability
+from test.sanity.helpers.config_loader_mock import DEFAULT_CONFIG_TOPOLOGY, ConfigLoaderMock
 from test.sanity.helpers.setup_and_teardown import start_server
 from test.sanity.helpers.test_case_with_server import TestCaseWithServerRunning
 
@@ -26,6 +23,12 @@ class TestNodeService(TestCaseWithServerRunning):
 		self.driver_server = None
 
 	def setUp(self):
+		config = {
+			'TOPOLOGY_TYPE': consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
+			'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY
+		}
+		ConfigLoaderMock(config).load()
+
 		self.driver_server = start_server(Consts.DriverType.Node, MOCK_NODE_ID)
 		self._client = NodeClient()
 
@@ -42,26 +45,16 @@ class TestNodeService(TestCaseWithServerRunning):
 		res = self._client.NodeGetInfo()
 		self.assertEquals(res.node_id, MOCK_NODE_ID)
 
-		self.assertEquals(res.accessible_topology.segments, {'node_id': MOCK_NODE_ID})
+		topology_info = res.accessible_topology.segments
+		print(topology_info)
+		# This is configured in ConfigLoaderMock.TOPOLOGY
+		self.assertEquals(topology_info.get(Consts.TopologyKey.ZONE), 'A')
 
 	@CatchRequestErrors
 	def test_get_capabilities(self):
 		res = self._client.NodeGetCapabilities()
 		expected = [NodeServiceCapability.RPC.STAGE_UNSTAGE_VOLUME, NodeServiceCapability.RPC.EXPAND_VOLUME]
 		self.assertListEqual(expected, [ item.rpc.type for item in list(res.capabilities) ])
-
-	@CatchRequestErrors
-	def test_node_stage_volume_fail_with_no_block_device(self):
-		def do_request():
-			return self._client.NodeStageVolume(volume_id=VOL_ID,
-												access_type=Consts.VolumeAccessType.BLOCK,
-												access_mode=VolumeCapability.AccessMode.MULTI_NODE_MULTI_WRITER)
-
-		self.assertReturnsGrpcError(do_request, StatusCode.INTERNAL, "Timed-out after waiting")
-
-	@CatchRequestErrors
-	def test_node_unstage_volume(self):
-		self._client.NodeUnstageVolume(volume_id=VOL_ID)
 
 	@CatchRequestErrors
 	def test_node_publish_volume(self):

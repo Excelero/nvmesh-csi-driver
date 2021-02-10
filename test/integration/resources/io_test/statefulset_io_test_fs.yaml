@@ -1,17 +1,30 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-io-svc
+  labels:
+    nvmesh-csi-testing: ""
+spec:
+  clusterIP: "None"
+  ports:
+    - port: 6000
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: fs-io-test
 spec:
+  serviceName: test-io-svc
   selector:
     matchLabels:
       app: fs-io-test
-  replicas: 3
+  replicas: 1
   template:
     metadata:
       labels:
         app: fs-io-test
     spec:
+      serviceAccountName: fs-mount-test
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -26,8 +39,8 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
       - name: io-test
-        image: image-registry.openshift-image-registry.svc:5000/default/nvmesh-io-test:dev
         imagePullPolicy: Always
+        image: excelero/block-device-io-test:dev
         env:
           - name: VOLUME_TYPE
             value: Filesystem
@@ -36,13 +49,20 @@ spec:
         volumeMounts:
           - name: vol1
             mountPath: /mnt/vol1
+        securityContext:
+          runAsUser: 2000
+          runAsGroup: 2000
+      securityContext:
+        fsGroup: 2000
   volumeClaimTemplates:
   - metadata:
       name: vol1
+      annotations:
+        volume.beta.kubernetes.io/mount-options: uid=2002,gid=2002
     spec:
       volumeMode: Filesystem
       accessModes: [ "ReadWriteOnce" ]
-      storageClassName: "nvmesh-raid0"
+      storageClassName: nvmesh-concatenated
       resources:
         requests:
-          storage: 10Gi
+          storage: 1Gi

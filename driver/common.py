@@ -8,10 +8,8 @@ from logging.handlers import SysLogHandler
 from subprocess import Popen, PIPE
 import grpc
 
-from NVMeshSDK.APIs.TargetAPI import TargetAPI
-from NVMeshSDK.APIs.TargetClassAPI import TargetClassAPI
+from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from NVMeshSDK.ConnectionManager import ConnectionManager, ManagementTimeout
-from NVMeshSDK.MongoObj import MongoObj
 from config import Config
 import consts as Consts
 
@@ -70,7 +68,7 @@ def CatchServerErrors(func):
 			exc_tb = exc_tb.tb_next
 			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 
-			if Config.PRINT_TRACEBACKS:
+			if Config.PRINT_STACK_TRACES:
 				import traceback
 				tb = traceback.format_exc()
 				print(tb)
@@ -276,40 +274,76 @@ class Utils(object):
 		# The following function will throw an Exception if the conversion is not allowed, causing the Stage to fail
 		Utils.verify_nvmesh_access_mode_allowed(current=current_access_mode, requested=requested_access_mode, volume_name=nvmesh_volume_name)
 
+	@staticmethod
+	def sanitize_json_object_keys(jsonObj):
+		if isinstance(jsonObj, dict):
+			for key in jsonObj.keys():
+				sanitized = Utils.sanitize_json_key(key)
+				jsonObj[sanitized] = jsonObj[key]
+				del jsonObj[key]
+		elif isinstance(jsonObj, list):
+			for index, item in enumerate(jsonObj):
+				jsonObj[index] = Utils.sanitize_json_object_keys(item)
+
+		return jsonObj
+
+	@staticmethod
+	def sanitize_json_key(key):
+		return key.replace('.','{dot}')
+
+	@staticmethod
+	def nvmesh_vol_name_to_co_id(nvmesh_vol_name, zone):
+		if zone:
+			return zone + ':' + nvmesh_vol_name
+		else:
+			return nvmesh_vol_name
+
+	@staticmethod
+	def zone_and_vol_name_from_co_id(volume_handle_id):
+		parts = volume_handle_id.split(':')
+		if len(parts) == 2:
+			return parts[0], parts[1]
+		if len(parts) == 1:
+			return None, parts[0]
 
 class NVMeshSDKHelper(object):
 	logger = DriverLogger("NVMeshSDKHelper")
 
 	@staticmethod
-	def _try_get_sdk_instance():
+	def _try_get_sdk_instance(logger):
 		protocol = Config.MANAGEMENT_PROTOCOL
 		managementServers = Config.MANAGEMENT_SERVERS
 		user = Config.MANAGEMENT_USERNAME
 		password = Config.MANAGEMENT_PASSWORD
 
-		serversWithProtocol = ['{0}://{1}'.format(protocol, server) for server in managementServers.split(',')]
+		# This call will try to connect to the Management Server Instance
+		api = VolumeAPI(managementServers=managementServers, managementProtocol=protocol, user=user, password=password, logger=logger)
+		err, connected = api.managementConnection.get('/isAlive')
 
-		return ConnectionManager.getInstance(managementServer=serversWithProtocol, user=user, password=password, logToSysLog=False)
+		if err:
+			raise err
+
+		return api, connected
 
 	@staticmethod
-	def init_sdk():
+	def init_sdk(logger):
 		connected = False
-
+		api = None
 		# try until able to connect to NVMesh Management
 		print("Looking for a NVMesh Management server using {} from servers {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
 		while not connected:
 			try:
-				NVMeshSDKHelper._try_get_sdk_instance()
-				connected = ConnectionManager.getInstance().isAlive()
+				api, connected = NVMeshSDKHelper._try_get_sdk_instance(logger)
 			except ManagementTimeout as ex:
-				NVMeshSDKHelper.logger.info("Waiting for NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
+				NVMeshSDKHelper.logger.info("Waiting for NVMesh Management servers on ({}) {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
 				Utils.interruptable_sleep(10)
 
-		print("Connected to NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
+			print("Connected to NVMesh Management server on ({}) {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
+		return api
 
 	@staticmethod
-	def get_management_version():
-		err, out = ConnectionManager.getInstance().get('/version')
+	def get_management_version(api):
+		err, out = api.managementConnection.get('/version')
 		if not err:
 			version_info = {}
 			lines = out.split('\n')

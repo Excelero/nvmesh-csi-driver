@@ -1,7 +1,7 @@
 # Default values for nvmesh-csi-driver.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-namespaceOverride: ""
+namespaceOverride: "test-csi-driver"
 appName: nvmesh-csi-driver
 driverName: nvmesh-csi.excelero.com
 
@@ -10,13 +10,19 @@ features:
 
 config:
   protocol: https
-  servers: your.server.com:4000
+  servers: 10.0.1.117:4000
   # use the format of <ip:port> or <hostname:port> pointing to your management server REST interface
   # To combine with nvmesh-management container in kubernetes, please use the following service reference for management.servers
   #management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"
 
   username: YWRtaW5AZXhjZWxlcm8uY29t
   password: YWRtaW4=
+
+  attachIOEnabledTimeout: 30
+  printStackTraces: false
+  topologyType: zone
+  topology: "{\"zones\": {\"A\": {\"nodes\": [\"nvme115.excelero.com\"], \"managementAddress\": \"10.0.1.115:4000\"}, \"B\": {\"nodes\": [\"nvme117.excelero.com\"], \"managementAddress\": \"10.0.1.117:4000\"}, \"C\": {\"nodes\": [\"nvme127.excelero.com\"], \"managementAddress\": \"10.0.1.127:4000\"}}}"
+  multipleNVMeshBackends: true
 
 hostBinariesPath: /bin
 systemdHost: true

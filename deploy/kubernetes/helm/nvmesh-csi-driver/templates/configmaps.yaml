@@ -8,4 +8,8 @@ metadata:
 data:
   management.protocol: {{ .Values.config.protocol }}
   management.servers: {{ .Values.config.servers }}
-  config: '{}'
+  attachIOEnabledTimeout: "{{ .Values.config.attachIOEnabledTimeout }}"
+  printStackTraces: "{{ .Values.config.printStackTraces }}"
+  multipleNVMeshBackends: "{{ .Values.config.multipleNVMeshBackends }}"
+  topology: |-
+{{ .Files.Get "topology.json" | indent 4 }}

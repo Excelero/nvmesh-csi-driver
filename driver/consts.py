@@ -23,6 +23,18 @@ class VolumeAccessType(object):
 	BLOCK = 'block'
 	MOUNT = 'mount'
 
+class TopologyType(object):
+	SINGLE_ZONE_CLUSTER = 'single-zone-cluster'
+	MULTIPLE_NVMESH_CLUSTERS = 'multiple-nvmesh-clusters'
+
+class TopologyKey(object):
+	ZONE = DEFAULT_DRIVER_NAME + '/zone'
+	TARGET_CLASSES = DEFAULT_DRIVER_NAME + '/target-classes'
+
+class ZoneSelectionPolicy(object):
+	RANDOM = 'random'
+	ROUND_ROBIN = 'round-robin'
+
 class AccessMode(object):
 	SINGLE_NODE_WRITER = VolumeCapability.AccessMode.SINGLE_NODE_WRITER
 	MULTI_NODE_READER_ONLY = VolumeCapability.AccessMode.MULTI_NODE_READER_ONLY

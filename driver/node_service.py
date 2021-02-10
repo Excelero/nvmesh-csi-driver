@@ -13,6 +13,7 @@ from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeSe
 	NodeStageVolumeResponse, NodeUnstageVolumeResponse, NodeExpandVolumeResponse, Topology
 from csi.csi_pb2_grpc import NodeServicer
 from config import config_loader, Config
+from topology import TopologyUtils
 
 
 class NVMeshNodeService(NodeServicer):
@@ -26,12 +27,14 @@ class NVMeshNodeService(NodeServicer):
 
 		feature_list = json.dumps(FeatureSupportChecks.get_all_features(), indent=4, sort_keys=True)
 		self.logger.info('Supported Features: {}'.format(feature_list))
+		self.topology = self._get_topology()
 
 	@CatchServerErrors
 	def NodeStageVolume(self, request, context):
 		Utils.validate_params_exists(request, ['volume_id', 'staging_target_path', 'volume_capability'])
 
-		volume_id = request.volume_id
+		zone, nvmesh_volume_name = Utils.zone_and_vol_name_from_co_id(request.volume_id)
+
 		staging_target_path = request.staging_target_path
 		volume_capability = request.volume_capability
 		secrets = request.secrets
@@ -44,7 +47,6 @@ class NVMeshNodeService(NodeServicer):
 		access_mode = volume_capability.access_mode.mode
 		access_type = self._get_block_or_mount_volume(request)
 
-		nvmesh_volume_name = volume_id
 		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_volume_name)
 
 		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
@@ -88,9 +90,8 @@ class NVMeshNodeService(NodeServicer):
 		reqJson = MessageToJson(request)
 		self.logger.debug('NodeUnstageVolume called with request: {}'.format(reqJson))
 
-		volume_id = request.volume_id
 		staging_target_path = request.staging_target_path
-		nvmesh_volume_name = volume_id
+		zone, nvmesh_volume_name = Utils.zone_and_vol_name_from_co_id(request.volume_id)
 
 		if os.path.exists(staging_target_path):
 			FileSystemManager.umount(target=staging_target_path)
@@ -113,8 +114,7 @@ class NVMeshNodeService(NodeServicer):
 		# NodePublishVolume: This method is called to mount the volume from staging to target path.
 		Utils.validate_params_exists(request, ['volume_id', 'target_path'])
 
-		volume_id = request.volume_id
-		nvmesh_volume_name = volume_id
+		zone, nvmesh_volume_name = Utils.zone_and_vol_name_from_co_id(request.volume_id)
 		staging_target_path = request.staging_target_path
 		publish_path = request.target_path
 		volume_capability = request.volume_capability
@@ -161,7 +161,6 @@ class NVMeshNodeService(NodeServicer):
 	def NodeUnpublishVolume(self, request, context):
 		Utils.validate_params_exists(request, ['volume_id', 'target_path'])
 
-		volume_id = request.volume_id
 		target_path = request.target_path
 
 		reqJson = MessageToJson(request)
@@ -246,8 +245,7 @@ class NVMeshNodeService(NodeServicer):
 	def NodeGetInfo(self, request, context):
 		reqDict = MessageToDict(request)
 		self.logger.debug('NodeGetInfo called with request: {}'.format(reqDict))
-		topology = self._get_topology(reqDict)
-		return NodeGetInfoResponse(node_id=self.node_id, accessible_topology=topology)
+		return NodeGetInfoResponse(node_id=self.node_id, accessible_topology=self.topology)
 
 	def _get_block_or_mount_volume(self, request):
 		volume_capability = request.volume_capability
@@ -273,14 +271,18 @@ class NVMeshNodeService(NodeServicer):
 
 		return podInfo
 
-	def _get_topology(self, requestDict):
-		self.logger.debug('_get_topology called with request info %s' % requestDict)
-		topology_info = {
-			'node_id': self.node_id,
-			'debug': 'true'
-		}
+	def _get_topology(self):
+		self.logger.debug('_get_topology called TopologyType=%s' % Config.TOPOLOGY_TYPE)
 
-		self.logger.debug('_get_topology returning %s' % topology_info)
+		topology_info = {}
+
+		if Config.TOPOLOGY_TYPE == Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS:
+			zone = TopologyUtils.get_node_zone_from_topology(self.node_id)
+			topology_info[Consts.TopologyKey.ZONE] = zone
+		elif Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
+			topology_info[Consts.TopologyKey.ZONE] = Consts.TopologyType.SINGLE_ZONE_CLUSTER
+		else:
+			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Unsupported Config.TOPOLOGY_TYPE of %s' % Config.TOPOLOGY_TYPE)
+
+		self.logger.debug('Node topology: %s' % topology_info)
 		return Topology(segments=topology_info)
-
-

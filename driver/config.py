@@ -3,7 +3,7 @@ import os
 
 import consts as Consts
 
-JSON_CONFIG_PATH = '/etc/config/config'
+CONFIG_PATH = '/config'
 NVMESH_VERSION_FILE_PATH = '/opt/NVMesh/client-repo/version'
 DRIVER_VERSION_FILE_PATH = '/version'
 
@@ -19,9 +19,12 @@ class Config(object):
 	SOCKET_PATH = None
 	DRIVER_NAME = None
 	ATTACH_IO_ENABLED_TIMEOUT = None
-	PRINT_TRACEBACKS = None
+	PRINT_STACK_TRACES = None
 	DRIVER_VERSION = None
 	NVMESH_VERSION_INFO = None
+	TOPOLOGY_TYPE = None
+	TOPOLOGY = None
+	MULTIPLE_NVMESH_BACKENDS = None
 
 class Parsers(object):
 	@staticmethod
@@ -35,8 +38,11 @@ class Parsers(object):
 
 
 def _read_file_contents(filename):
-	with open(filename) as file:
-		return file.readline()
+	with open(filename) as fp:
+		return fp.read()
+
+def _get_config_map_param(name, default=None):
+	return _read_file_contents(CONFIG_PATH + '/' + name) or default
 
 def _read_bash_file(filename):
 	g = {}
@@ -47,7 +53,7 @@ def _read_bash_file(filename):
 
 	return l
 
-def _get_env_var_or_default(key, default=None, parser=None):
+def _get_env_var(key, default=None, parser=None):
 	if key in os.environ:
 		if parser:
 			try:
@@ -59,34 +65,88 @@ def _get_env_var_or_default(key, default=None, parser=None):
 	else:
 		return default
 
-def _get_json_config():
-	try:
-		with open(JSON_CONFIG_PATH) as fp:
-			jsonConfig = json.load(fp)
-			return jsonConfig
-	except Exception as ex:
-		raise ConfigError('Error parsing json config. Error: {}'.format(ex.message))
+def parse_boolean(string_value):
+	if string_value.lower() == 'true':
+		return True
+	elif string_value.lower() == 'false':
+		return False
+	else:
+		raise ValueError('Could not parse boolean from %s. Please use True/False (case insensitive)' %string_value)
+
+def print_config():
+	asDict = dict(vars(Config))
+	params = {}
+	for key in asDict.keys():
+		if not key.startswith('_'):
+			params[key] = asDict[key]
+
+	print('Config=%s' % json.dumps(params, indent=4))
 
 class ConfigLoader(object):
 	def load(self):
-		Config.MANAGEMENT_SERVERS = _get_env_var_or_default('MANAGEMENT_SERVERS', default='')
-		Config.MANAGEMENT_PROTOCOL = _get_env_var_or_default('MANAGEMENT_PROTOCOL', default='https')
-		Config.MANAGEMENT_USERNAME = _get_env_var_or_default('MANAGEMENT_USERNAME', default='admin@excelero.com')
-		Config.MANAGEMENT_PASSWORD = _get_env_var_or_default('MANAGEMENT_PASSWORD', default='admin')
-		Config.SOCKET_PATH = _get_env_var_or_default('SOCKET_PATH', default=Consts.DEFAULT_UDS_PATH)
-		Config.DRIVER_NAME = _get_env_var_or_default('DRIVER_NAME', default=Consts.DEFAULT_DRIVER_NAME)
+		Config.MANAGEMENT_SERVERS = _get_config_map_param('management.servers')
+		Config.MANAGEMENT_PROTOCOL = _get_config_map_param('management.protocol', default='https')
+		Config.MANAGEMENT_USERNAME = _get_env_var('MANAGEMENT_USERNAME', default='admin@excelero.com')
+		Config.MANAGEMENT_PASSWORD = _get_env_var('MANAGEMENT_PASSWORD', default='admin')
+		Config.SOCKET_PATH = _get_env_var('SOCKET_PATH', default=Consts.DEFAULT_UDS_PATH)
+		Config.DRIVER_NAME = _get_env_var('DRIVER_NAME', default=Consts.DEFAULT_DRIVER_NAME)
 
 		Config.DRIVER_VERSION = _read_file_contents(DRIVER_VERSION_FILE_PATH)
 		Config.NVMESH_VERSION_INFO = _read_bash_file(NVMESH_VERSION_FILE_PATH)
 
-		jsonConfig = _get_json_config()
-		Config.ATTACH_IO_ENABLED_TIMEOUT = jsonConfig.get('attach_io_enabled_timeout', 30)
-		Config.PRINT_TRACEBACKS = jsonConfig.get('print_tracebacks', False)
+		Config.ATTACH_IO_ENABLED_TIMEOUT = int(_get_config_map_param('attachIOEnabledTimeout', default=30))
+		Config.PRINT_STACK_TRACES = _get_config_map_param('printStackTraces', default=False)
+		Config.TOPOLOGY = _get_config_map_param('topology', default=None)
+		Config.MULTIPLE_NVMESH_BACKENDS = parse_boolean(_get_config_map_param('multipleNVMeshBackends', default=False))
 
-		if not Config.MANAGEMENT_SERVERS:
-			raise ConfigError("MANAGEMENT_SERVERS environment variable not found or is empty")
-
+		ConfigValidator().validate()
 		print("Loaded Config with SOCKET_PATH={}, MANAGEMENT_SERVERS={}, DRIVER_NAME={}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS, Config.DRIVER_NAME))
 
+class ConfigValidator(object):
+	def validate(self):
+		if Config.MULTIPLE_NVMESH_BACKENDS:
+			if Config.MANAGEMENT_SERVERS:
+				print("WARNING: MANAGEMENT_SERVERS env variable has no effect when multipleNVMeshBackends is set to True")
+		else:
+			if not Config.MANAGEMENT_SERVERS:
+				raise ConfigError("MANAGEMENT_SERVERS environment variable not found or is empty")
+
+		if Config.TOPOLOGY:
+			try:
+				Config.TOPOLOGY = json.loads(Config.TOPOLOGY)
+			except ValueError as ex:
+				raise ConfigError('Failed to parse config.topology. Error %s. originalValue:\n%s' % (ex, Config.TOPOLOGY))
+
+		self.validate_topology()
+
+	def validate_topology(self):
+		if not Config.TOPOLOGY:
+			Config.TOPOLOGY_TYPE = Consts.TopologyType.SINGLE_ZONE_CLUSTER
+			return
+
+		supportedTopologyTypes = [
+			# The driver should handle each supported topology type in node_service.NodeGetInfo and controller_service.CreateVolume
+			Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS
+		]
+
+		topology_conf = Config.TOPOLOGY
+		Config.TOPOLOGY_TYPE = topology_conf.get('type', Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS)
+
+		if Config.TOPOLOGY_TYPE not in supportedTopologyTypes:
+			raise ConfigError('Unsupported topologyType %s' % Config.TOPOLOGY_TYPE)
+
+		if "zoneSelectionPolicy" not in topology_conf:
+			topology_conf["zoneSelectionPolicy"] = Consts.ZoneSelectionPolicy.RANDOM
+
+		if "zones" not in topology_conf:
+			raise ConfigError('Missing "zones" key in ConfigMap.topology')
+
+		zones = topology_conf["zones"]
+		if not isinstance(zones, dict):
+			raise ConfigError('Expected "zones" key in ConfigMap.topology to be a dict, but received %s' % type(zones))
+
+		for zone_name, zone_data in zones.items():
+			if "nodes" not in zone_data:
+				raise ConfigError('Missing "nodes" key in ConfigMap.topology in zone %s' % zone_name)
 
 config_loader = ConfigLoader()
