@@ -6,6 +6,7 @@ servers=()
 DEPLOY=false
 DEPLOY_ONLY=false
 DOCKER_OR_PODMAN=docker
+ONLY_MANIFESTS=false
 
 if [ -z "$DRIVER_VERSION" ]; then
     echo "Could not find version in $VERSION_FILE_PATH"
@@ -21,6 +22,7 @@ show_help() {
     echo "  --deploy                after build deploy using kubectl on the first server. example: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy"
     echo "  --build-tests           build also the integration testing containers. example: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy --build-tests"
     echo "  --podman                use podman instead of docker for building the image"
+    echo "  --only-manifests        build deployment.yaml and exit"
 }
 
 parse_args() {
@@ -60,6 +62,10 @@ parse_args() {
             BUILD_HELM_PKG=true
             shift
         ;;
+        --only-manifests)
+            ONLY_MANIFESTS=true
+            shift
+        ;;
         -h|--help)
             show_help
             exit 0
@@ -92,12 +98,14 @@ build_k8s_deployment_file() {
     # build Kubernetes deployment.yaml
     cd ../deploy/kubernetes/scripts
     ./build_deployment_file.sh
-
-    if [ $? -ne 0 ]; then
+    rc=$?
+    if [ $rc -ne 0 ]; then
         echo "Error running build_deployment_file.sh"
         exit 2
     fi
     cd -
+
+    return $rc
 }
 
 build_on_remote_machines() {
@@ -172,14 +180,24 @@ deploy() {
 ### MAIN ###
 parse_args $@
 
-if [ $DEPLOY_ONLY = true ]; then
+if [ "$DEPLOY_ONLY" == "true" ]; then
+    if [ "$ONLY_MANIFESTS" == "true" ]; then
+    echo "error in arguments: --deploy-only and --only-manifests cannot be combined"
+        exit 1
+    fi
+
     deploy
     exit 0
 fi
 
 build_k8s_deployment_file
+rc=$?
 
-if [ "$BUILD_HELM_PKG" == true ]; then
+if [ "$ONLY_MANIFESTS" == "true" ]; then
+    exit $rc
+fi
+
+if [ "$BUILD_HELM_PKG" == "true" ]; then
     echo "Building Helm Package"
     last_dir=$(pwd)
     cd ../deploy/kubernetes/helm
@@ -194,7 +212,7 @@ if [ ${#servers[@]} -eq 0 ];then
         build_testsing_containers
     fi
 
-    if [ $DEPLOY = true ]; then
+    if [ "$DEPLOY" == "true" ]; then
         deploy
     fi
 else
