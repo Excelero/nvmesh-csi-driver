@@ -75,7 +75,7 @@ class VolumeAPI(BaseClassAPI):
         """
         return super(VolumeAPI, self).get(page=page, count=count, filter=filter, sort=sort, projection=projection)
 
-    def delete(self, volumes):
+    def delete(self, volumes, postTimeout=None):
         """**Delete volumes**
 
         :param volumes: list of volumes ids or Volume entities
@@ -154,9 +154,9 @@ class VolumeAPI(BaseClassAPI):
                 >>> out
                 None
         """
-        return super(VolumeAPI, self).delete(entitiesList=volumes)
+        return super(VolumeAPI, self).delete(entitiesList=volumes, postTimeout=postTimeout)
 
-    def save(self, volumes):
+    def save(self, volumes, postTimeout=None):
         """**Save volumes**
 
         :param volumes: list of Volume entities
@@ -235,7 +235,7 @@ class VolumeAPI(BaseClassAPI):
                 >>> out
                 None
         """
-        return super(VolumeAPI, self).save(entitiesList=volumes)
+        return super(VolumeAPI, self).save(entitiesList=volumes, postTimeout=postTimeout)
 
     def update(self, volumes):
         """**Update volumes**

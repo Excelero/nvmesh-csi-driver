@@ -6,8 +6,8 @@ from NVMeshSDK.Consts import EndpointRoutes
 class LogAPI(BaseClassAPI):
     endpointRoute = EndpointRoutes.LOGS
     
-    def get(self, page=0, count=0, filter=None, sort=None):
-        """**Get logs  by page and count, limit the result using filter and sort**
+    def get(self, page=0, count=0, filter=None, sort=None, projection=None):
+        """**Get logs by page and count, limit the result using filter and sort**
 
         :param filter: Filter before fetching using MongoDB filter objects, defaults to None
         :type filter: list, optional
@@ -95,7 +95,7 @@ class LogAPI(BaseClassAPI):
                 >>> out
                 None
         """
-        return super(LogAPI, self).get(page=page, count=count, filter=filter, sort=sort)
+        return super(LogAPI, self).get(page=page, count=count, filter=filter, sort=sort, projection=projection)
 
     def getAlerts(self, page=0, count=0, filter=None, sort=None):
         """**Get alerts (errors that hasn't been acknowledged) by page and count, limit the result using filter and sort**
@@ -129,7 +129,7 @@ class LogAPI(BaseClassAPI):
                 {
                     "_id": "5d2c52d479a4fe562155ac07",
                     "level": "WARNING",
-                    "message": "The drive: SGFPZKBRMQ6Q.9 was automatically evicted for the following reason: 'Drive was imported from other NVMesh environment'",
+                    "message": "The drive: SGFPZKBRMQ6Q.9 was automatically evicted for the following reason: 'Drive was imported from another NVMesh environment'",
                     "meta": {
                         "acknowledged": false,
                         "header": "Drive automatically evicted",
@@ -138,7 +138,7 @@ class LogAPI(BaseClassAPI):
                             "entityType": "DISK",
                             "target": "scale-1.excelero.com"
                         },
-                        "rawMessage": "The drive: {} was automatically evicted for the following reason: 'Drive was imported from other NVMesh environment'"
+                        "rawMessage": "The drive: {} was automatically evicted for the following reason: 'Drive was imported from another NVMesh environment'"
                     },
                     "timestamp": "2019-07-15T10:17:56.506Z"
                 }
@@ -411,3 +411,11 @@ class LogAPI(BaseClassAPI):
 
     def getType(self):
         return Log
+
+
+class AlertAPI(LogAPI):
+    def count(self):
+        return super(AlertAPI, self).countAlerts()
+
+    def get(self, page=0, count=0, filter=None, sort=None, projection=None):
+        return super(AlertAPI, self).getAlerts(page=page, count=count, filter=filter, sort=sort)

@@ -18,12 +18,13 @@ class Client(Entity):
     Version = AttributeRepresentation(display='Version', dbKey='version')
     Health = AttributeRepresentation(display='Health', dbKey='health')
     Status = AttributeRepresentation(display='Status', dbKey='client_status')
+    NVMfAttachedVolumes = AttributeRepresentation(display='NVMf Attached Volumes', dbKey='nvmfAttachedVolumes')
     BlockDevices = AttributeRepresentation(display='Volume Attachments', dbKey='block_devices', type=BlockDevice)
     __objectsToInstantiate = ['BlockDevices']
 
     @Utils.initializer
     def __init__(self, _id=None, branch=None, configuration_version=None, client_status=None, block_devices=None, version=None, client_id=None, controlJobs=None,
-                 commit=None, messageSequence=None, connectionSequence=None, dateModified=None, health=None, health_old=None, managementAgentStatus=None):
+                 commit=None, messageSequence=None, connectionSequence=None, dateModified=None, health=None, health_old=None, managementAgentStatus=None, nvmfAttachedVolumes=None):
                 """**Initializes client entity**
 
                     :param _id: client's id, defaults to None

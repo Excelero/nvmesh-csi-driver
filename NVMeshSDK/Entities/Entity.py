@@ -18,8 +18,12 @@ class Entity(object):
     def __getattribute__(self, item):
         if '.' in item:
             parts = item.split('.')
-            array = Entity.__getattribute__(self, parts[0])
-            return [getattr(a, parts[1]) for a in array]
+            field = Entity.__getattribute__(self, parts[0])
+            if isinstance(field, list):
+                array = field
+                return [getattr(a, parts[1]) for a in array]
+            else:
+                return getattr(field, parts[1])
         else:
             return object.__getattribute__(self, item)
 
@@ -109,7 +113,6 @@ class Entity(object):
             success = False
 
         return success
-
 
     @staticmethod
     def getSchemaName():

@@ -3,9 +3,13 @@
 from functools import wraps
 import inspect
 import json
+import datetime
+import re
 import subprocess
 import os
-import re
+import urllib
+
+from Consts import ScriptPaths
 
 
 class Utils:
@@ -87,8 +91,10 @@ class Utils:
                 unitType = 'MiB'
             elif multiplier == 3:
                 unitType = 'GiB'
-            else:
+            elif multiplier == 4:
                 unitType = 'TiB'
+            else:
+                unitType = 'PiB'
 
             return unitType
 
@@ -132,8 +138,66 @@ class Utils:
         except Exception:
             return False
 
+    @staticmethod
+    def getTimeoutEndTime(timeout):
+        def addSecs(time, secs):
+            fullDate = datetime.datetime(time.year, time.month, time.day, time.hour, time.minute, time.second)
+            fullDate = fullDate + datetime.timedelta(seconds=secs)
+            return fullDate
+
+        startTime = datetime.datetime.now()
+        endTime = addSecs(startTime, timeout)
+
+        return endTime
 
     @staticmethod
-    def createDirIfNotExists(path):
-        if not os.path.exists(path):
+    def createDirIfNotExsits(path):
+        path = os.path.expanduser(path)
+        if not os.path.isdir(path):
             os.makedirs(path)
+
+    @staticmethod
+    def encodePlusInRoute(route):
+        return ''.join(map(lambda c: urllib.quote('+') if c == '+' else c, list(route))) if '+' in route else route
+
+    @staticmethod
+    def runLocalScript(scriptPath, args=[], sudo=False, logger=None):
+        if not os.path.exists(scriptPath):
+            err = 'Could not find local script {0}'.format(scriptPath)
+            if logger:
+                logger.error(err)
+            else:
+                print err
+        else:
+            cmd = ['sudo'] if sudo else []
+            cmd.append(scriptPath)
+            cmd = cmd + args
+            return Utils.executeLocalCommand(command=cmd)
+
+    @staticmethod
+    def getManagementDBUUID(managementCluster, managementProtocol='https', managementHttpPort='4000', logger=None):
+        dbUUID = Utils.runLocalScript(
+            scriptPath=ScriptPaths.NVMESH_CLI_PATH if os.path.exists(ScriptPaths.NVMESH_CLI_PATH) else '~/projects/management/NVMeshCLI/nvmesh',
+            args=[
+                'get-dbuuid',
+                '--mgmt-cluster', managementCluster,
+                '--mgmt-protocol', managementProtocol,
+                '--mgmt-http-port', managementHttpPort
+            ],
+            logger=logger
+        )
+
+        return dbUUID.strip().replace('-', '') if dbUUID else None
+
+    @staticmethod
+    def transformManagementClusterToUrls(managementCluster, managementServerProtocol, httpServerPort):
+        managementServerProtocol = managementServerProtocol + '://'
+
+        return map(lambda address: managementServerProtocol + address,
+                   map(lambda address: '{0}:{1}'.format(address.split(':')[0], httpServerPort),
+                       managementCluster.split(',')))
+
+    @staticmethod
+    def createRouteString(routes, endPointRoute):
+        return re.sub(r'/*/', '/', '/{0}/{1}'.format(endPointRoute, '/'.join(routes)))
+

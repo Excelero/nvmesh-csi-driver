@@ -1,4 +1,4 @@
-from NVMeshSDK.Entities.Drive import Drive
+from NVMeshSDK.Entities.Target import Target
 from .BaseClassAPI import BaseClassAPI
 from NVMeshSDK.Consts import EndpointRoutes
 
@@ -27,7 +27,7 @@ class DriveAPI(BaseClassAPI):
 
                 # deleting 2 drives using their ids
                 driveAPI = DriveAPI()
-                err, out = driveAPI.delete(['PHMD614200A3400FGN.1', 'S23YNAAH200330.1'])
+                err, out = driveAPI.deleteDrives(['PHMD614200A3400FGN.1', 'S23YNAAH200330.1'])
 
             - Expected Success Response::
 
@@ -102,9 +102,9 @@ class DriveAPI(BaseClassAPI):
 
                 from NVMeshSDK.APIs.DriveAPI import DriveAPI
 
-                # deleting 2 drives using their ids
+                # evicting 2 drives using their ids
                 driveAPI = DriveAPI()
-                err, out = driveAPI.delete(['PHMD614200A3400FGN.1', 'S23YNAAH200330.1'])
+                err, out = driveAPI.evictDrives(['PHMD614200A3400FGN.1', 'S23YNAAH200330.1'])
 
             - Expected Success Response::
 
@@ -166,8 +166,8 @@ class DriveAPI(BaseClassAPI):
     def formatDrives(self, drives, formatType=None):
         """**Format drives. --Start the format process for the specified disks according to the specified format type**
 
-        :param targets: list of drives ids or Drive entities
-        :type targets: list
+        :param drives: list of drives ids or Drive entities
+        :type drives: list
         :return: tuple (err, out)
 
             **err**: HTTP error details or None if there were no errors
@@ -179,9 +179,9 @@ class DriveAPI(BaseClassAPI):
 
                 from NVMeshSDK.APIs.DriveAPI import DriveAPI
 
-                # deleting 2 drives using their ids
+                # formatting 2 drives using their ids
                 driveAPI = DriveAPI()
-                err, out = driveAPI.delete(['PHMD614200A3400FGN.1', 'S23YNAAH200330.1'])
+                err, out = driveAPI.formatDrives(['PHMD614200A3400FGN.1', 'S23YNAAH200330.1'])
 
            - Expected Success Response::
 
@@ -251,15 +251,12 @@ class DriveAPI(BaseClassAPI):
     def update(self, entitiesList):
         raise NotImplemented
 
-    def count(self):
-        raise NotImplemented
-
     def delete(self, entitiesList):
-        raise NotImplemented
+        return self.deleteDrives(drives=entitiesList)
 
     @classmethod
     def getEndpointRoute(cls):
         return cls.endpointRoute
 
     def getType(self):
-        return Drive
+        return Target

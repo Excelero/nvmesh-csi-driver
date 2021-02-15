@@ -353,9 +353,6 @@ class TargetClassAPI(BaseClassAPI):
         """
         return super(TargetClassAPI, self).delete(entitiesList=targetClasses)
 
-    def count(self):
-        raise NotImplemented
-
     @classmethod
     def getEndpointRoute(cls):
         return cls.endpointRoute

@@ -29,7 +29,7 @@ class Target(Entity):
     @Utils.initializer
     def __init__(self, _id=None, branch=None, disks=None, nics=None, node_status=None, version=None, node_id=None,
                  commit=None, messageSequence=None, connectionSequence=None, dateModified=None, health=None,
-                 cpu_load=None, cpu_temp=None, uuid=None, tomaStatus=None, wsStatus=None, zone=None):
+                 cpu_load=None, cpu_temp=None, uuid=None, tomaStatus=None, wsStatus=None):
         """**Initializes target entity**
 
         :param _id: target's id, defaults to None

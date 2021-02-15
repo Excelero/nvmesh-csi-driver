@@ -132,11 +132,11 @@ class TargetAPI(BaseClassAPI):
         """
         return super(TargetAPI, self).get(page=page, count=count, filter=filter, sort=sort, projection=projection)
 
-    def deleteNicByIds(self, nicIds):
+    def deleteNicByIds(self, nicTargetIds):
         """**Delete specific NICs by IDs. --NIC can only be deleted if its status is Missing**
 
-        :param nicIds: list of nic ids
-        :type nicIds: list
+        :param nicTargetIds: list of NIC ID and target ID tuples
+        :type nicTargetIds: list
         :return: tuple (err, out)
 
             **err**: HTTP error details or None if there were no errors
@@ -148,9 +148,11 @@ class TargetAPI(BaseClassAPI):
 
                 from NVMeshSDK.APIs.TargetAPI import TargetAPI
 
-                # deleting 2 nics using their ids
+                # deleting 2 NICs using their ids and their target ids
                 targetAPI = TargetAPI()
-                err, out = cltargetAPI.deleteNicByIds(["0x00000000000000000000ffffc0a8640a", "0x00000000000000000000ffffc0a8c80a"])
+
+                nicTargetIds = [("0x00000000000000000000ffffcaaaaaaa","server-1"), ("0x00000000000000000000ffffcbbbbbbb", "server-2")]
+                err, out = targetAPI.deleteNicByIds(nicTargetIds)
 
             - Expected Success Response::
 
@@ -206,7 +208,8 @@ class TargetAPI(BaseClassAPI):
                 >>> out
                 None
         """
-        return [self.makePost(routes=['deleteNIC'], objects={'nicID': nicId}) for nicId in nicIds]
+
+        return [self.makePost(routes=['deleteNIC'], objects={'nicID': nicId, 'targetID': targetId}) for nicId, targetId in nicTargetIds]
 
     # entity or id
     def delete(self, targets):
