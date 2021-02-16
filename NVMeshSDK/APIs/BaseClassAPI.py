@@ -28,7 +28,7 @@ class BaseClassAPI(object):
         :type managementProtocol: str, optional
         :raises ConnectionManagerError: If there was a problem connecting to the management server.
         """
-        self.logger = Logger().getLogger('NVMeshSDK')
+        self.logger = logger if logger else Logger().getLogger('NVMeshSDK')
 
         if not managementServers:
             managementServers, managementProtocol = self.getManagementServersAndProtocolFromConfigs()
@@ -47,7 +47,7 @@ class BaseClassAPI(object):
             raise e
 
     def getDBUUID(self, managementServers):
-        err, result = ConfigurationVersionAPI(managementServersUrls=managementServers).getDBUUID()
+        err, result = ConfigurationVersionAPI(managementServersUrls=managementServers, logger=self.logger).getDBUUID()
         if err or not result:
             msg = 'Failed to resolve {} into DB UUID. '.format(managementServers)
             if err:

@@ -59,7 +59,8 @@ class ConnectionManager:
 
     @classmethod
     def removeInstance(cls, id):
-        del cls.__instances[id]
+        if id in cls.__instances:
+            del cls.__instances[id]
 
 
 class Connection(object):
@@ -77,7 +78,7 @@ class Connection(object):
         self.setManagementServers(managementServers)
         self.managementSetConfigs()
 
-        self.logger = (logger if logger else self.setLogger()).getLogger('ConnectionManager')
+        self.logger = (logger if logger else self.setLogger().getLogger('ConnectionManager'))
 
         self.currentMgmtIndex = self.getInititalMgmtIndex()
         self.user = user
@@ -158,7 +159,6 @@ class Connection(object):
             route = Utils.encodePlusInRoute(route)
             
         self.managementServer = self.managementServers[self.currentMgmtIndex]
-        self.logger.debug('Doing request to: {}'.format(self.managementServer))
         try:
             return self.doRequest(method, route, payload, postTimeout, numberOfRetries)
         except ManagementTimeout as ex:
@@ -181,6 +181,8 @@ class Connection(object):
         url = ''
         try:
             url = urlparse.urljoin(self.managementServer, route)
+            self.logger.debug('Doing request to: {}'.format(url))
+
             if method == 'post':
                 if isDebug and volumeSaveRoute:
                     startTime = time.time()

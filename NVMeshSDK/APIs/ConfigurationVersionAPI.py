@@ -6,9 +6,9 @@ from NVMeshSDK.Utils import Utils
 class ConfigurationVersionAPI(object):
 	endpointRoute = EndpointRoutes.INDEX
 
-	def __init__(self, managementServersUrls):
+	def __init__(self, managementServersUrls, logger=None):
 		try:
-			self.managementConnection = ConnectionManager.getInstance(managementServers=managementServersUrls, dbUUID='no-uuid')
+			self.managementConnection = ConnectionManager.getInstance(managementServers=managementServersUrls, dbUUID='no-uuid', logger=logger)
 		except ConnectionManagerError as e:
 			raise e
 
