@@ -38,13 +38,13 @@ class ConnectionManager:
 
     @staticmethod
     def getInstance(managementServer=None, user=DEFAULT_USERNAME, password=DEFAULT_PASSWORD,
-                 configFile=DEFAULT_NVMESH_CONFIG_FILE, logToSysLog=True):
+                 configFile=DEFAULT_NVMESH_CONFIG_FILE, logToStdout=True):
         if ConnectionManager.__instance is None:
-            ConnectionManager(managementServer, user, password, configFile, logToSysLog)
+            ConnectionManager(managementServer, user, password, configFile, logToStdout)
         return ConnectionManager.__instance
 
     def __init__(self, managementServer=None, user=DEFAULT_USERNAME, password=DEFAULT_PASSWORD,
-                 configFile=DEFAULT_NVMESH_CONFIG_FILE, logToSysLog=True):
+                 configFile=DEFAULT_NVMESH_CONFIG_FILE, logToStdout=True):
         if ConnectionManager.__instance is not None:
             raise Exception("This class is a singleton!")
         else:
@@ -55,7 +55,7 @@ class ConnectionManager:
             self.setManagementServer(managementServer)
             self.user = user
             self.password = password
-            self.logger = LoggerUtils.getLoggerWithHandler('ConnectionManager', logLevel=LoggerUtils.Consts.ManagementLogLevel.INFO, logToSysLog=logToSysLog)
+            self.logger = LoggerUtils.getLoggerWithHandler('ConnectionManager', logLevel=LoggerUtils.Consts.ManagementLogLevel.INFO, logToStdout=logToStdout)
             self.session = requests.session()
             self.isAlive()
 

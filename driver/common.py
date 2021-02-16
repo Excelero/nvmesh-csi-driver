@@ -282,7 +282,7 @@ class NVMeshSDKHelper(object):
 
 		serversWithProtocol = ['{0}://{1}'.format(protocol, server) for server in managementServers.split(',')]
 
-		return ConnectionManager.getInstance(managementServer=serversWithProtocol, user=user, password=password, logToSysLog=False)
+		return ConnectionManager.getInstance(managementServer=serversWithProtocol, user=user, password=password, logToStdout=False)
 
 	@staticmethod
 	def init_sdk():

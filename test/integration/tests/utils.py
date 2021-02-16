@@ -802,7 +802,7 @@ class NVMeshUtils(object):
 		# try until able to connect to NVMesh Management
 		while not connected:
 			try:
-				ConnectionManager.getInstance(managementServer=[NVMESH_MGMT_ADDRESS], logToSysLog=False)
+				ConnectionManager.getInstance(managementServer=[NVMESH_MGMT_ADDRESS], logToStdout=False)
 				connected = ConnectionManager.getInstance().isAlive()
 			except ManagementTimeout as ex:
 				logger.info("Waiting for NVMesh Management server on {}".format(NVMESH_MGMT_ADDRESS))

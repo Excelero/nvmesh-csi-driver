@@ -6,7 +6,7 @@ import traceback
 from logging.handlers import SysLogHandler
 from NVMeshSDK import Consts
 
-def getLoggerWithHandler(loggername, logToSysLog=True, logToStdout=False, logToStderr=False, logLevel=logging.DEBUG, propagate=True,
+def getLoggerWithHandler(loggername, logToSysLog=False, logToStdout=True, logToStderr=False, logLevel=logging.DEBUG, propagate=True,
 						formatString='%(name)s[{}]: %(levelname)s: %(message)s'.format(os.getpid())):
 	logger = logging.getLogger(loggername)
 	logger.propagate = propagate
@@ -39,6 +39,6 @@ def logStackTrace(ex, logger):
 	exc_type, exc_value, exc_traceback = sys.exc_info()
 	exString = traceback.format_exc()
 	errorLines = exString.split('\n')
-	
+
 	for line in errorLines:
 		logger.error(line)
