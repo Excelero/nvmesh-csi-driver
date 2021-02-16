@@ -5,11 +5,11 @@
 ## Versions And Compatibility
 Driver Version:     1.1.1
 
-NVMesh Version:     2.0.2 or higher
+NVMesh Version:     2.0.5 or higher
 
 CSI spec version:   1.3.0
 
-Kubernetes Version: 1.15 or higher
+Kubernetes Version: 1.17 or higher
 
 ## Kubernetes Quick Start
 
