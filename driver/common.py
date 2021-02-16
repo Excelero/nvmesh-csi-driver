@@ -84,7 +84,7 @@ class DriverError(Exception):
 		self.code = code
 
 class Utils(object):
-	logger = DriverLogger("Utils")
+	logger = DriverLogger("Utils", level=Config.LOG_LEVEL)
 
 	@staticmethod
 	def volume_id_to_nvmesh_name(co_vol_name):
@@ -271,7 +271,7 @@ class Utils(object):
 
 
 class NVMeshSDKHelper(object):
-	logger = DriverLogger("NVMeshSDKHelper")
+	logger = DriverLogger("NVMeshSDKHelper", level=Config.LOG_LEVEL)
 
 	@staticmethod
 	def _try_get_sdk_instance():

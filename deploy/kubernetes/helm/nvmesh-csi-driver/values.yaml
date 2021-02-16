@@ -24,9 +24,11 @@ systemdHost: true
 defaultStorageClasses: true
 
 controller:
+  logLevel: info
   replicaCount: 1
   tolerations: []
 nodeDriver:
+  logLevel: info
   tolerations:
     - key: node-role.kubernetes.io/master
       effect: NoSchedule

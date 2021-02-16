@@ -19,7 +19,7 @@ def log(msg):
 class NVMeshCSIDriverServer(object):
 	def __init__(self, driver_type):
 		self.driver_type = driver_type
-		self.logger = DriverLogger()
+		self.logger = DriverLogger(level=Config.LOG_LEVEL)
 		self.identity_service = NVMeshIdentityService(self.logger)
 
 		if self.driver_type == Consts.DriverType.Controller:

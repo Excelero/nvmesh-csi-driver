@@ -1,10 +1,11 @@
+import os
 import shutil
 
 from grpc import StatusCode
 
 from common import Utils, DriverLogger, DriverError
 
-logger = DriverLogger("FileSystemManager")
+logger = DriverLogger("FileSystemManager", level=os.environ.get('LOG_LEVEL', 'DEBUG').upper())
 
 class ArgumentError(Exception):
 	pass

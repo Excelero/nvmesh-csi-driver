@@ -72,6 +72,8 @@ spec:
                 secretKeyRef:
                   name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: password
+            - name: LOG_LEVEL
+              value: "{{ .Values.controller.logLevel }}"
           volumeMounts:
             - name: config-volume
               mountPath: /etc/config
@@ -194,6 +196,8 @@ spec:
                 secretKeyRef:
                   name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: password
+            - name: LOG_LEVEL
+              value: "{{ .Values.nodeDriver.logLevel }}"
           volumeMounts:
             - name: config-volume
               mountPath: /etc/config

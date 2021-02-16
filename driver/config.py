@@ -16,6 +16,7 @@ class Config(object):
 	DRIVER_NAME = None
 	ATTACH_IO_ENABLED_TIMEOUT = None
 	PRINT_TRACEBACKS = None
+	LOG_LEVEL = None
 
 class Parsers(object):
 	@staticmethod
@@ -58,6 +59,7 @@ class ConfigLoader(object):
 		Config.MANAGEMENT_PASSWORD = ConfigLoader._get_env_var_or_default('MANAGEMENT_PASSWORD', default='admin')
 		Config.SOCKET_PATH = ConfigLoader._get_env_var_or_default('SOCKET_PATH', default=Consts.DEFAULT_UDS_PATH)
 		Config.DRIVER_NAME = ConfigLoader._get_env_var_or_default('DRIVER_NAME', default=Consts.DEFAULT_DRIVER_NAME)
+		Config.LOG_LEVEL = ConfigLoader._get_env_var_or_default('LOG_LEVEL', default='DEBUG').upper()
 
 		jsonConfig = ConfigLoader._get_json_config()
 		Config.ATTACH_IO_ENABLED_TIMEOUT = jsonConfig.get('attach_io_enabled_timeout', 30)
