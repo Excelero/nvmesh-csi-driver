@@ -23,8 +23,8 @@ class NVMeshControllerService(ControllerServicer):
 		config_loader.load()
 		ControllerServicer.__init__(self)
 		self.logger = logger
-		if not Config.MULTIPLE_NVMESH_BACKENDS:
-			api = NVMeshSDKHelper.init_sdk(self.logger)
+		if not Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
+			api = NVMeshSDKHelper.init_session_with_single_management(self.logger)
 			management_version_info = NVMeshSDKHelper.get_management_version(api)
 			self._log_mgmt_version_info(management_version_info)
 
@@ -35,7 +35,6 @@ class NVMeshControllerService(ControllerServicer):
 		self._print_context_metadata(context)
 		Utils.validate_param_exists(request, 'name')
 		name = request.name
-		parameters = request.parameters
 		#UNUSED - secrets = request.secrets
 		#UNUSED - volume_content_source = request.volume_content_source
 
@@ -87,12 +86,11 @@ class NVMeshControllerService(ControllerServicer):
 		if not topology_requirements:
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Config.TOPOLOGY_TYPE = %s but received no topology info' % Config.TOPOLOGY_TYPE)
 
-		if Config.TOPOLOGY_TYPE == Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS:
-			zone = self._get_zone_from_topology(topology_requirements)
-			api = self._get_volume_api_from_zone(zone)
-			return api, zone
+		zone = self._get_zone_from_topology(topology_requirements)
+		api = self._get_volume_api(zone)
+		return api, zone
 
-	def _get_volume_api_from_config(self):
+	def _get_api_params_from_config(self):
 		return {
 			'managementServers': Config.MANAGEMENT_SERVERS,
 			'managementProtocol': Config.MANAGEMENT_PROTOCOL,
@@ -100,19 +98,9 @@ class NVMeshControllerService(ControllerServicer):
 			'password': Config.MANAGEMENT_PASSWORD
 		}
 
-	def _get_volume_api_from_zone(self, zone):
-		api_params = self._get_api_params_from_zone(zone)
-
-		try:
-			api = VolumeAPI(logger=self.logger, **api_params)
-			return api
-		except Exception as ex:
-			self.logger.error('Failed to create VolumeAPI with params: {}. \nError {}'.format(api_params, ex))
-			raise
-
-	def _get_api_params_from_zone(self, zone):
+	def _get_api_params(self, zone):
 		if Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
-			return self._get_volume_api_from_config()
+			return self._get_api_params_from_config()
 
 		mgmt_info = TopologyUtils.get_management_info_from_zone(zone)
 
@@ -144,6 +132,9 @@ class NVMeshControllerService(ControllerServicer):
 		return api_params
 
 	def _get_zone_from_topology(self, topology_requirements):
+		if Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
+			return Consts.SINGLE_CLUSTER_ZONE_NAME
+
 		# provisioner sidecar container should have --strict-topology flag set
 		# If volumeBindingMode is Immediate - all cluster topology will be received
 		# If volumeBindingMode is WaitForFirstConsumer - Only the topology of the node to which the pod is scheduled will be given
@@ -286,7 +277,7 @@ class NVMeshControllerService(ControllerServicer):
 		zone, nvmesh_vol_name = Utils.zone_and_vol_name_from_co_id(volume_id)
 		#secrets = request.secrets
 
-		volume_api = self._get_volume_api_from_zone(zone)
+		volume_api = self._get_volume_api(zone)
 
 		err, out = volume_api.delete([NVMeshVolume(_id=nvmesh_vol_name)])
 		if err:
@@ -306,28 +297,6 @@ class NVMeshControllerService(ControllerServicer):
 				raise DriverError(StatusCode.FAILED_PRECONDITION, err)
 
 		return DeleteVolumeResponse()
-
-	@CatchServerErrors
-	def ControllerPublishVolume(self, request, context):
-		Utils.validate_params_exists(request, ['node_id', 'volume_id', 'volume_capability'])
-
-		nvmesh_vol_name = request.volume_id
-		self._validate_volume_exists(nvmesh_vol_name)
-		self._validate_node_exists(request.node_id)
-
-
-		return ControllerPublishVolumeResponse()
-
-	@CatchServerErrors
-	def ControllerUnpublishVolume(self, request, context):
-		Utils.validate_params_exists(request, ['node_id', 'volume_id'])
-
-		nvmesh_vol_name = request.volume_id
-		self._validate_volume_exists(nvmesh_vol_name)
-		self._validate_node_exists(request.node_id)
-
-
-		return ControllerUnpublishVolumeResponse()
 
 	@CatchServerErrors
 	def ValidateVolumeCapabilities(self, request, context):
@@ -359,7 +328,10 @@ class NVMeshControllerService(ControllerServicer):
 			MongoObj(field='capacity', value=1)
 		]
 
-		err, nvmeshVolumes = VolumeAPI().get(projection=projection, page=page, count=count)
+		# TODO: we should probably iterate over all management servers and return all volumes while populating the volume.accessible_topology field
+		zone = ''
+		volume_api = self._get_volume_api(zone)
+		err, nvmeshVolumes = volume_api.get(projection=projection, page=page, count=count)
 
 		if err:
 			raise DriverError(StatusCode.INTERNAL, err)
@@ -425,10 +397,7 @@ class NVMeshControllerService(ControllerServicer):
 		capacity_in_bytes = request.capacity_range.required_bytes
 		zone, nvmesh_vol_name = Utils.zone_and_vol_name_from_co_id(request.volume_id)
 
-		if Config.TOPOLOGY_TYPE != Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS:
-			volume_api = self._get_volume_api_from_config()
-		else:
-			volume_api = self._get_volume_api_from_zone(zone)
+		volume_api = self._get_volume_api(zone)
 		volume = self.get_nvmesh_volume(volume_api, nvmesh_vol_name)
 
 		# Call Node Expansion Method to Expand a FileSystem
@@ -511,14 +480,6 @@ class NVMeshControllerService(ControllerServicer):
 		if err or not len(out):
 			raise DriverError(StatusCode.NOT_FOUND, 'Could not find Volume with id {}'.format(nvmesh_vol_name))
 
-	def _validate_node_exists(self, node_id):
-		filterObj = [MongoObj(field='node_id', value=node_id)]
-		projection = [MongoObj(field='_id', value=1)]
-
-		err, matches = TargetAPI().get(filter=filterObj, projection=projection)
-		if err or not len(matches):
-			raise DriverError(StatusCode.NOT_FOUND, 'Could not find Node with id {}'.format(node_id))
-
 	def _get_volume_by_name(self, volume_id, zone=None):
 		volume_api = self._get_volume_api(zone)
 
@@ -533,11 +494,14 @@ class NVMeshControllerService(ControllerServicer):
 				return None, data[0]
 
 	def _get_volume_api(self, zone=None):
-		if Config.TOPOLOGY_TYPE == Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS:
-			volume_api = self._get_volume_api_from_zone(zone)
-		else:
-			volume_api = self._get_volume_api_from_config()
-		return volume_api
+		api_params = self._get_api_params(zone)
+
+		try:
+			volume_api = VolumeAPI(logger=self.logger.getChild('NVMeshSDK'), **api_params)
+			return volume_api
+		except Exception as ex:
+			self.logger.error('Failed to create VolumeAPI with params: {}. \nError {}'.format(api_params, ex))
+			raise
 
 	def _log_mgmt_version_info(self, management_version_info):
 		msg = "Management Version:"

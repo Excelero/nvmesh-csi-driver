@@ -24,7 +24,6 @@ class Config(object):
 	NVMESH_VERSION_INFO = None
 	TOPOLOGY_TYPE = None
 	TOPOLOGY = None
-	MULTIPLE_NVMESH_BACKENDS = None
 
 class Parsers(object):
 	@staticmethod
@@ -42,7 +41,13 @@ def _read_file_contents(filename):
 		return fp.read()
 
 def _get_config_map_param(name, default=None):
-	return _read_file_contents(CONFIG_PATH + '/' + name) or default
+	value = None
+	try:
+		value = _read_file_contents(CONFIG_PATH + '/' + name)
+	except IOError:
+		pass
+
+	return value or default
 
 def _read_bash_file(filename):
 	g = {}
@@ -64,14 +69,6 @@ def _get_env_var(key, default=None, parser=None):
 			return os.environ[key]
 	else:
 		return default
-
-def parse_boolean(string_value):
-	if string_value.lower() == 'true':
-		return True
-	elif string_value.lower() == 'false':
-		return False
-	else:
-		raise ValueError('Could not parse boolean from %s. Please use True/False (case insensitive)' %string_value)
 
 def print_config():
 	asDict = dict(vars(Config))
@@ -97,14 +94,13 @@ class ConfigLoader(object):
 		Config.ATTACH_IO_ENABLED_TIMEOUT = int(_get_config_map_param('attachIOEnabledTimeout', default=30))
 		Config.PRINT_STACK_TRACES = _get_config_map_param('printStackTraces', default=False)
 		Config.TOPOLOGY = _get_config_map_param('topology', default=None)
-		Config.MULTIPLE_NVMESH_BACKENDS = parse_boolean(_get_config_map_param('multipleNVMeshBackends', default=False))
 
 		ConfigValidator().validate()
 		print("Loaded Config with SOCKET_PATH={}, MANAGEMENT_SERVERS={}, DRIVER_NAME={}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS, Config.DRIVER_NAME))
 
 class ConfigValidator(object):
 	def validate(self):
-		if Config.MULTIPLE_NVMESH_BACKENDS:
+		if Config.TOPOLOGY:
 			if Config.MANAGEMENT_SERVERS:
 				print("WARNING: MANAGEMENT_SERVERS env variable has no effect when multipleNVMeshBackends is set to True")
 		else:

@@ -280,7 +280,7 @@ class NVMeshNodeService(NodeServicer):
 			zone = TopologyUtils.get_node_zone_from_topology(self.node_id)
 			topology_info[Consts.TopologyKey.ZONE] = zone
 		elif Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
-			topology_info[Consts.TopologyKey.ZONE] = Consts.TopologyType.SINGLE_ZONE_CLUSTER
+			topology_info[Consts.TopologyKey.ZONE] = Consts.SINGLE_CLUSTER_ZONE_NAME
 		else:
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Unsupported Config.TOPOLOGY_TYPE of %s' % Config.TOPOLOGY_TYPE)
 

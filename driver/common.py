@@ -320,7 +320,7 @@ class NVMeshSDKHelper(object):
 	logger = DriverLogger("NVMeshSDKHelper")
 
 	@staticmethod
-	def _try_get_sdk_instance(logger):
+	def _try_to_connect_to_single_management(logger):
 		protocol = Config.MANAGEMENT_PROTOCOL
 		managementServers = Config.MANAGEMENT_SERVERS
 		user = Config.MANAGEMENT_USERNAME
@@ -336,14 +336,14 @@ class NVMeshSDKHelper(object):
 		return api, connected
 
 	@staticmethod
-	def init_sdk(logger):
+	def init_session_with_single_management(logger):
 		connected = False
 		api = None
 		# try until able to connect to NVMesh Management
 		print("Looking for a NVMesh Management server using {} from servers {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
 		while not connected:
 			try:
-				api, connected = NVMeshSDKHelper._try_get_sdk_instance(logger)
+				api, connected = NVMeshSDKHelper._try_to_connect_to_single_management(logger)
 			except ManagementTimeout as ex:
 				NVMeshSDKHelper.logger.info("Waiting for NVMesh Management servers on ({}) {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
 				Utils.interruptable_sleep(10)

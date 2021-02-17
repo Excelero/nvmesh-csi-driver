@@ -35,7 +35,6 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 		config = {
 			'TOPOLOGY_TYPE': Consts.TopologyType.SINGLE_ZONE_CLUSTER,
 			'TOPOLOGY': None,
-			'MULTIPLE_NVMESH_BACKENDS': False
 		}
 		ConfigLoaderMock(config).load()
 		print_config()
@@ -145,7 +144,6 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 			'MANAGEMENT_USERNAME': None,
 			'MANAGEMENT_PASSWORD': None,
 			'TOPOLOGY_TYPE': Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
-			'MULTIPLE_NVMESH_BACKENDS': True,
 			'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY
 		}
 
