@@ -44,7 +44,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: nvmesh-csi-driver
-  namespace: test-csi-driver
+  namespace: nvmesh-csi-driver
   labels:
     helm.sh/chart: nvmesh-csi-driver-1.1.1
     app.kubernetes.io/name: nvmesh-csi-driver
@@ -57,7 +57,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: nvmesh-csi-driver-credentials
-  namespace: test-csi-driver
+  namespace: nvmesh-csi-driver
   labels:
     helm.sh/chart: nvmesh-csi-driver-1.1.1
     app.kubernetes.io/name: nvmesh-csi-driver
@@ -73,7 +73,7 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: nvmesh-csi-driver-config
-  namespace: test-csi-driver
+  namespace: nvmesh-csi-driver
   labels:
     helm.sh/chart: nvmesh-csi-driver-1.1.1
     app.kubernetes.io/name: nvmesh-csi-driver
@@ -247,7 +247,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: test-csi-driver-use-psp
+  name: nvmesh-csi-driver-use-psp
 rules:
   - apiGroups: ["policy"]
     resourceNames: ["psp.nvmesh-csi-driver"]
@@ -262,7 +262,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi-driver
-    namespace: test-csi-driver
+    namespace: nvmesh-csi-driver
 roleRef:
   kind: ClusterRole
   name: nvmesh-csi-driver:external-provisioner-runner
@@ -276,7 +276,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi-driver
-    namespace: test-csi-driver
+    namespace: nvmesh-csi-driver
 roleRef:
   kind: ClusterRole
   name: nvmesh-csi-driver:external-attacher-runner
@@ -290,7 +290,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi-driver
-    namespace: test-csi-driver
+    namespace: nvmesh-csi-driver
 roleRef:
   kind: ClusterRole
   name: nvmesh-csi-driver:external-resizer-runner
@@ -300,14 +300,14 @@ roleRef:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: test-csi-driver-use-psp
+  name: nvmesh-csi-driver-use-psp
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi-driver
-    namespace: test-csi-driver
+    namespace: nvmesh-csi-driver
 roleRef:
   kind: ClusterRole
-  name: test-csi-driver-use-psp
+  name: nvmesh-csi-driver-use-psp
   apiGroup: rbac.authorization.k8s.io
 ---
 # Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
@@ -316,7 +316,7 @@ roleRef:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: test-csi-driver
+  namespace: nvmesh-csi-driver
   name: nvmesh-csi-driver:external-provisioner-cfg
 rules:
 # Only one of the following rules for endpoints or leases is required based on
@@ -337,7 +337,7 @@ rules:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: test-csi-driver
+  namespace: nvmesh-csi-driver
   name: nvmesh-csi-driver:external-attacher-cfg
 rules:
 # access to configmaps is only supported for backwards compatibility reasons
@@ -355,7 +355,7 @@ rules:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: test-csi-driver
+  namespace: nvmesh-csi-driver
   name: nvmesh-csi-driver:external-resizer-cfg
 rules:
 - apiGroups: ["coordination.k8s.io"]
@@ -367,7 +367,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: nvmesh-csi-driver:csi-provisioner-role-cfg
-  namespace: test-csi-driver
+  namespace: nvmesh-csi-driver
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi-driver
@@ -386,7 +386,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: nvmesh-csi-driver:csi-attacher-role-cfg
-  namespace: test-csi-driver
+  namespace: nvmesh-csi-driver
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi-driver
@@ -413,7 +413,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: nvmesh-csi-driver:csi-resizer-role-cfg
-  namespace: test-csi-driver
+  namespace: nvmesh-csi-driver
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi-driver
@@ -427,7 +427,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: nvmesh-csi-driver
-  namespace: test-csi-driver
+  namespace: nvmesh-csi-driver
   labels:
     helm.sh/chart: nvmesh-csi-driver-1.1.1
     app.kubernetes.io/name: nvmesh-csi-driver
@@ -452,7 +452,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: nvmesh-csi-driver-node-driver
-  namespace: test-csi-driver
+  namespace: nvmesh-csi-driver
 spec:
   selector:
     matchLabels:
@@ -604,7 +604,7 @@ kind: StatefulSet
 apiVersion: apps/v1
 metadata:
   name: nvmesh-csi-driver-controller
-  namespace: test-csi-driver
+  namespace: nvmesh-csi-driver
 spec:
   serviceName: nvmesh-csi-driver
   selector:
@@ -723,7 +723,7 @@ apiVersion: storage.k8s.io/v1beta1
 kind: CSIDriver
 metadata:
   name: nvmesh-csi.excelero.com
-  namespace: test-csi-driver
+  namespace: nvmesh-csi-driver
   labels:
     helm.sh/chart: nvmesh-csi-driver-1.1.1
     app.kubernetes.io/name: nvmesh-csi-driver
