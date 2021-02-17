@@ -29,7 +29,6 @@ class TopologyType(object):
 
 class TopologyKey(object):
 	ZONE = DEFAULT_DRIVER_NAME + '/zone'
-	TARGET_CLASSES = DEFAULT_DRIVER_NAME + '/target-classes'
 
 class ZoneSelectionPolicy(object):
 	RANDOM = 'random'

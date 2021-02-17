@@ -248,14 +248,15 @@ class NVMeshControllerService(ControllerServicer):
 
 		if raid_level in [RAIDLevels.MIRRORED_RAID_1, RAIDLevels.STRIPED_AND_MIRRORED_RAID_10]:
 			nvmesh_params['numberOfMirrors'] = 1
-			nvmesh_params['enableCrcCheck'] = nvmesh_params.get('enableCrcCheck', False)
+			nvmesh_params['enableCrcCheck'] = Utils.parseBoolean(nvmesh_params.get('enableCrcCheck', False))
 
 		if raid_level == RAIDLevels.ERASURE_CODING:
 			nvmesh_params['dataBlocks'] = int(nvmesh_params.get('dataBlocks', 8))
 			nvmesh_params['parityBlocks'] = int(nvmesh_params.get('parityBlocks', 2))
 			nvmesh_params['protectionLevel'] = nvmesh_params.get('protectionLevel', EcSeparationTypes.FULL)
 			nvmesh_params['stripeSize'] = int(nvmesh_params.get('stripeSize', 32))
-			nvmesh_params['enableCrcCheck'] = nvmesh_params.get('enableCrcCheck', True)
+			nvmesh_params['stripeWidth'] = int(nvmesh_params.get('stripeWidth', 1))
+			nvmesh_params['enableCrcCheck'] = Utils.parseBoolean(nvmesh_params.get('enableCrcCheck', True))
 
 	def _wait_for_volume_status(self, volume_id, status, zone=None):
 

@@ -289,7 +289,7 @@ class Utils(object):
 
 	@staticmethod
 	def sanitize_json_key(key):
-		return key.replace('.','{dot}')
+		return key.replace('.','-')
 
 	@staticmethod
 	def nvmesh_vol_name_to_co_id(nvmesh_vol_name, zone):
@@ -305,6 +305,16 @@ class Utils(object):
 			return parts[0], parts[1]
 		if len(parts) == 1:
 			return None, parts[0]
+
+	@staticmethod
+	def parseBoolean(value):
+		if type(value) == bool:
+			return value
+		elif type(value) == str or type(value) == unicode:
+			return value.lower() == 'true'
+
+		raise ValueError('Failed to parse boolean from %s with type %s' % (value, type(value)))
+
 
 class NVMeshSDKHelper(object):
 	logger = DriverLogger("NVMeshSDKHelper")
