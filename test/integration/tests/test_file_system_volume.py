@@ -89,7 +89,7 @@ class TestFileSystemVolume(unittest.TestCase):
 		KubeUtils.wait_for_pvc_to_extend(pvc_name, new_size)
 
 		# wait for NVMesh Volume to show the updated size
-		nvmesh_vol_name = KubeUtils.get_nvmesh_vol_name_from_pvc_name(pvc_name)
+		nvmesh_vol_name, mgmt_address = KubeUtils.get_nvmesh_vol_name_from_pvc_name(pvc_name)
 		size_5_gib_in_bytes = 5368709120
 
 		NVMeshUtils.wait_for_nvmesh_vol_properties(nvmesh_vol_name, { 'capacity': size_5_gib_in_bytes }, self, attempts=15)

@@ -1,11 +1,11 @@
 #!/usr/bin/env python2
 import unittest
 
-from utils import TestUtils, KubeUtils, NVMESH_MGMT_ADDRESSES
+from utils import TestUtils, KubeUtils, TestConfig
 
 logger = TestUtils.get_logger()
 
-@unittest.skipIf(len(NVMESH_MGMT_ADDRESSES) < 2, reason="topology test requires at least 2 NVMesh Clusters forming 2 differenet zones. Check env var NVMESH_MGMT_ADDRESSES")
+
 class TestTopology(unittest.TestCase):
 	def _create_first_consumer_storage_class(self):
 		# create storage class
@@ -82,7 +82,6 @@ class TestTopology(unittest.TestCase):
 			pod_names.add('pod-' + str(i))
 			pvc_names.add('pvc-' + str(i))
 
-
 		# create PVCs
 		for pvc_name in pvc_names:
 			KubeUtils.create_pvc_with_cleanup(self, pvc_name, storage_class_name, volumeMode='Block')
@@ -136,6 +135,7 @@ class TestTopology(unittest.TestCase):
 		sc_name = self._create_first_consumer_storage_class()
 		self.addCleanup(lambda: KubeUtils.delete_storage_class(sc_name))
 		self._check_pods_using_same_pvc_are_on_same_zone(sc_name)
+
 
 if __name__ == '__main__':
 	TestUtils.run_unittest()

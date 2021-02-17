@@ -6,14 +6,32 @@ from kubernetes.client.rest import ApiException
 
 from NVMeshSDK.Consts import RAIDLevels
 from NVMeshSDK.Entities.Volume import Volume
-from utils import TestUtils, KubeUtils, NVMeshUtils, TEST_NAMESPACE, core_api
+from utils import TestUtils, KubeUtils, NVMeshUtils, core_api
 
 logger = TestUtils.get_logger()
 
-GiB = 1024*1024*1024
+GiB = pow(1024, 3)
 
 class TestAccessModes(unittest.TestCase):
 	StorageClass = 'nvmesh-raid1'
+	node_to_zone_map = None
+	used_zone = None
+	used_nodes = None
+
+	@classmethod
+	def setUpClass(cls):
+		zones = KubeUtils.get_all_node_names_by_zone()
+		TestAccessModes.node_to_zone_map = zones
+
+		for zone, nodes in zones.iteritems():
+			if len(nodes) > 1:
+				print('Picked zone {} zone with {} nodes: {}'.format(zone, len(nodes), nodes))
+				TestAccessModes.used_zone = zone
+				TestAccessModes.used_nodes = nodes
+				break
+
+			if not TestAccessModes.used_zone:
+				raise ValueError('Test requires at least one zone with more than one node. found topology: %s' % zones)
 
 	def test_read_write_many(self):
 		pvc_name = 'pvc-rwx'
@@ -38,7 +56,6 @@ class TestAccessModes(unittest.TestCase):
 		KubeUtils.delete_pod(pod2_name)
 		KubeUtils.delete_pod(pod3_name)
 
-	@unittest.skipIf(NVMeshUtils.get_nvmesh_version_tuple() < (2,0,1), 'ExclusiveMode not supported before NVMesh 2.1, Installed NVMesh version: {}'.format(NVMeshUtils.get_management_version_info()['version']))
 	def test_read_write_once(self):
 		pvc_name = 'pvc-rwo'
 		KubeUtils.create_pvc_and_wait_to_bound(self, pvc_name, TestAccessModes.StorageClass, access_modes=['ReadWriteOnce'], volumeMode='Block')
@@ -90,7 +107,7 @@ class TestAccessModes(unittest.TestCase):
 		# Then will create PVC's with different AccessModes to use the same PV. in between some PV clean needs to be done.
 		# Create Storage Class with reclaimPolicy: Retain
 		sc_name = 'sc-nvmesh-retain'
-		KubeUtils.create_storage_class(sc_name, { 'vpg': 'DEFAULT_RAID_10_VPG'}, reclaimPolicy='Retain')
+		KubeUtils.create_storage_class(sc_name, {'vpg': 'DEFAULT_RAID_10_VPG'}, reclaimPolicy='Retain')
 		self.addCleanup(lambda: KubeUtils.delete_storage_class(sc_name))
 
 		# Create NVMesh Volume
@@ -201,9 +218,9 @@ class TestAccessModes(unittest.TestCase):
 		self.assertEqual(pv_list.items[0].metadata.name, pv_name)
 		return volume_size
 
-	def _create_pod_on_specific_node(self, pod_name, pvc_name, node_index):
+	def _create_pod_on_specific_node(self, pod_name, pvc_name, node_index=1):
 		pod = KubeUtils.get_block_consumer_pod_template(pod_name, pvc_name)
-		pod['spec']['nodeSelector'] = { 'worker-index': str(node_index) }
+		pod['spec']['nodeName'] = TestAccessModes.used_nodes[node_index - 1]
 		KubeUtils.create_pod(pod)
 		self.addCleanup(lambda: KubeUtils.delete_pod_and_wait(pod_name))
 

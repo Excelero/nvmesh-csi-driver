@@ -1,0 +1,7 @@
+integration:
+  testNamespace: test-csi-driver-integration
+  managementServers:
+    - 10.0.1.117:4000
+#    - 10.0.1.127:4000
+  numberOfVolumes: 3
+  skipECVolumes: true

@@ -15,10 +15,10 @@ class TestAllRAIDTypes(unittest.TestCase):
 
 		# wait for nvmesh volume to be created
 		nvmesh_vol_name = KubeUtils.get_nvmesh_vol_name_from_pvc_name(pvc_name)
-		NVMeshUtils.wait_for_nvmesh_volume(nvmesh_vol_name)
+		mgmt_address = NVMeshUtils.wait_for_nvmesh_volume(nvmesh_vol_name)
 
 		# verify NVMesh Volumes Properties
-		NVMeshUtils.wait_for_nvmesh_vol_properties(nvmesh_vol_name, { 'raidLevel': raid_type }, self)
+		NVMeshUtils.wait_for_nvmesh_vol_properties(nvmesh_vol_name, {'raidLevel': raid_type}, self)
 
 		def cleanup_volume():
 			KubeUtils.delete_pvc(pvc_name)
