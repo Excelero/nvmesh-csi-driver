@@ -16,7 +16,7 @@
             "nvme127.excelero.com"
          ],
          "management": {
-            "servers": "10.0.1.127:4000"
+            "servers": "10.0.1.117:4000"
          }
       }
    }
