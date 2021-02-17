@@ -16,17 +16,17 @@ Kubernetes Version: 1.17 or higher
 ### Using helm
 ```
 # Download the helm chart
-wget https://github.com/Excelero/nvmesh-csi-driver/releases/download/v1.1.0/helm-chart.nvmesh-csi-driver-1.1.0.tgz
+wget https://github.com/Excelero/nvmesh-csi-driver/releases/download/v1.1.1/helm-chart.nvmesh-csi-driver-1.1.1.tgz
 
 # Install
-helm install nvmesh-csi-driver ./helm-chart.nvmesh-csi-driver-1.1.0.tgz --set config.servers=<your.mgmt.server>:4000 --set config.protocol=https
+helm install nvmesh-csi-driver ./helm-chart.nvmesh-csi-driver-1.1.1.tgz --set config.servers=<your.mgmt.server>:4000 --set config.protocol=https
 ```
 
 ### Directly into Kubernetes (using kubectl)
 To deploy the driver in Kubernetes simply run the following command from a node with kubectl in your cluster
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/Excelero/nvmesh-csi-driver/1.1.0/deploy/kubernetes/deployment.yaml
+kubectl apply -f https://raw.githubusercontent.com/Excelero/nvmesh-csi-driver/1.1.1/deploy/kubernetes/deployment.yaml
 ```
 
 ## Documentation
