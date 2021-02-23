@@ -2,7 +2,7 @@
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
-  name: psp.{{ template "nvmesh-csi-driver.fullname" . }}
+  name: {{ template "nvmesh-csi-driver.fullname" . }}
   labels:
 {{ include "nvmesh-csi-driver.labels" . | indent 4 }}
 spec:
