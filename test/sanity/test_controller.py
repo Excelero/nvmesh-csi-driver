@@ -6,7 +6,7 @@ from grpc._channel import _Rendezvous
 from driver.config import Config, print_config
 from driver.csi.csi_pb2 import TopologyRequirement, Topology
 from driver.topology import RoundRobinZonePicker
-from test.sanity.helpers.config_loader_mock import ConfigLoaderMock, DEFAULT_CONFIG_TOPOLOGY
+from test.sanity.helpers.config_loader_mock import ConfigLoaderMock, DEFAULT_CONFIG_TOPOLOGY, ACTIVE_MANAGEMENT_SERVER
 from test.sanity.helpers.setup_and_teardown import start_server
 
 import driver.consts as Consts
@@ -18,7 +18,6 @@ from test.sanity.helpers.error_handlers import CatchRequestErrors
 GB = pow(1024, 3)
 VOL_1_ID = "vol_1"
 VOL_2_ID = "vol_2"
-NODE_ID = "nvme117.excelero.com"
 DEFAULT_TOPOLOGY = Topology(segments={Consts.TopologyKey.ZONE: 'A'})
 DEFAULT_TOPOLOGY_REQUIREMENTS = TopologyRequirement(requisite=[DEFAULT_TOPOLOGY], preferred=[DEFAULT_TOPOLOGY])
 
@@ -31,9 +30,12 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 
 	@classmethod
 	def setUpClass(cls):
-		super(TestControllerServiceWithoutTopology, cls).setUpClass()
 		config = {
-			'TOPOLOGY_TYPE': Consts.TopologyType.SINGLE_ZONE_CLUSTER,
+			'MANAGEMENT_SERVERS': ACTIVE_MANAGEMENT_SERVER,
+			'MANAGEMENT_PROTOCOL': 'https',
+			'MANAGEMENT_USERNAME': 'admin@excelero.com',
+			'MANAGEMENT_PASSWORD': 'admin',
+			'TOPOLOGY_TYPE': None,
 			'TOPOLOGY': None,
 		}
 		ConfigLoaderMock(config).load()

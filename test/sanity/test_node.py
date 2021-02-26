@@ -15,25 +15,32 @@ from test.sanity.helpers.error_handlers import CatchRequestErrors
 
 GB = pow(1024, 3)
 VOL_ID = "vol_1"
-MOCK_NODE_ID = "nvme115.excelero.com"
+MOCK_NODE_ID = "nvmesh-1.excelero.com"
 
 class TestNodeService(TestCaseWithServerRunning):
+	driver_server = None
+
 	def __init__(self, *args, **kwargs):
 		TestCaseWithServerRunning.__init__(self, *args, **kwargs)
 		self.driver_server = None
 
-	def setUp(self):
+	@classmethod
+	def setUpClass(cls):
 		config = {
 			'TOPOLOGY_TYPE': consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
 			'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY
 		}
 		ConfigLoaderMock(config).load()
 
-		self.driver_server = start_server(Consts.DriverType.Node, MOCK_NODE_ID)
-		self._client = NodeClient()
+		cls.driver_server = start_server(Consts.DriverType.Node, MOCK_NODE_ID)
+		cls._client = NodeClient()
 
-	def tearDown(self):
-		self.driver_server.stop()
+	@classmethod
+	def tearDownClass(cls):
+		print('stopping server')
+		cls.driver_server.stop()
+		print('server stopped')
+		print('server.server = %s' % cls.driver_server.server)
 
 	@CatchRequestErrors
 	def test_get_info_basic_test(self):

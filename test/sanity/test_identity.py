@@ -12,12 +12,16 @@ from test.sanity.helpers.error_handlers import CatchRequestErrors
 
 
 class TestIdentityService(TestCaseWithServerRunning):
-	def setUp(self):
-		self.driver_server = start_server(Consts.DriverType.Node)
-		self.identityClient = IdentityClient()
+	driver_server = None
 
-	def tearDown(self):
-		self.driver_server.stop()
+	@classmethod
+	def setUpClass(cls):
+		cls.driver_server = start_server(Consts.DriverType.Node)
+		cls.identityClient = IdentityClient()
+
+	@classmethod
+	def tearDownClass(cls):
+		cls.driver_server.stop()
 
 	@CatchRequestErrors
 	def test_get_plugin_info(self):

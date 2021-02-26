@@ -2,8 +2,10 @@ import socket
 
 from driver import consts
 from driver.config import Config, ConfigValidator
+from test.sanity.helpers.sanity_test_config import load_test_config_file, SanityTestConfig
 
-ACTIVE_MANAGEMENT_SERVER = "n117:4000"
+load_test_config_file()
+ACTIVE_MANAGEMENT_SERVER = SanityTestConfig.ManagementServers[0]
 
 DEFAULT_CONFIG_TOPOLOGY = {
 					"zones": {
@@ -44,12 +46,12 @@ DEFAULT_MOCK_CONFIG = {
 	'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY
 }
 class ConfigLoaderMock:
-	def __init__(self, configDict=None):
+	def __init__(self, configOverrides=None):
 
 		self.configDict = DEFAULT_MOCK_CONFIG
 
-		if configDict:
-			self.configDict.update(configDict)
+		if configOverrides:
+			self.configDict.update(configOverrides)
 
 	def load(self):
 
@@ -57,4 +59,3 @@ class ConfigLoaderMock:
 			setattr(Config, key, self.configDict[key])
 
 		ConfigValidator().validate_topology()
-
