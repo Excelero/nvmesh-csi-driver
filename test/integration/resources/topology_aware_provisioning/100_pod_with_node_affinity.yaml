@@ -17,6 +17,17 @@ metadata:
   name: topology-pod0
 spec:
   serviceAccountName: topology-aware
+  spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: nvmesh-csi.excelero.com/zone
+            operator: In
+            values:
+            - single-zone-cluster
+            - B
   containers:
     - name: nginx
       image: gcr.io/google_containers/nginx-slim:0.8

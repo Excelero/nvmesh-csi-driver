@@ -7,3 +7,8 @@ allowVolumeExpansion: true
 volumeBindingMode: WaitForFirstConsumer
 parameters:
   vpg: DEFAULT_CONCATENATED_VPG
+allowedTopologies:
+- matchLabelExpressions:
+  - key: nvmesh-csi.excelero.com/zone
+    values:
+    - zone_A
