@@ -23,7 +23,7 @@ class NVMeshControllerService(ControllerServicer):
 		config_loader.load()
 		ControllerServicer.__init__(self)
 		self.logger = logger
-		if not Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
+		if Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
 			api = NVMeshSDKHelper.init_session_with_single_management(self.logger)
 			management_version_info = NVMeshSDKHelper.get_management_version(api)
 			self._log_mgmt_version_info(management_version_info)
@@ -82,10 +82,6 @@ class NVMeshControllerService(ControllerServicer):
 
 	def _get_api_and_zone_from_topology(self, topology_requirements):
 		self.logger.debug('CreateVolume received topology requirements {}'.format(topology_requirements))
-
-		if not topology_requirements:
-			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Config.TOPOLOGY_TYPE = %s but received no topology info' % Config.TOPOLOGY_TYPE)
-
 		zone = self._get_zone_from_topology(topology_requirements)
 		api = self._get_volume_api(zone)
 		return api, zone
