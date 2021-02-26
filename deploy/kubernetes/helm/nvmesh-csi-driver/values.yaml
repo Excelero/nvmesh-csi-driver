@@ -1,16 +1,18 @@
 # Default values for nvmesh-csi-driver.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-namespaceOverride: nvmesh-csi-driver
 appName: nvmesh-csi-driver
 driverName: nvmesh-csi.excelero.com
+
+namespaceOverride: nvmesh-csi-driver
+multipleCsiDrivers: false
 
 features:
   ecVolumesEnabled: true
 
 config:
   protocol: https
-  servers: 10.0.1.117:4000
+  servers: nvmesh-management:4000
   # use the format of <ip:port> or <hostname:port> pointing to your management server REST interface
   # To combine with nvmesh-management container in kubernetes, please use the following service reference for management.servers
   #management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"
