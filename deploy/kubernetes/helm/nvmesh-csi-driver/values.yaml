@@ -1,22 +1,31 @@
 # Default values for nvmesh-csi-driver.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-namespaceOverride: ""
 appName: nvmesh-csi-driver
 driverName: nvmesh-csi.excelero.com
+
+namespaceOverride: nvmesh-csi-driver
+multipleCsiDrivers: false
 
 features:
   ecVolumesEnabled: true
 
 config:
   protocol: https
-  servers: your.server.com:4000
+  servers: nvmesh-management:4000
   # use the format of <ip:port> or <hostname:port> pointing to your management server REST interface
   # To combine with nvmesh-management container in kubernetes, please use the following service reference for management.servers
   #management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"
 
   username: YWRtaW5AZXhjZWxlcm8uY29t
   password: YWRtaW4=
+
+  attachIOEnabledTimeout: 30
+  printStackTraces: false
+
+  # Uncomment 'topologyJsonFilePath' to add topology info to the ConfigMap
+  # Please view and edit the topology.json file or provide a path for your own topology json
+  #topologyJsonFilePath: topology.json
 
 hostBinariesPath: /bin
 systemdHost: true
@@ -40,22 +49,22 @@ pspEnabled: true
 
 csiDriverRegistrar:
   repository: quay.io/k8scsi/csi-node-driver-registrar
-  tag: v1.1.0
+  tag: v2.1.0
   pullPolicy: IfNotPresent
 
 csiExternalProvisioner:
   repository: quay.io/k8scsi/csi-provisioner
-  tag: v1.6.0
+  tag: v2.1.0
   pullPolicy: IfNotPresent
 
 csiExternalAttacher:
   repository: quay.io/k8scsi/csi-attacher
-  tag: v2.2.0
+  tag: v3.1.0
   pullPolicy: IfNotPresent
 
 csiExternalResizer:
   repository: quay.io/k8scsi/csi-resizer
-  tag: v0.5.0
+  tag: v1.1.0
   pullPolicy: IfNotPresent
 
 serviceAccount:

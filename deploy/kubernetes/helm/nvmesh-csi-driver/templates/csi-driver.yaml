@@ -7,4 +7,4 @@ metadata:
     {{- include "nvmesh-csi-driver.labels" . | nindent 4 }}
 spec:
   attachRequired: false
-  podInfoOnMount: false
+  podInfoOnMount: true

@@ -52,16 +52,6 @@ spec:
               value: "{{ .Values.driverName }}"
             - name: SOCKET_PATH
               value: unix:///csi/ctrl-csi.sock
-            - name: MANAGEMENT_SERVERS
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ template "nvmesh-csi-driver.fullname" . }}-config
-                  key: management.servers
-            - name: MANAGEMENT_PROTOCOL
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ template "nvmesh-csi-driver.fullname" . }}-config
-                  key: management.protocol
             - name: MANAGEMENT_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -74,14 +64,17 @@ spec:
                   key: password
           volumeMounts:
             - name: config-volume
-              mountPath: /etc/config
+              mountPath: /config
             - name: plugin-socket-dir
               mountPath: /csi
         # Provisioner
         - name: csi-provisioner
           image: "{{ .Values.csiExternalProvisioner.repository }}:{{ .Values.csiExternalProvisioner.tag }}"
           args:
-            - "--provisioner={{ .Values.driverName }}"
+            - "--feature-gates=Topology=true"
+            - "--strict-topology"
+            - "--immediate-topology"
+            - "--extra-create-metadata"
             - "--csi-address=/csi/ctrl-csi.sock"
             - "--v=5"
           imagePullPolicy: "{{ .Values.csiExternalProvisioner.pullPolicy }}"
@@ -194,9 +187,14 @@ spec:
                 secretKeyRef:
                   name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: password
+            - name: ZONE
+              # TODO: have initContainer fetch the label key and value from the node
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
           volumeMounts:
             - name: config-volume
-              mountPath: /etc/config
+              mountPath: /config
             - name: plugin-socket-dir
               mountPath: /csi
             - name: pods-mount-dir

@@ -3,20 +3,18 @@ import subprocess
 import sys
 import time
 import unittest
+import yaml
 from os import environ
 
 import kubernetes
 from kubernetes.client.rest import ApiException
 
-from NVMeshSDK.ConnectionManager import ConnectionManager, ManagementTimeout
 from kubernetes import client, config
 
 from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from NVMeshSDK.Consts import RAIDLevels
 from NVMeshSDK.MongoObj import MongoObj
-
-TEST_NAMESPACE = 'nvmesh-csi-testing'
-NVMESH_MGMT_ADDRESS = environ.get('NVMESH_MGMT_ADDRESS') or 'https://10.0.1.117:443'
+from driver import consts
 
 config.load_kube_config()
 
@@ -25,8 +23,32 @@ storage_api = client.StorageV1Api()
 apps_api = client.AppsV1Api()
 
 class TestConfig(object):
+	TestNamespace = 'test-csi-driver-integration'
+	ManagementServers = ['localhost:4000']
 	NumberOfVolumes = 3
 	SkipECVolumes = True
+
+def parse_config_from_file(test_config):
+	try:
+		conf = test_config['integration']
+		TestConfig.TestNamespace = conf.get('testNamespace', TestConfig.TestNamespace)
+		TestConfig.ManagementServers = conf.get('managementServers', TestConfig.ManagementServers)
+		TestConfig.NumberOfVolumes = conf.get('numberOfVolumes', TestConfig.NumberOfVolumes)
+		TestConfig.SkipECVolumes = conf.get('skipECVolumes', TestConfig.SkipECVolumes)
+	except Exception as ex:
+		print('Failed to parse test config. Error: %s' % ex)
+		raise
+
+def load_test_config_file():
+	test_config_path = environ.get('TEST_CONFIG_PATH') or '../../config.yaml'
+	try:
+		with open(test_config_path) as fp:
+			test_config = yaml.safe_load(fp)
+	except Exception as ex:
+		print('Failed to load test config file at %s. Error: %s' % (test_config_path, ex))
+		raise
+
+	parse_config_from_file(test_config)
 
 def load_test_config_values_from_env_vars():
 	if 'num_of_volumes' in environ:
@@ -46,9 +68,11 @@ def load_test_config_values_from_env_vars():
 
 def print_test_config():
 	print('TestConfig:')
-	print('NumberOfVolumes={}'.format(TestConfig.NumberOfVolumes))
-	print('SkipECVolumes={}'.format(TestConfig.SkipECVolumes))
+	for field, value in TestConfig.__dict__.items():
+		if not field.startswith('_'):
+			print('  {}={}'.format(field, value))
 
+load_test_config_file()
 load_test_config_values_from_env_vars()
 print_test_config()
 
@@ -95,7 +119,7 @@ class TestUtils(object):
 
 	@staticmethod
 	def get_test_namespace():
-		return TEST_NAMESPACE
+		return TestConfig.TestNamespace
 
 	@staticmethod
 	def run_unittest():
@@ -220,25 +244,28 @@ class KubeUtils(object):
 			raise TestError('Timed out waiting for namespace {} to be deleted'.format(ns))
 
 	@staticmethod
-	def get_storage_class(name, params, reclaimPolicy='Delete'):
-		return {
+	def get_storage_class(name, params, **kwargs):
+		sc = {
 			'apiVersion': 'storage.k8s.io/v1',
 			'kind': 'StorageClass',
 			'metadata': {
 			  'name': name,
-			  'namespace': TEST_NAMESPACE
+			  'namespace': TestConfig.TestNamespace
 			},
 			'provisioner': 'nvmesh-csi.excelero.com',
 			'allowVolumeExpansion': True,
 			'volumeBindingMode': 'Immediate',
-			'reclaimPolicy': reclaimPolicy,
+			'reclaimPolicy': 'Delete',
 			'parameters': params
 		}
 
+		sc.update(kwargs)
+		return sc
+
 	@staticmethod
-	def create_storage_class(name, params, reclaimPolicy='Delete'):
+	def create_storage_class(name, params, **kwargs):
 		try:
-			sc = KubeUtils.get_storage_class(name, params, reclaimPolicy)
+			sc = KubeUtils.get_storage_class(name, params, **kwargs)
 			return storage_api.create_storage_class(sc)
 		except kubernetes.client.rest.ApiException as ex:
 			logger.exception(ex)
@@ -247,7 +274,7 @@ class KubeUtils(object):
 
 	@staticmethod
 	def get_pvc_by_name(pvc_name):
-		pvcs_res = core_api.list_namespaced_persistent_volume_claim(TEST_NAMESPACE, field_selector='metadata.name={}'.format(pvc_name))
+		pvcs_res = core_api.list_namespaced_persistent_volume_claim(TestConfig.TestNamespace, field_selector='metadata.name={}'.format(pvc_name))
 
 		for pvc in pvcs_res.items:
 			if pvc.metadata.name == pvc_name:
@@ -296,7 +323,7 @@ class KubeUtils(object):
 		raise TestError('Timed out waiting for pvc {} to extend'.format(pvc_name))
 
 	@staticmethod
-	def wait_for_pvc_to_delete(pvc_name, attempts=15):
+	def wait_for_pvc_to_delete(pvc_name, attempts=30):
 		while attempts > 0:
 			pvc = KubeUtils.get_pvc_by_name(pvc_name)
 			if not pvc:
@@ -332,7 +359,7 @@ class KubeUtils(object):
 	@staticmethod
 	def delete_pvc(pvc_name):
 		try:
-			core_api.delete_namespaced_persistent_volume_claim(pvc_name, namespace=TEST_NAMESPACE)
+			core_api.delete_namespaced_persistent_volume_claim(pvc_name, namespace=TestConfig.TestNamespace)
 		except ApiException as apiEx:
 			if apiEx.reason == 'Not Found':
 				return
@@ -341,16 +368,16 @@ class KubeUtils(object):
 
 	@staticmethod
 	def delete_all_pvcs():
-		pvcs_res= core_api.list_namespaced_persistent_volume_claim(TEST_NAMESPACE)
+		pvcs_res= core_api.list_namespaced_persistent_volume_claim(TestConfig.TestNamespace)
 
 		for pvc in pvcs_res.items:
-			core_api.delete_namespaced_persistent_volume_claim(pvc.metadata.name, namespace=TEST_NAMESPACE)
+			core_api.delete_namespaced_persistent_volume_claim(pvc.metadata.name, namespace=TestConfig.TestNamespace)
 
 		for pvc in pvcs_res.items:
 			KubeUtils.wait_for_pvc_to_delete(pvc.metadata.name)
 
 	@staticmethod
-	def get_pvc_template(pvc_name, storage_class_name, access_modes=None, storage='3Gi', volumeMode='Filesystem'):
+	def get_pvc_template(pvc_name, storage_class_name, access_modes=None, storage='3Gi', volumeMode='Filesystem', **kwargs):
 		pvc = {
 			'apiVersion': 'v1',
 			'kind': 'PersistentVolumeClaim',
@@ -370,12 +397,13 @@ class KubeUtils(object):
 			}
 		}
 
+		pvc.update(kwargs)
 		return pvc
 
 	@staticmethod
 	def create_pvc(pvc):
 		logger.info('Creating pvc {}'.format(pvc['metadata']['name']))
-		return core_api.create_namespaced_persistent_volume_claim(TEST_NAMESPACE, pvc)
+		return core_api.create_namespaced_persistent_volume_claim(TestConfig.TestNamespace, pvc)
 
 	@staticmethod
 	def get_pod_template(pod_name, spec, app_label=None):
@@ -384,7 +412,7 @@ class KubeUtils(object):
 			'kind': 'Pod',
 			'metadata': {
 				'name': pod_name,
-				'namespace': TEST_NAMESPACE,
+				'namespace': TestConfig.TestNamespace,
 				'labels': {
 					'app': app_label or pod_name
 				}
@@ -397,13 +425,13 @@ class KubeUtils(object):
 	@staticmethod
 	def create_pod(pod):
 		logger.info('Creating pod {}'.format(pod['metadata']['name']))
-		core_api.create_namespaced_pod(TEST_NAMESPACE, pod)
+		core_api.create_namespaced_pod(TestConfig.TestNamespace, pod)
 
 	@staticmethod
 	def delete_pod(pod_name):
 		try:
 			logger.info('Deleting Pod {}'.format(pod_name))
-			core_api.delete_namespaced_pod(pod_name, TEST_NAMESPACE)
+			core_api.delete_namespaced_pod(pod_name, TestConfig.TestNamespace)
 		except ApiException as apiEx:
 			if apiEx.reason == 'Not Found':
 				return
@@ -469,7 +497,7 @@ class KubeUtils(object):
 	@staticmethod
 	def get_pod_by_name(pod_name):
 		field_selector = 'metadata.name={}'.format(pod_name)
-		pods = core_api.list_namespaced_pod(TEST_NAMESPACE, field_selector=field_selector)
+		pods = core_api.list_namespaced_pod(TestConfig.TestNamespace, field_selector=field_selector)
 
 		for pod in pods.items:
 			if pod.metadata.name == pod_name:
@@ -477,7 +505,7 @@ class KubeUtils(object):
 
 	@staticmethod
 	def delete_all_pods():
-		pods = core_api.list_namespaced_pod(TEST_NAMESPACE)
+		pods = core_api.list_namespaced_pod(TestConfig.TestNamespace)
 
 		for pod in pods.items:
 			KubeUtils.delete_pod(pod.metadata.name)
@@ -487,7 +515,7 @@ class KubeUtils(object):
 
 	@staticmethod
 	def delete_all_deployments():
-		deps = apps_api.list_namespaced_deployment(TEST_NAMESPACE)
+		deps = apps_api.list_namespaced_deployment(TestConfig.TestNamespace)
 
 		for deployment in deps.items:
 			name = deployment.metadata.name
@@ -496,11 +524,11 @@ class KubeUtils(object):
 
 	@staticmethod
 	def patch_pvc(pvc_name, pvc_patch):
-		core_api.patch_namespaced_persistent_volume_claim(pvc_name, TEST_NAMESPACE, pvc_patch)
+		core_api.patch_namespaced_persistent_volume_claim(pvc_name, TestConfig.TestNamespace, pvc_patch)
 
 	@staticmethod
 	def run_command_in_container(pod_name, command):
-		cmd = 'kubectl exec -n {ns} {pod} -- {cmd}'.format(ns=TEST_NAMESPACE, pod=pod_name, cmd=command)
+		cmd = 'kubectl exec -n {ns} {pod} -- {cmd}'.format(ns=TestConfig.TestNamespace, pod=pod_name, cmd=command)
 		p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		stdout, stderr = p.communicate()
 		return stdout
@@ -614,7 +642,7 @@ class KubeUtils(object):
 			"kind": "Deployment",
 			"metadata": {
 				"name": name,
-				"namespace": TEST_NAMESPACE,
+				"namespace": TestConfig.TestNamespace,
 				"labels": {
 					"app": "test-container-migration"
 				}
@@ -641,15 +669,20 @@ class KubeUtils(object):
 
 	@staticmethod
 	def get_pod_log(pod_name):
-		response = core_api.read_namespaced_pod_log(pod_name, TEST_NAMESPACE)
+		response = core_api.read_namespaced_pod_log(pod_name, TestConfig.TestNamespace)
 		return response
 
 	@staticmethod
 	def create_deployment(deployment):
-		return apps_api.create_namespaced_deployment(TEST_NAMESPACE, deployment)
+		return apps_api.create_namespaced_deployment(TestConfig.TestNamespace, deployment)
 
 	@staticmethod
-	def create_pvc_and_wait_to_bound(unittest_instance, pvc_name, sc_name, **kwargs):
+	def create_pvc_and_wait_to_bound(unittest_instance, pvc_name, sc_name, attempts=15, **kwargs):
+		KubeUtils.create_pvc_with_cleanup(unittest_instance, pvc_name, sc_name, **kwargs)
+		KubeUtils.wait_for_pvc_to_bound(pvc_name, attempts=attempts)
+
+	@staticmethod
+	def create_pvc_with_cleanup(unittest_instance, pvc_name, sc_name, **kwargs):
 		pvc_yaml = KubeUtils.get_pvc_template(pvc_name, sc_name, **kwargs)
 		KubeUtils.create_pvc(pvc_yaml)
 
@@ -659,21 +692,20 @@ class KubeUtils(object):
 
 		unittest_instance.addCleanup(cleanup_volume)
 
-		# wait for pvc to bound
-		KubeUtils.wait_for_pvc_to_bound(pvc_name)
+		return cleanup_volume
 
 	@staticmethod
 	def delete_deployment(name):
-		return apps_api.delete_namespaced_deployment(name, TEST_NAMESPACE)
+		return apps_api.delete_namespaced_deployment(name, TestConfig.TestNamespace)
 
 	@staticmethod
 	def get_deployment(dep_name):
-		dep_list = apps_api.list_namespaced_deployment(TEST_NAMESPACE, field_selector='metadata.name={}'.format(dep_name))
+		dep_list = apps_api.list_namespaced_deployment(TestConfig.TestNamespace, field_selector='metadata.name={}'.format(dep_name))
 		return dep_list.items[0]
 
 	@staticmethod
 	def get_pods_for_deployment(deployment_name):
-		pod_list = core_api.list_namespaced_pod(TEST_NAMESPACE, label_selector='app={}'.format(deployment_name))
+		pod_list = core_api.list_namespaced_pod(TestConfig.TestNamespace, label_selector='app={}'.format(deployment_name))
 		return pod_list.items
 
 	@staticmethod
@@ -775,65 +807,65 @@ class KubeUtils(object):
 
 		raise TestError('Timed out waiting for pv {} to delete'.format(pv_name))
 
+	@staticmethod
+	def get_node_by_name(node_name):
+		field_selector = 'metadata.name={}'.format(node_name)
+		nodes = core_api.list_node(field_selector=field_selector)
+
+		for node in nodes.items:
+			if node.metadata.name == node_name:
+				return node
+
+	@staticmethod
+	def get_all_nodes():
+		nodes = core_api.list_node()
+		return nodes.items
+
+	@staticmethod
+	def get_nodes_per_zone(zone):
+		label_selector = 'nvmesh-csi.excelero.com/zone={}'.format(zone)
+		nodes = core_api.list_node(label_selector=label_selector)
+
+		return nodes.items
+
+	@staticmethod
+	def get_zone_from_node(node):
+		return node.metadata.labels['nvmesh-csi.excelero.com/zone']
+
+	@staticmethod
+	def get_all_node_names_by_zone():
+		all_nodes = KubeUtils.get_all_nodes()
+		zones = {}
+		for node in all_nodes:
+			zone = node.metadata.labels[consts.TopologyKey.ZONE]
+			if not zone in zones:
+				zones[zone] = []
+
+			zones[zone].append(node.metadata.name)
+		return zones
 
 class NVMeshUtils(object):
 	@staticmethod
-	def getVolumeAPI():
-		return VolumeAPI(NVMESH_MGMT_ADDRESS)
+	def delete_all_nvmesh_volumes(mgmt_addresses=None):
+		if not mgmt_addresses:
+			mgmt_addresses = TestConfig.ManagementServers
+
+		for mgmt_address in mgmt_addresses:
+			projection = [MongoObj(field='_id', value=1)]
+			err, volume_list = VolumeAPI(managementServers=mgmt_address).get(projection=projection)
+			if len(volume_list) != 0:
+				err, out = VolumeAPI(managementServers=mgmt_address).delete([ vol._id for vol in volume_list ])
+				if err:
+					raise TestError('Failed to delete NVMesh volumes. Error: {}'.format(err))
+
+				for vol_res in out:
+					if not vol_res['success']:
+						if 'Couldn\'t find the specified volume' not in vol_res['error']:
+							raise TestError('Failed to delete NVMesh volume {}. Error: {}'.format(vol_res['_id'], vol_res['error']))
 
 	@staticmethod
-	def delete_all_nvmesh_volumes():
-		projection = [MongoObj(field='_id', value=1)]
-		err, volume_list = VolumeAPI(NVMESH_MGMT_ADDRESS).get(projection=projection)
-		if len(volume_list) != 0:
-			err, out = VolumeAPI(NVMESH_MGMT_ADDRESS).delete([ vol._id for vol in volume_list ])
-			if err:
-				raise TestError('Failed to delete NVMesh volumes. Error: {}'.format(err))
-
-			for vol_res in out:
-				if not vol_res['success']:
-					if 'Couldn\'t find the specified volume' not in vol_res['error']:
-						raise TestError('Failed to delete NVMesh volume {}. Error: {}'.format(vol_res['_id'], vol_res['error']))
-
-	@staticmethod
-	def init_nvmesh_sdk():
-		connected = False
-
-		# try until able to connect to NVMesh Management
-		while not connected:
-			try:
-				ConnectionManager.getInstance(managementServer=[NVMESH_MGMT_ADDRESS], logToSysLog=False)
-				connected = ConnectionManager.getInstance().isAlive()
-			except ManagementTimeout as ex:
-				logger.info("Waiting for NVMesh Management server on {}".format(NVMESH_MGMT_ADDRESS))
-				time.sleep(1)
-
-		logger.info("Connected to NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
-
-	@staticmethod
-	def get_management_version_info():
-		err, out = ConnectionManager.getInstance().get('/version')
-		if not err:
-			version_info = {}
-			lines = out.split('\n')
-			for line in lines:
-				try:
-					key_val_pair = line.split('=')
-					key = key_val_pair[0]
-					value = key_val_pair[1].replace('"', '')
-					version_info[key] = value
-				except:
-					pass
-			return version_info
-		return None
-
-	@staticmethod
-	def get_nvmesh_version_tuple():
-		version_info = NVMeshUtils.get_management_version_info()
-		version_string = version_info['version']
-		version_list = version_string.replace('-', '.').split('.')
-		version_tuple = tuple(map(int, version_list))
-		return version_tuple
+	def getVolumeAPI(mgmt_address=TestConfig.ManagementServers[0]):
+		return VolumeAPI(managementServers=mgmt_address)
 
 	@staticmethod
 	def csi_id_to_nvmesh_name(co_vol_name):
@@ -841,13 +873,17 @@ class NVMeshUtils(object):
 		return 'csi-' + co_vol_name[4:22]
 
 	@staticmethod
-	def get_nvmesh_volume_by_name(nvmesh_vol_name):
-		filter_obj = [MongoObj(field='_id', value=nvmesh_vol_name)]
-		err, out = VolumeAPI(NVMESH_MGMT_ADDRESS).get(filter=filter_obj)
-		if len(out) == 0:
-			return None
-		else:
-			return out[0]
+	def get_nvmesh_volume_by_name(nvmesh_vol_name, mgmt_addresses=None):
+		if not mgmt_addresses:
+			mgmt_addresses = TestConfig.ManagementServers
+
+		for mgmt_address in mgmt_addresses:
+			filter_obj = [MongoObj(field='_id', value=nvmesh_vol_name)]
+			err, out = VolumeAPI(managementServers=mgmt_address).get(filter=filter_obj)
+			if len(out) > 0:
+				return out[0], mgmt_address
+
+		return None, None
 
 	@staticmethod
 	def parse_raid_type(raid_type_string):
@@ -873,12 +909,12 @@ class NVMeshUtils(object):
 	@staticmethod
 	def wait_for_nvmesh_volume(nvmesh_vol_name, attempts=15):
 		while attempts > 0:
-			volume = NVMeshUtils.get_nvmesh_volume_by_name(nvmesh_vol_name)
+			volume, mgmt_address = NVMeshUtils.get_nvmesh_volume_by_name(nvmesh_vol_name)
 			if not volume:
 				logger.info('Waiting for NVMesh Volume {} to be created'.format(nvmesh_vol_name))
 			else:
 				logger.info('NVMesh Volume {} created'.format(nvmesh_vol_name))
-				return
+				return mgmt_address
 
 			attempts = attempts - 1
 			time.sleep(1)
@@ -889,7 +925,7 @@ class NVMeshUtils(object):
 	def wait_for_nvmesh_vol_properties(nvmesh_vol_name, params, unittest_instance, attempts=1):
 		while attempts:
 			attempts = attempts - 1
-			volume = NVMeshUtils.get_nvmesh_volume_by_name(nvmesh_vol_name)
+			volume, mgmt_address = NVMeshUtils.get_nvmesh_volume_by_name(nvmesh_vol_name)
 
 			for key, value in params.iteritems():
 				if key == 'raidLevel':
@@ -905,13 +941,11 @@ class NVMeshUtils(object):
 				nvmesh_value = getattr(volume, nvmesh_key)
 				if expected_val != nvmesh_value:
 					logger.debug('Waiting for {key}={val} to be {key}={expected_val}'.format(
-						key=nvmesh_key,val=nvmesh_value,expected_val=expected_val))
+						key=nvmesh_key, val=nvmesh_value, expected_val=expected_val))
 					if not attempts:
-						unittest_instance.assertEqual(expected_val, nvmesh_value, 'Wrong value in Volume {}'.format(nvmesh_key))
+						unittest_instance.assertEqual(str(expected_val).lower(), str(nvmesh_value).lower(), 'Wrong value in Volume {}'.format(nvmesh_key))
 				else:
-					return
+					return mgmt_address
 			time.sleep(1)
 
 
-# Connect To Management
-NVMeshUtils.init_nvmesh_sdk()

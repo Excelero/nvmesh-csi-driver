@@ -9,14 +9,14 @@ import json
 
 class TestBaseClass(unittest.TestCase):
     COLLECTIONS_SET_UP = ['client', 'configurationVersion', 'diskClass', 'globalSettings', 'lastMessageLog', 'log',
-                   'managementCluster', 'server', 'serverClass', 'server', 'volume', 'volumeProvisioningGroup', 'user']
-    COLLECTIONS_TEAR_DOWN = ['client', 'diskClass', 'log', 'server', 'serverClass', 'server', 'volume', 'volumeProvisioningGroup', 'user']
+                   'managementCluster', 'server', 'serverClass', 'server', 'volume', 'volumeProvisioningGroup', 'configurationProfile', 'user']
+    COLLECTIONS_TEAR_DOWN = ['client', 'diskClass', 'log', 'server', 'serverClass', 'server', 'volume', 'volumeProvisioningGroup', 'configurationProfile', 'user']
     FIXTURES_PATH = '/'.join(['fixtures', 'management', '{0}.bson']) #'NVMeshSDK', 'Tests',
 
     @classmethod
     def setUpClass(cls):
         cls.className = cls.__name__
-        cls.logger = LoggerUtils.getInfraClientLogger(cls.className)
+        cls.logger = LoggerUtils.getNVMeshSDKLogger(cls.className)
         cls.myAPI = cls.getAPI()
 
         try:
@@ -28,22 +28,38 @@ class TestBaseClass(unittest.TestCase):
 
         cls.db = myClient['management']
 
-        for collection in cls.COLLECTIONS_SET_UP:
-            command = ['mongorestore', '--db', 'management', cls.FIXTURES_PATH.format(collection)]
-            try:
-                cls.logger.debug('Loading collection: {0}'.format(collection))
-                p = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-                out, err = p.communicate()
-                cls.logger.error(err)
-                cls.logger.debug(out)
-            except subprocess.CalledProcessError as e:
-                cls.logger.debug('Unable to load {0} collection, error: {1}'.format(collection, e.message))
+        # mongorestore will not update existing documents
+        # so we have to first clear the db, and then initialize all collections
+        cls._clear_db_collections()
+        cls._init_db_collections()
+        cls.logger.info('DB Collections Setup Finished')
 
     @classmethod
     def tearDownClass(cls):
+        cls._clear_db_collections()
+
+    @classmethod
+    def _clear_db_collections(cls):
         for collection in cls.COLLECTIONS_TEAR_DOWN:
             result = cls.db[collection].remove()
             assert result['ok'] == 1.0
+
+    @classmethod
+    def _init_db_collections(cls):
+        for collection in cls.COLLECTIONS_SET_UP:
+            cls._restore_collection(collection)
+
+    @classmethod
+    def _restore_collection(cls, collection):
+        command = ['mongorestore', '--db', 'management', cls.FIXTURES_PATH.format(collection)]
+        try:
+            cls.logger.debug('Loading collection: {0}'.format(collection))
+            p = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            out, err = p.communicate()
+            cls.logger.error(err)
+            cls.logger.debug(out)
+        except subprocess.CalledProcessError as e:
+            cls.logger.debug('Unable to load {0} collection, error: {1}'.format(collection, e.message))
 
     def setUp(self):
         self.logger.debug('Running: {0}'.format(self._testMethodName))
@@ -54,7 +70,10 @@ class TestBaseClass(unittest.TestCase):
     def test00Get(self):
         err, apiRes = self.myAPI.get()
         expectedRes = self.getDbEntities()
+        print(json.dumps(str(apiRes)))
         self.checkResults(expectedRes, err, apiRes)
+        for i in apiRes:
+            print(i)
 
     def testSave(self):
         expectedRes = self.getExpectedResultObj(entities=self.getEntitiesForSave())

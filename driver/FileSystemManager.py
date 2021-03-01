@@ -3,6 +3,7 @@ import shutil
 from grpc import StatusCode
 
 from common import Utils, DriverLogger, DriverError
+import consts as Consts
 
 logger = DriverLogger("FileSystemManager")
 
@@ -24,9 +25,10 @@ class FileSystemManager(object):
 		return exit_code == 0
 
 	@staticmethod
-	def mount(source, target, flags=None):
+	def mount(source, target, flags=None, mount_options=None):
 		flags_str = ' '.join(flags) if flags else ''
-		cmd = 'mount {flags_str} {source} {target}'.format(flags_str=flags_str, source=source, target=target)
+		mount_opts_str = '-o ' + ','.join(mount_options) if mount_options else ''
+		cmd = 'mount {flags_str} {options} {source} {target}'.format(flags_str=flags_str, options=mount_opts_str, source=source, target=target)
 
 		exit_code, stdout, stderr = Utils.run_command(cmd)
 
@@ -34,12 +36,16 @@ class FileSystemManager(object):
 			raise Exception("mount failed {} {} {}".format(exit_code, stdout, stderr))
 
 	@staticmethod
-	def bind_mount(source, target, flags=None):
-		if not flags:
-			flags = []
+	def bind_mount(source, target, flags=None, mount_options=None):
+		flags = flags or []
 
 		flags.append('--bind')
-		return FileSystemManager.mount(source, target, flags=flags)
+		return FileSystemManager.mount(source, target, flags, mount_options)
+
+	@staticmethod
+	def build_mount_options_string(options_list):
+		if not options_list:
+			return
 
 	@staticmethod
 	def umount(target):
@@ -92,8 +98,7 @@ class FileSystemManager(object):
 			return
 
 		if current_fs_type != '':
-			logger.debug('{} is formatted to {} but requested {}'.format(block_device_path, current_fs_type, fs_type))
-			raise DriverError(StatusCode.INVALID_ARGUMENT, 'block device already formatted to {}. but required: '.format(current_fs_type, ))
+			raise DriverError(StatusCode.INVALID_ARGUMENT, '{} is formatted to {} but requested {}'.format(block_device_path, current_fs_type, fs_type))
 
 		FileSystemManager.mkfs(fs_type=fs_type, target_path=block_device_path, flags=[])
 
@@ -105,7 +110,7 @@ class FileSystemManager(object):
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Device not formatted with FileSystem found fs type {}'.format(fs_type))
 		elif fs_type.startswith('ext'):
 			cmd = 'resize2fs {}'.format(block_device_path)
-		elif fs_type == 'xfs':
+		elif fs_type == Consts.FSType.XFS:
 			cmd = 'xfs_growfs {}'.format(block_device_path)
 		else:
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'unknown fs_type {}'.format(fs_type))

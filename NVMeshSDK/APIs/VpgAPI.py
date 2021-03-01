@@ -239,8 +239,8 @@ class VpgAPI(BaseClassAPI):
         """
         return super(VpgAPI, self).save(entitiesList=vpgs)
 
-    def update(self, entitiesList):
-        raise NotImplemented
+    def update(self, vpgs):
+        return super(VpgAPI, self).update(entitiesList=vpgs)
 
     @classmethod
     def getEndpointRoute(cls):

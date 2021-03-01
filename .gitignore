@@ -4,3 +4,12 @@ __pycache__/
 *.py[cod]
 *.pyc
 *$py.class
+
+# all hiden directories and files in the project root
+/.*
+
+# helm charts packages
+build_tools/*.tgz
+
+# include this file
+!/.gitignore

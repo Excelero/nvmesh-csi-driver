@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from NVMeshSDK.Utils import Utils
 from NVMeshSDK.Entities.Entity import Entity
+from NVMeshSDK.Entities.Meta import Meta
 from NVMeshSDK.Entities.AttributeRepresentation import AttributeRepresentation
 
 
@@ -14,14 +15,17 @@ class Log(Entity):
             * AcknowledgedBy
     """
     Id = AttributeRepresentation(display='ID', dbKey='_id')
-    TimeStamp = AttributeRepresentation(display='Timestamp', dbKey='timestamp')
+    TimeStamp = AttributeRepresentation(display='Date Created', dbKey='timestamp')
     Level = AttributeRepresentation(display='Level', dbKey='level')
     Message = AttributeRepresentation(display='Message', dbKey='message')
     AcknowledgedBy = AttributeRepresentation(display='Acknowledged By', dbKey='acknowledgedBy')
+    DateModified = AttributeRepresentation(display='Date Modified', dbKey='dateModified')
+    Meta = AttributeRepresentation(display='', dbKey='meta', type=Meta)
+    __objectsToInstantiate = ['Meta']
 
     @Utils.initializer
     def __init__(self, _id=None, timestamp=None, level=None, message=None, rawMessage=None, meta=None, acknowledgedBy=None, dateModified=None):
-        """Initializes Log entity]
+        """Initializes Log entity
 
         :param _id: the id of the log, defaults to None
         :type _id: str, optional
@@ -37,6 +41,9 @@ class Log(Entity):
         :type dateModified: str, optional
         """
         pass
+
+    def getObjectsToInstantiate(self):
+        return Log.__objectsToInstantiate
 
     @staticmethod
     def getSchemaName():

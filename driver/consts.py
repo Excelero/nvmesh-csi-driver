@@ -3,27 +3,18 @@ import os
 from csi.csi_pb2 import VolumeCapability
 
 
-def read_value_from_file(filename):
-	with open(filename) as file:
-		return file.readline()
 
-def read_bash_file(filename):
-	g = {}
-	l = {}
 
-	if os.path.exists(filename):
-		execfile(filename, g, l)
 
-	return l
-
-DEFAULT_VOLUME_SIZE = 5000000000 #5GB
+DEFAULT_VOLUME_SIZE = 5000000000
 DEFAULT_DRIVER_NAME = "nvmesh-csi.excelero.com"
-DRIVER_VERSION = read_value_from_file("/version")
-SPEC_VERSION = "1.1.0"
-NVMESH_VERSION_INFO = read_bash_file('/opt/NVMesh/client-repo/version')
-
 DEFAULT_UDS_PATH = "unix:///tmp/csi.sock"
 SYSLOG_PATH = "/dev/log"
+SINGLE_CLUSTER_ZONE_NAME = 'single-zone-cluster'
+
+class FSType(object):
+	XFS = 'xfs'
+	EXT4 = 'ext4'
 
 class DriverType(object):
 	Controller = 'Controller'
@@ -32,6 +23,17 @@ class DriverType(object):
 class VolumeAccessType(object):
 	BLOCK = 'block'
 	MOUNT = 'mount'
+
+class TopologyType(object):
+	SINGLE_ZONE_CLUSTER = 'single-zone-cluster'
+	MULTIPLE_NVMESH_CLUSTERS = 'multiple-nvmesh-clusters'
+
+class TopologyKey(object):
+	ZONE = DEFAULT_DRIVER_NAME + '/zone'
+
+class ZoneSelectionPolicy(object):
+	RANDOM = 'random'
+	ROUND_ROBIN = 'round-robin'
 
 class AccessMode(object):
 	SINGLE_NODE_WRITER = VolumeCapability.AccessMode.SINGLE_NODE_WRITER
@@ -97,3 +99,6 @@ class AccessMode(object):
 		}
 
 		return mapping_dict.get(access_mode_string, None)
+
+
+

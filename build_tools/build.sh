@@ -5,6 +5,8 @@ REPO_PATH=~/nvmesh-csi-driver
 servers=()
 DEPLOY=false
 DEPLOY_ONLY=false
+DOCKER_OR_PODMAN=docker
+ONLY_MANIFESTS=false
 
 if [ -z "$DRIVER_VERSION" ]; then
     echo "Could not find version in $VERSION_FILE_PATH"
@@ -19,6 +21,8 @@ show_help() {
     echo "  --servers               remote servers on which to build the docker image. example: ./build.sh --servers kube-master kube-node-1 kube-node-2"
     echo "  --deploy                after build deploy using kubectl on the first server. example: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy"
     echo "  --build-tests           build also the integration testing containers. example: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy --build-tests"
+    echo "  --podman                use podman instead of docker for building the image"
+    echo "  --only-manifests        build deployment.yaml and exit"
 }
 
 parse_args() {
@@ -38,6 +42,10 @@ parse_args() {
         done
 
         ;;
+        --podman)
+            DOCKER_OR_PODMAN=podman
+            shift
+        ;;
         -d|--deploy)
             DEPLOY=true
             shift
@@ -54,6 +62,10 @@ parse_args() {
             BUILD_HELM_PKG=true
             shift
         ;;
+        --only-manifests)
+            ONLY_MANIFESTS=true
+            shift
+        ;;
         -h|--help)
             show_help
             exit 0
@@ -68,16 +80,16 @@ parse_args() {
 }
 
 build_locally() {
-    echo "Building Docker image locally"
+    echo "Building $DOCKER_OR_PODMAN image locally"
 
     cd ../
     # using the -f flag allows us to include files from a directory out of the 'context'
     # we need it because the Dockerfile is in build dir and sources are in driver dir
 
-    docker build -f build_tools/nvmesh-csi-driver.dockerfile . --tag excelero/nvmesh-csi-driver:$DRIVER_VERSION
+    $DOCKER_OR_PODMAN build -f build_tools/nvmesh-csi-driver.dockerfile . --tag excelero/nvmesh-csi-driver:$DRIVER_VERSION
 
     if [ $? -ne 0 ]; then
-        echo "Docker image build failed"
+        echo "$DOCKER_OR_PODMAN image build failed"
         exit 3
     fi
 }
@@ -86,12 +98,14 @@ build_k8s_deployment_file() {
     # build Kubernetes deployment.yaml
     cd ../deploy/kubernetes/scripts
     ./build_deployment_file.sh
-
-    if [ $? -ne 0 ]; then
+    rc=$?
+    if [ $rc -ne 0 ]; then
         echo "Error running build_deployment_file.sh"
         exit 2
     fi
     cd -
+
+    return $rc
 }
 
 build_on_remote_machines() {
@@ -105,7 +119,7 @@ build_on_remote_machines() {
 
     for server in ${servers[@]}; do
         echo "Sending sources to remote machine ($server).."
-        rsync -r ../ $server:$REPO_PATH &> >(sed 's/^/'$server': /') &
+        rsync -r --exclude ".*/" ../ $server:$REPO_PATH &> >(sed 's/^/'$server': /') &
         sub_process_pids+=($!)
     done
 
@@ -166,14 +180,24 @@ deploy() {
 ### MAIN ###
 parse_args $@
 
-if [ $DEPLOY_ONLY = true ]; then
+if [ "$DEPLOY_ONLY" == "true" ]; then
+    if [ "$ONLY_MANIFESTS" == "true" ]; then
+    echo "error in arguments: --deploy-only and --only-manifests cannot be combined"
+        exit 1
+    fi
+
     deploy
     exit 0
 fi
 
 build_k8s_deployment_file
+rc=$?
 
-if [ "$BUILD_HELM_PKG" == true ]; then
+if [ "$ONLY_MANIFESTS" == "true" ]; then
+    exit $rc
+fi
+
+if [ "$BUILD_HELM_PKG" == "true" ]; then
     echo "Building Helm Package"
     last_dir=$(pwd)
     cd ../deploy/kubernetes/helm
@@ -188,7 +212,7 @@ if [ ${#servers[@]} -eq 0 ];then
         build_testsing_containers
     fi
 
-    if [ $DEPLOY = true ]; then
+    if [ "$DEPLOY" == "true" ]; then
         deploy
     fi
 else

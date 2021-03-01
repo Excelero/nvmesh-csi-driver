@@ -4,12 +4,16 @@ import os
 import signal
 import time
 
+from driver import consts
 from driver.server import NVMeshCSIDriverServer
 
 
 class ServerManager(object):
-	def __init__(self):
-		self.server = NVMeshCSIDriverServer()
+	def __init__(self, driverType, mock_node_id=None):
+		self.server = NVMeshCSIDriverServer(driverType)
+		if mock_node_id and driverType == consts.DriverType.Node:
+			self.server.node_service.node_id = mock_node_id
+
 		self.process = Process(target=self.server.serve)
 
 	def start(self):
@@ -32,15 +36,4 @@ class ServerManager(object):
 	def __del__(self):
 		if hasattr(self, 'process') and self.process:
 			self.stop()
-
-if __name__ == "__main__":
-	mgr = ServerManager()
-
-	def sig_term_handler(signum, frame):
-		mgr.stop()
-
-	signal.signal(signal.SIGTERM, sig_term_handler)
-	signal.signal(signal.SIGINT, sig_term_handler)
-
-	mgr.start()
 

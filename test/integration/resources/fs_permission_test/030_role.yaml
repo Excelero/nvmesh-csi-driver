@@ -1,0 +1,22 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fs-mount-test-unprivileged-psp
+rules:
+  - apiGroups: ["policy"]
+    resourceNames: ["psp.fs-perm-test"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["use"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fs-mount-test-unprivileged-psp
+subjects:
+  - kind: ServiceAccount
+    name: fs-mount-test
+    namespace: test-csi-driver
+roleRef:
+  kind: ClusterRole
+  name: fs-mount-test-unprivileged-psp
+  apiGroup: rbac.authorization.k8s.io

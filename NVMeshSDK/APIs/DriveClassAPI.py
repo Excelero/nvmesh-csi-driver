@@ -396,9 +396,6 @@ class DriveClassAPI(BaseClassAPI):
         """
         return super(DriveClassAPI, self).delete(entitiesList=driveClasses)
 
-    def count(self):
-        raise NotImplemented
-
     @classmethod
     def getEndpointRoute(cls):
         return cls.endpointRoute

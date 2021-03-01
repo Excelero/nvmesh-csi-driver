@@ -29,7 +29,7 @@ class NVMeshCSIDriverServer(object):
 
 		self.server = None
 		self.shouldContinue = True
-		self.logger.info("NVMesh CSI Driver Type: {} Version: {}".format(self.driver_type, Consts.DRIVER_VERSION))
+		self.logger.info("NVMesh CSI Driver Type: {} Version: {}".format(self.driver_type, Config.DRIVER_VERSION))
 
 	def serve(self):
 		logging_interceptor = ServerLoggingInterceptor(self.logger)

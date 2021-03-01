@@ -52,7 +52,7 @@ class ClusterAPI(BaseClassAPI):
                         }
                     },
                     {
-                        "message": "Nic: 0xfe80000000000000f452140300798461 is missing",
+                        "message": "NIC: 0xfe80000000000000f452140300798461 is missing",
                         "timestamp": "2015-08-18T13:01:11.692Z",
                         "meta": {
                             "header": "NIC failure"
@@ -76,6 +76,18 @@ class ClusterAPI(BaseClassAPI):
             None
         """
         routes = ['status']
+
+        err, out = self.makeGet(routes)
+
+        if out is not None:
+            status = self.getType()(**out)
+            status.deserialize()
+            return None, status
+        else:
+            return err, None
+
+    def _extendedStatus(self):
+        routes = ['getClusterStatus']
 
         err, out = self.makeGet(routes)
 

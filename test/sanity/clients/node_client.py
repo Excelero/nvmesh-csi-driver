@@ -1,4 +1,4 @@
-from driver.consts import Consts
+import driver.consts as Consts
 from driver.csi.csi_pb2 import NodeGetInfoRequest, NodeGetCapabilitiesRequest, NodePublishVolumeRequest, VolumeCapability, NodeUnpublishVolumeRequest, \
 	NodeStageVolumeRequest, NodeUnstageVolumeRequest, NodeExpandVolumeRequest
 from driver.csi.csi_pb2_grpc import NodeStub

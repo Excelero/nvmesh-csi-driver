@@ -8,6 +8,7 @@ from logging.handlers import SysLogHandler
 from subprocess import Popen, PIPE
 import grpc
 
+from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from NVMeshSDK.ConnectionManager import ConnectionManager, ManagementTimeout
 from config import Config
 import consts as Consts
@@ -67,7 +68,7 @@ def CatchServerErrors(func):
 			exc_tb = exc_tb.tb_next
 			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
 
-			if Config.PRINT_TRACEBACKS:
+			if Config.PRINT_STACK_TRACES:
 				import traceback
 				tb = traceback.format_exc()
 				print(tb)
@@ -134,20 +135,20 @@ class Utils(object):
 	# legacy API of calling nvmesh_attach_volumes before Exclusive Access feature introduced
 	@staticmethod
 	def _attach_volume_legacy(nvmesh_volume_name):
-		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_attach_volumes --wait_for_attach {}'.format(nvmesh_volume_name))
+		exit_code, stdout, stderr = Utils.run_command('python {}/nvmesh_attach_volumes --wait_for_attach {}'.format(Config.NVMESH_BIN_PATH, nvmesh_volume_name))
 		if exit_code != 0:
 			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
 
 	@staticmethod
 	def _attach_volume_with_access_mode(nvmesh_volume_name, nvmesh_access_mode):
-		cmd_template = 'python /host/bin/nvmesh_attach_volumes --wait_for_attach --json --access {access} {volume}'
-		cmd = cmd_template.format(access=nvmesh_access_mode, volume=nvmesh_volume_name)
+		cmd_template = 'python {script_dir}/nvmesh_attach_volumes --wait_for_attach --json --access {access} {volume}'
+		cmd = cmd_template.format(script_dir=Config.NVMESH_BIN_PATH, access=nvmesh_access_mode, volume=nvmesh_volume_name)
 		exit_code, stdout, stderr = Utils.run_command(cmd)
 
 		try:
-			results = json.loads(stdout)
+			results = json.loads(stdout or stderr)
 		except Exception as ex:
-			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
+			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: Could not parse output as JSON error_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
 
 		if results.get('status') == 'failed':
 			# General Script Failure
@@ -188,7 +189,7 @@ class Utils(object):
 
 	@staticmethod
 	def nvmesh_detach_volume(nvmesh_volume_name):
-		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_detach_volumes {}'.format(nvmesh_volume_name))
+		exit_code, stdout, stderr = Utils.run_command('python {}/nvmesh_detach_volumes {}'.format(Config.NVMESH_BIN_PATH, nvmesh_volume_name))
 		if exit_code != 0:
 			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_detach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
 
@@ -207,14 +208,14 @@ class Utils(object):
 						return True
 					else:
 						msg = "Waiting for volume {} to have IO Enabled. current status is: 'status':'{}', 'dbg':'{}'"
-						Utils.logger.debug(msg.format(nvmesh_volume_name, volume_status.get("status", volume_status.get("dbg"))))
+						Utils.logger.debug(msg.format(nvmesh_volume_name, volume_status.get("status"), volume_status.get("dbg")))
 				except IOError as ex:
 					# The volume status.json proc file is not ready.
 					Utils.logger.debug("Waiting for volume {} to have IO Enabled. Error: ".format(nvmesh_volume_name, ex))
 					pass
 
-					time.sleep(1)
-					now = datetime.now()
+				time.sleep(1)
+				now = datetime.now()
 		except Exception as ex:
 			import traceback
 			tb = traceback.format_exc()
@@ -232,8 +233,9 @@ class Utils(object):
 			with open(volume_status_proc) as fp:
 				volume_status = json.load(fp)
 				return volume_status
-		except ValueError:
+		except ValueError as ex:
 			Utils.logger.error('Failed to parse JSON from file {}'.format(volume_status_proc))
+			raise ValueError('Failed to parse JSON from file {}'.format(volume_status_proc))
 
 	@staticmethod
 	def verify_nvmesh_access_mode_allowed(current, requested, volume_name):
@@ -257,10 +259,13 @@ class Utils(object):
 			return True
 
 		# volume already attached
-		vol_status = Utils.get_volume_status(nvmesh_volume_name)
-		if vol_status.get('type') != 'visible' or vol_status.get('reservation') == 'Recovery Only':
-			# volume is hidden attached
-			return True
+		try:
+			vol_status = Utils.get_volume_status(nvmesh_volume_name)
+			if vol_status.get('type') != 'visible' or vol_status.get('reservation') == 'Recovery Only':
+				# volume is hidden attached
+				return True
+		except (ValueError, IOError) as ex:
+			raise DriverError(grpc.StatusCode.INTERNAL, 'Failed to run check_if_access_mode_allowed. %s' % ex)
 
 		current_access_mode = Consts.AccessMode.from_nvmesh(vol_status['reservation'])
 		requested_access_mode = Consts.AccessMode.from_nvmesh(requested_nvmesh_access_mode)
@@ -269,40 +274,86 @@ class Utils(object):
 		# The following function will throw an Exception if the conversion is not allowed, causing the Stage to fail
 		Utils.verify_nvmesh_access_mode_allowed(current=current_access_mode, requested=requested_access_mode, volume_name=nvmesh_volume_name)
 
+	@staticmethod
+	def sanitize_json_object_keys(jsonObj):
+		if isinstance(jsonObj, dict):
+			for key in jsonObj.keys():
+				sanitized = Utils.sanitize_json_key(key)
+				jsonObj[sanitized] = jsonObj[key]
+				del jsonObj[key]
+		elif isinstance(jsonObj, list):
+			for index, item in enumerate(jsonObj):
+				jsonObj[index] = Utils.sanitize_json_object_keys(item)
+
+		return jsonObj
+
+	@staticmethod
+	def sanitize_json_key(key):
+		return key.replace('.','-')
+
+	@staticmethod
+	def nvmesh_vol_name_to_co_id(nvmesh_vol_name, zone):
+		if zone:
+			return zone + ':' + nvmesh_vol_name
+		else:
+			return nvmesh_vol_name
+
+	@staticmethod
+	def zone_and_vol_name_from_co_id(volume_handle_id):
+		parts = volume_handle_id.split(':')
+		if len(parts) == 2:
+			return parts[0], parts[1]
+		if len(parts) == 1:
+			return None, parts[0]
+
+	@staticmethod
+	def parseBoolean(value):
+		if type(value) == bool:
+			return value
+		elif type(value) == str or type(value) == unicode:
+			return value.lower() == 'true'
+
+		raise ValueError('Failed to parse boolean from %s with type %s' % (value, type(value)))
+
 
 class NVMeshSDKHelper(object):
 	logger = DriverLogger("NVMeshSDKHelper")
 
 	@staticmethod
-	def _try_get_sdk_instance():
+	def _try_to_connect_to_single_management(logger):
 		protocol = Config.MANAGEMENT_PROTOCOL
 		managementServers = Config.MANAGEMENT_SERVERS
 		user = Config.MANAGEMENT_USERNAME
 		password = Config.MANAGEMENT_PASSWORD
 
-		serversWithProtocol = ['{0}://{1}'.format(protocol, server) for server in managementServers.split(',')]
+		# This call will try to connect to the Management Server Instance
+		api = VolumeAPI(managementServers=managementServers, managementProtocol=protocol, user=user, password=password, logger=logger)
+		err, connected = api.managementConnection.get('/isAlive')
 
-		return ConnectionManager.getInstance(managementServer=serversWithProtocol, user=user, password=password, logToSysLog=False)
+		if err:
+			raise err
+
+		return api, connected
 
 	@staticmethod
-	def init_sdk():
+	def init_session_with_single_management(logger):
 		connected = False
-
+		api = None
 		# try until able to connect to NVMesh Management
 		print("Looking for a NVMesh Management server using {} from servers {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
 		while not connected:
 			try:
-				NVMeshSDKHelper._try_get_sdk_instance()
-				connected = ConnectionManager.getInstance().isAlive()
+				api, connected = NVMeshSDKHelper._try_to_connect_to_single_management(logger)
 			except ManagementTimeout as ex:
-				NVMeshSDKHelper.logger.info("Waiting for NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
+				NVMeshSDKHelper.logger.info("Waiting for NVMesh Management servers on ({}) {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
 				Utils.interruptable_sleep(10)
 
-		print("Connected to NVMesh Management server on {}".format(ConnectionManager.getInstance().managementServer))
+			print("Connected to NVMesh Management server on ({}) {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
+		return api
 
 	@staticmethod
-	def get_management_version():
-		err, out = ConnectionManager.getInstance().get('/version')
+	def get_management_version(api):
+		err, out = api.managementConnection.get('/version')
 		if not err:
 			version_info = {}
 			lines = out.split('\n')
@@ -329,7 +380,7 @@ class FeatureSupportChecks(object):
 
 	@staticmethod
 	def is_access_mode_supported():
-		exit_code, stdout, stderr = Utils.run_command('python /host/bin/nvmesh_attach_volumes --help | grep -e "--access"', debug=False)
+		exit_code, stdout, stderr = Utils.run_command('python {}/nvmesh_attach_volumes --help | grep -e "--access"'.format(Config.NVMESH_BIN_PATH), debug=False)
 		return exit_code == 0
 
 class FeatureSupport(object):

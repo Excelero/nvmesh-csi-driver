@@ -8,7 +8,7 @@ from utils import TestUtils, KubeUtils, NVMeshUtils, core_api
 
 logger = TestUtils.get_logger()
 
-GiB = 1024*1024*1024
+GiB = pow(1024, 3)
 class TestStaticProvisioning(unittest.TestCase):
 	def test_static_provisioning(self):
 		# Create NVMesh Volume
@@ -44,12 +44,13 @@ class TestStaticProvisioning(unittest.TestCase):
 
 		# Create PVC
 		pvc_name = 'pvc-static-prov'
-		KubeUtils.create_pvc_and_wait_to_bound(self,
-											   pvc_name,
-											   sc_name,
-											   access_modes=accessModes,
-											   storage=volume_size,
-											   volumeMode='Block')
+		KubeUtils.create_pvc_and_wait_to_bound(
+			self,
+			pvc_name,
+			sc_name,
+			access_modes=accessModes,
+			storage=volume_size,
+			volumeMode='Block')
 
 		self.addCleanup(lambda: KubeUtils.delete_pvc(pvc_name))
 

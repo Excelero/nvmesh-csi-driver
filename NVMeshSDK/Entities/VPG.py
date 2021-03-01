@@ -11,17 +11,21 @@ class VPG(Entity):
             * Description
             * RaidLevel
             * Size
+            * EnableCrcCheck
+            * VSGs
     """
     Id = AttributeRepresentation(display='Name', dbKey='name')
     Size = AttributeRepresentation(display='Reserved Space', dbKey='capacity')
     Description = AttributeRepresentation(display='Description', dbKey='description')
     RaidLevel = AttributeRepresentation(display='RAID Level', dbKey='RAIDLevel')
+    EnableCRCCheck = AttributeRepresentation(display='Enable CRC Check', dbKey='enableCrcCheck')
+    VSGs = AttributeRepresentation(display='VSGs', dbKey='VSGs')
 
     @Utils.initializer
     def __init__(self, name=None, RAIDLevel=None, capacity=None, VPG=None, _id=None, relativeRebuildPriority=None, description=None, diskClasses=None, serverClasses=None,
                  limitByDisks=None, limitByNodes=None, numberOfMirrors=None, createdBy=None, modifiedBy=None, dateModified=None, dateCreated=None, isReserved=None,
                  status=None, blocks=None, chunks=None, stripeSize=None, stripeWidth=None, dataBlocks=None, parityBlocks=None, protectionLevel=None, domain=None,
-                 uuid=None, blockSize=None, version=None, type=None, health=None, lockServer=None, serviceResources=None, isDefault=None):
+                 uuid=None, blockSize=None, version=None, type=None, health=None, lockServer=None, serviceResources=None, isDefault=None, enableCrcCheck=None, VSGs=None):
         """**Initializes VPG entity**
 
                 :param name: the name of the VPG
@@ -56,6 +60,10 @@ class VPG(Entity):
                 :type health: str, optional
                 :param status: the status of the volume, defaults to None
                 :type status: int, optional
+                :param enableCrcCheck: enables CRC check, defaults to None
+                :type enableCrcCheck: bool, optional
+                :param VSGs: associated volume security groups, defaults to None
+                :type VSGs: list, optional
         """
 
         if hasattr(self, '_id'):

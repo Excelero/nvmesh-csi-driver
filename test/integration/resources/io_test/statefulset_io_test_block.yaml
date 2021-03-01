@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-io-svc
+  labels:
+    nvmesh-csi-testing: ""
+spec:
+  clusterIP: "None"
+  ports:
+    - port: 6000
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: block-io-test
+spec:
+  serviceName: test-io-svc
+  selector:
+    matchLabels:
+      app: block-io-test
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: block-io-test
+    spec:
+      serviceAccountName: fs-mount-test
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - io-test
+                topologyKey: kubernetes.io/hostname
+      containers:
+      - name: block-deivce-io-test
+        image: excelero/block-device-io-test:dev
+        imagePullPolicy: Always
+        env:
+          - name: VOLUME_Type
+            value: Block
+          - name: VOLUME_PATH
+            value: /dev/my_block_dev
+        volumeDevices:
+          - name: block-volume
+            devicePath: /dev/my_block_dev
+  volumeClaimTemplates:
+  - metadata:
+      name: block-volume
+    spec:
+      volumeMode: Block
+      accessModes: [ "ReadWriteMany" ]
+      storageClassName: "nvmesh-raid0"
+      resources:
+        requests:
+          storage: 10Gi
