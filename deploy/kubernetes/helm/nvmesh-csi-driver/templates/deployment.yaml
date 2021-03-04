@@ -188,7 +188,6 @@ spec:
                   name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: password
             - name: ZONE
-              # TODO: have initContainer fetch the label key and value from the node
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
