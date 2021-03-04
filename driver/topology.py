@@ -43,6 +43,12 @@ class TopologyUtils(object):
 		cluster_topology = Config.TOPOLOGY
 		return cluster_topology.get('zones').keys()
 
+	@staticmethod
+	def get_topology_key():
+		if not Config.TOPOLOGY:
+			return consts.TopologyKey.ZONE
+
+		return Config.TOPOLOGY.get('topologyKey', consts.TopologyKey.ZONE)
 
 class ZoneSelectionManager(object):
 	_zone_picker = None

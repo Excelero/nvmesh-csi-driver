@@ -76,7 +76,8 @@ class NVMeshControllerService(ControllerServicer):
 		# we return the zone:nvmesh_vol_name to the CO
 		# all subsequent requests for this volume will have volume_id of the zone:nvmesh_vol_name
 		volume_id_for_co = Utils.nvmesh_vol_name_to_co_id(nvmesh_vol_name, zone)
-		volume_topology = Topology(segments={Consts.TopologyKey.ZONE: zone})
+		topology_key = TopologyUtils.get_topology_key()
+		volume_topology = Topology(segments={topology_key: zone})
 		csiVolume = Volume(volume_id=volume_id_for_co, capacity_bytes=capacity, accessible_topology=[volume_topology])
 		return CreateVolumeResponse(volume=csiVolume)
 
@@ -135,11 +136,12 @@ class NVMeshControllerService(ControllerServicer):
 		# If volumeBindingMode is Immediate - all cluster topology will be received
 		# If volumeBindingMode is WaitForFirstConsumer - Only the topology of the node to which the pod is scheduled will be given
 		try:
+			topology_key = TopologyUtils.get_topology_key()
 			preferred_topologies = topology_requirements.get('preferred')
 			if len(preferred_topologies) == 1:
-				selected_zone = preferred_topologies[0]['segments'][Consts.TopologyKey.ZONE]
+				selected_zone = preferred_topologies[0]['segments'][topology_key]
 			else:
-				zones = map(lambda t: t['segments'][Consts.TopologyKey.ZONE], preferred_topologies)
+				zones = map(lambda t: t['segments'][topology_key], preferred_topologies)
 				selected_zone = ZoneSelectionManager.pick_zone(zones)
 		except Exception as ex:
 			raise ValueError('Failed to get zone from topology. Error: %s' % ex)

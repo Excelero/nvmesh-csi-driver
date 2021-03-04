@@ -278,9 +278,11 @@ class NVMeshNodeService(NodeServicer):
 
 		if Config.TOPOLOGY_TYPE == Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS:
 			zone = TopologyUtils.get_node_zone_from_topology(self.node_id)
-			topology_info[Consts.TopologyKey.ZONE] = zone
+			topology_key = TopologyUtils.get_topology_key()
+			topology_info[topology_key] = zone
 		elif Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
-			topology_info[Consts.TopologyKey.ZONE] = Consts.SINGLE_CLUSTER_ZONE_NAME
+			topology_key = TopologyUtils.get_topology_key()
+			topology_info[topology_key] = Consts.SINGLE_CLUSTER_ZONE_NAME
 		else:
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Unsupported Config.TOPOLOGY_TYPE of %s' % Config.TOPOLOGY_TYPE)
 
