@@ -81,8 +81,8 @@ def print_config():
 
 class ConfigLoader(object):
 	def load(self):
-		Config.MANAGEMENT_SERVERS = _get_config_map_param('management.servers')
-		Config.MANAGEMENT_PROTOCOL = _get_config_map_param('management.protocol', default='https')
+		Config.MANAGEMENT_SERVERS = _get_config_map_param('management.servers') or _get_env_var('MANAGEMENT_SERVERS')
+		Config.MANAGEMENT_PROTOCOL = _get_config_map_param('management.protocol') or _get_env_var('MANAGEMENT_SERVERS', default='https')
 		Config.MANAGEMENT_USERNAME = _get_env_var('MANAGEMENT_USERNAME', default='admin@excelero.com')
 		Config.MANAGEMENT_PASSWORD = _get_env_var('MANAGEMENT_PASSWORD', default='admin')
 		Config.SOCKET_PATH = _get_env_var('SOCKET_PATH', default=Consts.DEFAULT_UDS_PATH)
