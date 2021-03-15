@@ -88,6 +88,7 @@ class ConfigLoader(object):
 		Config.SOCKET_PATH = _get_env_var('SOCKET_PATH', default=Consts.DEFAULT_UDS_PATH)
 		Config.DRIVER_NAME = _get_env_var('DRIVER_NAME', default=Consts.DEFAULT_DRIVER_NAME)
 
+		Config.NVMESH_BIN_PATH = _get_env_var('NVMESH_BIN_PATH', default='/host/bin')
 		Config.DRIVER_VERSION = _read_file_contents(DRIVER_VERSION_FILE_PATH)
 		Config.NVMESH_VERSION_INFO = _read_bash_file(NVMESH_VERSION_FILE_PATH)
 
