@@ -14,13 +14,12 @@ import consts as Consts
 from csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ControllerPublishVolumeResponse, ControllerUnpublishVolumeResponse, \
 	ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse, Topology
 from csi.csi_pb2_grpc import ControllerServicer
-from config import config_loader, Config
+from config import config_loader, Config, get_config_json
 from topology import TopologyUtils, ZoneSelectionManager
 
 
 class NVMeshControllerService(ControllerServicer):
 	def __init__(self, logger):
-		config_loader.load()
 		ControllerServicer.__init__(self)
 		self.logger = logger
 		if Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
@@ -29,6 +28,8 @@ class NVMeshControllerService(ControllerServicer):
 			self._log_mgmt_version_info(management_version_info)
 
 		self.vol_to_zone_mapping = {}
+
+		self.logger.info('Config: {}'.format(get_config_json()))
 
 	@CatchServerErrors
 	def CreateVolume(self, request, context):

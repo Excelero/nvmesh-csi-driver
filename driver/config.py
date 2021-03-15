@@ -11,7 +11,7 @@ class ConfigError(Exception):
 	pass
 
 class Config(object):
-	NVMESH_BIN_PATH = '/host/bin/'
+	NVMESH_BIN_PATH = None
 	MANAGEMENT_SERVERS = None
 	MANAGEMENT_PROTOCOL = None
 	MANAGEMENT_USERNAME = None
@@ -70,14 +70,17 @@ def _get_env_var(key, default=None, parser=None):
 	else:
 		return default
 
-def print_config():
+def get_config_json():
 	asDict = dict(vars(Config))
 	params = {}
 	for key in asDict.keys():
 		if not key.startswith('_'):
 			params[key] = asDict[key]
+	return json.dumps(params, indent=4)
 
-	print('Config=%s' % json.dumps(params, indent=4))
+def print_config():
+	config_json = get_config_json()
+	print('Config=%s' % config_json)
 
 class ConfigLoader(object):
 	def load(self):
@@ -98,7 +101,6 @@ class ConfigLoader(object):
 
 		ConfigValidator().validate()
 		print("Loaded Config with SOCKET_PATH={}, MANAGEMENT_SERVERS={}, DRIVER_NAME={}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS, Config.DRIVER_NAME))
-
 class ConfigValidator(object):
 	def validate(self):
 		if Config.TOPOLOGY:

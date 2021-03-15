@@ -4,11 +4,11 @@ import signal
 
 import sys, os
 from concurrent import futures
-from common import ServerLoggingInterceptor, DriverLogger
+from config import Config, config_loader
+from common import ServerLoggingInterceptor, DriverLogger, FeatureSupportChecks
 import consts as Consts
 from controller_service import NVMeshControllerService
 from csi import csi_pb2_grpc
-from config import Config
 from identity_service import NVMeshIdentityService
 from node_service import NVMeshNodeService
 
@@ -20,6 +20,9 @@ class NVMeshCSIDriverServer(object):
 	def __init__(self, driver_type):
 		self.driver_type = driver_type
 		self.logger = DriverLogger()
+		config_loader.load()
+		FeatureSupportChecks.calculate_all_feature_support()
+
 		self.identity_service = NVMeshIdentityService(self.logger)
 
 		if self.driver_type == Consts.DriverType.Controller:

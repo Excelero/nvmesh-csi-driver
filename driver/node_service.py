@@ -6,19 +6,18 @@ import os
 from google.protobuf.json_format import MessageToJson, MessageToDict
 from grpc import StatusCode
 
+from config import config_loader, Config, get_config_json
 from FileSystemManager import FileSystemManager
 from common import Utils, CatchServerErrors, DriverError, FeatureSupportChecks
 import consts as Consts
 from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
 	NodeStageVolumeResponse, NodeUnstageVolumeResponse, NodeExpandVolumeResponse, Topology
 from csi.csi_pb2_grpc import NodeServicer
-from config import config_loader, Config
 from topology import TopologyUtils
 
 
 class NVMeshNodeService(NodeServicer):
 	def __init__(self, logger):
-		config_loader.load()
 		NodeServicer.__init__(self)
 		self.node_id = socket.gethostname()
 
@@ -28,6 +27,8 @@ class NVMeshNodeService(NodeServicer):
 		feature_list = json.dumps(FeatureSupportChecks.get_all_features(), indent=4, sort_keys=True)
 		self.logger.info('Supported Features: {}'.format(feature_list))
 		self.topology = self._get_topology()
+
+		self.logger.info('Config: {}'.format(get_config_json()))
 
 	@CatchServerErrors
 	def NodeStageVolume(self, request, context):
