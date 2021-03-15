@@ -49,11 +49,6 @@ class DriverLogger(logging.Logger):
 		self._add_handler(handler)
 		return handler
 
-	def add_syslog_handler(self):
-		handler = SysLogHandler(address=Consts.SYSLOG_PATH)
-		self._add_handler(handler)
-		return handler
-
 def CatchServerErrors(func):
 	def func_wrapper(self, request, context):
 		try:
