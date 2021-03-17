@@ -527,9 +527,6 @@ spec:
               # propagated back to the host machine.
               mountPropagation: "Bidirectional"
 
-            - name: systemd-journal
-              mountPath: /run/systemd/journal
-
             - name: device-dir
               mountPath: /dev
             - name: host-bin
@@ -570,10 +567,6 @@ spec:
           hostPath:
             path: /var/lib/kubelet/
             type: Directory
-
-        - name: systemd-journal
-          hostPath:
-            path: /run/systemd/journal
 
         - name: device-dir
           hostPath:

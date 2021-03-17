@@ -28,7 +28,7 @@ config:
   #topologyJsonFilePath: topology.json
 
 hostBinariesPath: /bin
-systemdHost: true
+systemdHost: false
 
 defaultStorageClasses: true
 
