@@ -2,7 +2,6 @@
 # NVMesh CSI Controller Driver StatefulSet Deployment
 #
 
-# TODO: remove "hard-coded" namespace field.
 # let the customer decide on which namespace they want the driver installed
 kind: StatefulSet
 apiVersion: apps/v1
@@ -187,10 +186,6 @@ spec:
                 secretKeyRef:
                   name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: password
-            - name: ZONE
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
           volumeMounts:
             - name: config-volume
               mountPath: /config
