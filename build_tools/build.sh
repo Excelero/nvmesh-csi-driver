@@ -86,7 +86,7 @@ build_locally() {
     # using the -f flag allows us to include files from a directory out of the 'context'
     # we need it because the Dockerfile is in build dir and sources are in driver dir
 
-    $DOCKER_OR_PODMAN build -f build_tools/nvmesh-csi-driver.dockerfile . --tag excelero/nvmesh-csi-driver:$DRIVER_VERSION
+    $DOCKER_OR_PODMAN build -f build_tools/nvmesh-csi-driver.dockerfile . --tag excelero/nvmesh-csi-driver:$DRIVER_VERSION --build-arg VERSION=$DRIVER_VERSION --build-arg RELEASE=1
 
     if [ $? -ne 0 ]; then
         echo "$DOCKER_OR_PODMAN image build failed"

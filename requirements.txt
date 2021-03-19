@@ -1,5 +1,5 @@
-grpcio
-futures
-protobuf
-requests
-packaging
+grpcio==1.25
+futures==3.3.0
+protobuf==3.13.0
+requests==2.24.0
+packaging==20.4
