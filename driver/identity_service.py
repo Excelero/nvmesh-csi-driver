@@ -7,7 +7,6 @@ from csi.csi_pb2_grpc import IdentityServicer
 
 class NVMeshIdentityService(IdentityServicer):
 	def __init__(self, logger):
-		config_loader.load()
 		IdentityServicer.__init__(self)
 		self.logger = logger
 

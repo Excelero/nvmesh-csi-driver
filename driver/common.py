@@ -10,7 +10,7 @@ import grpc
 
 from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from NVMeshSDK.ConnectionManager import ConnectionManager, ManagementTimeout
-from config import Config
+from config import Config, print_config
 import consts as Consts
 
 
@@ -46,11 +46,6 @@ class DriverLogger(logging.Logger):
 
 	def add_stdout_handler(self):
 		handler = logging.StreamHandler(sys.stdout)
-		self._add_handler(handler)
-		return handler
-
-	def add_syslog_handler(self):
-		handler = SysLogHandler(address=Consts.SYSLOG_PATH)
 		self._add_handler(handler)
 		return handler
 
@@ -189,7 +184,7 @@ class Utils(object):
 
 	@staticmethod
 	def nvmesh_detach_volume(nvmesh_volume_name):
-		exit_code, stdout, stderr = Utils.run_command('python {}/nvmesh_detach_volumes {}'.format(Config.NVMESH_BIN_PATH, nvmesh_volume_name))
+		exit_code, stdout, stderr = Utils.run_command('python {}/nvmesh_detach_volumes --json {}'.format(Config.NVMESH_BIN_PATH, nvmesh_volume_name))
 		if exit_code != 0:
 			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_detach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
 
@@ -370,6 +365,10 @@ class NVMeshSDKHelper(object):
 
 class FeatureSupportChecks(object):
 	@staticmethod
+	def calculate_all_feature_support():
+		FeatureSupport.AccessMode = FeatureSupportChecks.is_access_mode_supported()
+
+	@staticmethod
 	def get_all_features():
 		features = {}
 		for key, value in FeatureSupport.__dict__.iteritems():
@@ -380,8 +379,8 @@ class FeatureSupportChecks(object):
 
 	@staticmethod
 	def is_access_mode_supported():
-		exit_code, stdout, stderr = Utils.run_command('python {}/nvmesh_attach_volumes --help | grep -e "--access"'.format(Config.NVMESH_BIN_PATH), debug=False)
+		exit_code, stdout, stderr = Utils.run_command('python {}/nvmesh_attach_volumes --help | grep -e "access"'.format(Config.NVMESH_BIN_PATH))
 		return exit_code == 0
 
 class FeatureSupport(object):
-	AccessMode = FeatureSupportChecks.is_access_mode_supported()
+	AccessMode = None

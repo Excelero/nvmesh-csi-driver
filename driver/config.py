@@ -11,7 +11,7 @@ class ConfigError(Exception):
 	pass
 
 class Config(object):
-	NVMESH_BIN_PATH = '/host/bin/'
+	NVMESH_BIN_PATH = None
 	MANAGEMENT_SERVERS = None
 	MANAGEMENT_PROTOCOL = None
 	MANAGEMENT_USERNAME = None
@@ -70,24 +70,28 @@ def _get_env_var(key, default=None, parser=None):
 	else:
 		return default
 
-def print_config():
+def get_config_json():
 	asDict = dict(vars(Config))
 	params = {}
 	for key in asDict.keys():
 		if not key.startswith('_'):
 			params[key] = asDict[key]
+	return json.dumps(params, indent=4)
 
-	print('Config=%s' % json.dumps(params, indent=4))
+def print_config():
+	config_json = get_config_json()
+	print('Config=%s' % config_json)
 
 class ConfigLoader(object):
 	def load(self):
-		Config.MANAGEMENT_SERVERS = _get_config_map_param('management.servers')
-		Config.MANAGEMENT_PROTOCOL = _get_config_map_param('management.protocol', default='https')
+		Config.MANAGEMENT_SERVERS = _get_config_map_param('management.servers') or _get_env_var('MANAGEMENT_SERVERS')
+		Config.MANAGEMENT_PROTOCOL = _get_config_map_param('management.protocol') or _get_env_var('MANAGEMENT_SERVERS', default='https')
 		Config.MANAGEMENT_USERNAME = _get_env_var('MANAGEMENT_USERNAME', default='admin@excelero.com')
 		Config.MANAGEMENT_PASSWORD = _get_env_var('MANAGEMENT_PASSWORD', default='admin')
 		Config.SOCKET_PATH = _get_env_var('SOCKET_PATH', default=Consts.DEFAULT_UDS_PATH)
 		Config.DRIVER_NAME = _get_env_var('DRIVER_NAME', default=Consts.DEFAULT_DRIVER_NAME)
 
+		Config.NVMESH_BIN_PATH = _get_env_var('NVMESH_BIN_PATH', default='/host/bin')
 		Config.DRIVER_VERSION = _read_file_contents(DRIVER_VERSION_FILE_PATH)
 		Config.NVMESH_VERSION_INFO = _read_bash_file(NVMESH_VERSION_FILE_PATH)
 
@@ -97,7 +101,6 @@ class ConfigLoader(object):
 
 		ConfigValidator().validate()
 		print("Loaded Config with SOCKET_PATH={}, MANAGEMENT_SERVERS={}, DRIVER_NAME={}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS, Config.DRIVER_NAME))
-
 class ConfigValidator(object):
 	def validate(self):
 		if Config.TOPOLOGY:

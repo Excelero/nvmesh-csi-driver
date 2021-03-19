@@ -1,5 +1,6 @@
 {
    "type": "multiple-nvmesh-clusters",
+   "topologyKey": "my-topology-key",
    "zoneSelectionPolicy": "random",
    "zones":{
       "A":{

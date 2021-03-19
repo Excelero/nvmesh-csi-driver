@@ -14,9 +14,9 @@ class Logger(object):
 		self._defaultFormat = '%(name)s[{}]: %(levelname)s: %(message)s'.format(os.getpid())
 		self._isLoggerInitialized = False
 		self._loggerOptions = {
-			'logToSysLog': True,
-			'logToStdout': False,
-			'logToStderr': False,
+			'logToSysLog': False,
+			'logToStdout': True,
+			'logToStderr': True,
 			'logLevel': logging.DEBUG,
 			'propagate': True,
 			'formatString': self._defaultFormat,

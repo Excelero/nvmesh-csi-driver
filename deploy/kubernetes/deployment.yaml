@@ -8,7 +8,7 @@ metadata:
     helm.sh/chart: nvmesh-csi-driver-1.1.1
     app.kubernetes.io/name: nvmesh-csi-driver
     app.kubernetes.io/instance: nvmesh-csi-driver
-    app.kubernetes.io/version: "v1.1.1"
+    app.kubernetes.io/version: "v1.1.2"
     app.kubernetes.io/managed-by: Helm
 spec:
   privileged: true
@@ -49,7 +49,7 @@ metadata:
     helm.sh/chart: nvmesh-csi-driver-1.1.1
     app.kubernetes.io/name: nvmesh-csi-driver
     app.kubernetes.io/instance: nvmesh-csi-driver
-    app.kubernetes.io/version: "v1.1.1"
+    app.kubernetes.io/version: "v1.1.2"
     app.kubernetes.io/managed-by: Helm
 ---
 # Source: nvmesh-csi-driver/templates/credentials.yaml
@@ -62,7 +62,7 @@ metadata:
     helm.sh/chart: nvmesh-csi-driver-1.1.1
     app.kubernetes.io/name: nvmesh-csi-driver
     app.kubernetes.io/instance: nvmesh-csi-driver
-    app.kubernetes.io/version: "v1.1.1"
+    app.kubernetes.io/version: "v1.1.2"
     app.kubernetes.io/managed-by: Helm
 data:
   username: YWRtaW5AZXhjZWxlcm8uY29t
@@ -78,7 +78,7 @@ metadata:
     helm.sh/chart: nvmesh-csi-driver-1.1.1
     app.kubernetes.io/name: nvmesh-csi-driver
     app.kubernetes.io/instance: nvmesh-csi-driver
-    app.kubernetes.io/version: "v1.1.1"
+    app.kubernetes.io/version: "v1.1.2"
     app.kubernetes.io/managed-by: Helm
 data:
   management.protocol: https
@@ -432,7 +432,7 @@ metadata:
     helm.sh/chart: nvmesh-csi-driver-1.1.1
     app.kubernetes.io/name: nvmesh-csi-driver
     app.kubernetes.io/instance: nvmesh-csi-driver
-    app.kubernetes.io/version: "v1.1.1"
+    app.kubernetes.io/version: "v1.1.2"
     app.kubernetes.io/managed-by: Helm
 spec:
   type: ClusterIP
@@ -467,7 +467,7 @@ spec:
         helm.sh/chart: nvmesh-csi-driver-1.1.1
         app.kubernetes.io/name: nvmesh-csi-driver
         app.kubernetes.io/instance: nvmesh-csi-driver
-        app.kubernetes.io/version: "v1.1.1"
+        app.kubernetes.io/version: "v1.1.2"
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/component: node-driver
     spec:
@@ -482,7 +482,7 @@ spec:
         # NVMesh Driver
         - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
-          image: "excelero/nvmesh-csi-driver:v1.1.1"
+          image: "excelero/nvmesh-csi-driver:v1.1.2"
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
@@ -516,11 +516,6 @@ spec:
                 secretKeyRef:
                   name: nvmesh-csi-credentials
                   key: password
-            - name: ZONE
-              # TODO: have initContainer fetch the label key and value from the node
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
           volumeMounts:
             - name: config-volume
               mountPath: /config
@@ -531,9 +526,6 @@ spec:
               # needed so that any mounts setup inside this container are
               # propagated back to the host machine.
               mountPropagation: "Bidirectional"
-
-            - name: systemd-journal
-              mountPath: /run/systemd/journal
 
             - name: device-dir
               mountPath: /dev
@@ -576,10 +568,6 @@ spec:
             path: /var/lib/kubelet/
             type: Directory
 
-        - name: systemd-journal
-          hostPath:
-            path: /run/systemd/journal
-
         - name: device-dir
           hostPath:
             path: /dev
@@ -598,7 +586,6 @@ spec:
 # NVMesh CSI Controller Driver StatefulSet Deployment
 #
 
-# TODO: remove "hard-coded" namespace field.
 # let the customer decide on which namespace they want the driver installed
 kind: StatefulSet
 apiVersion: apps/v1
@@ -621,7 +608,7 @@ spec:
         helm.sh/chart: nvmesh-csi-driver-1.1.1
         app.kubernetes.io/name: nvmesh-csi-driver
         app.kubernetes.io/instance: nvmesh-csi-driver
-        app.kubernetes.io/version: "v1.1.1"
+        app.kubernetes.io/version: "v1.1.2"
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/component: controller
     spec:
@@ -630,7 +617,7 @@ spec:
         # NVMesh Driver
         - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
-          image: "excelero/nvmesh-csi-driver:v1.1.1"
+          image: "excelero/nvmesh-csi-driver:v1.1.2"
           imagePullPolicy: IfNotPresent
           env:
             - name: DRIVER_TYPE
@@ -728,7 +715,7 @@ metadata:
     helm.sh/chart: nvmesh-csi-driver-1.1.1
     app.kubernetes.io/name: nvmesh-csi-driver
     app.kubernetes.io/instance: nvmesh-csi-driver
-    app.kubernetes.io/version: "v1.1.1"
+    app.kubernetes.io/version: "v1.1.2"
     app.kubernetes.io/managed-by: Helm
 spec:
   attachRequired: false

@@ -14,13 +14,12 @@ import consts as Consts
 from csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ControllerPublishVolumeResponse, ControllerUnpublishVolumeResponse, \
 	ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse, Topology
 from csi.csi_pb2_grpc import ControllerServicer
-from config import config_loader, Config
+from config import config_loader, Config, get_config_json
 from topology import TopologyUtils, ZoneSelectionManager
 
 
 class NVMeshControllerService(ControllerServicer):
 	def __init__(self, logger):
-		config_loader.load()
 		ControllerServicer.__init__(self)
 		self.logger = logger
 		if Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
@@ -29,6 +28,8 @@ class NVMeshControllerService(ControllerServicer):
 			self._log_mgmt_version_info(management_version_info)
 
 		self.vol_to_zone_mapping = {}
+
+		self.logger.info('Config: {}'.format(get_config_json()))
 
 	@CatchServerErrors
 	def CreateVolume(self, request, context):
@@ -76,7 +77,8 @@ class NVMeshControllerService(ControllerServicer):
 		# we return the zone:nvmesh_vol_name to the CO
 		# all subsequent requests for this volume will have volume_id of the zone:nvmesh_vol_name
 		volume_id_for_co = Utils.nvmesh_vol_name_to_co_id(nvmesh_vol_name, zone)
-		volume_topology = Topology(segments={Consts.TopologyKey.ZONE: zone})
+		topology_key = TopologyUtils.get_topology_key()
+		volume_topology = Topology(segments={topology_key: zone})
 		csiVolume = Volume(volume_id=volume_id_for_co, capacity_bytes=capacity, accessible_topology=[volume_topology])
 		return CreateVolumeResponse(volume=csiVolume)
 
@@ -135,11 +137,12 @@ class NVMeshControllerService(ControllerServicer):
 		# If volumeBindingMode is Immediate - all cluster topology will be received
 		# If volumeBindingMode is WaitForFirstConsumer - Only the topology of the node to which the pod is scheduled will be given
 		try:
+			topology_key = TopologyUtils.get_topology_key()
 			preferred_topologies = topology_requirements.get('preferred')
 			if len(preferred_topologies) == 1:
-				selected_zone = preferred_topologies[0]['segments'][Consts.TopologyKey.ZONE]
+				selected_zone = preferred_topologies[0]['segments'][topology_key]
 			else:
-				zones = map(lambda t: t['segments'][Consts.TopologyKey.ZONE], preferred_topologies)
+				zones = map(lambda t: t['segments'][topology_key], preferred_topologies)
 				selected_zone = ZoneSelectionManager.pick_zone(zones)
 		except Exception as ex:
 			raise ValueError('Failed to get zone from topology. Error: %s' % ex)
@@ -215,6 +218,10 @@ class NVMeshControllerService(ControllerServicer):
 				nvmesh_params[param] = parameters[param]
 
 			self._handle_non_vpg_params(nvmesh_params)
+
+		# For both VPG and non-VPG
+		nvmesh_params['relativeRebuildPriority'] = nvmesh_params.get('relativeRebuildPriority', 10)
+
 		self.logger.debug('nvmesh_params = {}'.format(nvmesh_params))
 		return nvmesh_params
 
