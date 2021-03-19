@@ -218,6 +218,10 @@ class NVMeshControllerService(ControllerServicer):
 				nvmesh_params[param] = parameters[param]
 
 			self._handle_non_vpg_params(nvmesh_params)
+
+		# For both VPG and non-VPG
+		nvmesh_params['relativeRebuildPriority'] = nvmesh_params.get('relativeRebuildPriority', 10)
+
 		self.logger.debug('nvmesh_params = {}'.format(nvmesh_params))
 		return nvmesh_params
 
