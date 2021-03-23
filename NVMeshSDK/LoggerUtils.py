@@ -16,7 +16,7 @@ class Logger(object):
 		self._loggerOptions = {
 			'logToSysLog': False,
 			'logToStdout': True,
-			'logToStderr': True,
+			'logToStderr': False,
 			'logLevel': logging.DEBUG,
 			'propagate': True,
 			'formatString': self._defaultFormat,
