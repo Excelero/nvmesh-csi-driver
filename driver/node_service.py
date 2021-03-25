@@ -26,7 +26,7 @@ class NVMeshNodeService(NodeServicer):
 
 		feature_list = json.dumps(FeatureSupportChecks.get_all_features(), indent=4, sort_keys=True)
 		self.logger.info('Supported Features: {}'.format(feature_list))
-		self.topology = self._get_topology()
+		self.topology = None
 
 		self.logger.info('Config: {}'.format(get_config_json()))
 
@@ -246,6 +246,10 @@ class NVMeshNodeService(NodeServicer):
 	def NodeGetInfo(self, request, context):
 		reqDict = MessageToDict(request)
 		self.logger.debug('NodeGetInfo called with request: {}'.format(reqDict))
+
+		if not self.topology:
+			self.topology = self._get_topology()
+
 		return NodeGetInfoResponse(node_id=self.node_id, accessible_topology=self.topology)
 
 	def _get_block_or_mount_volume(self, request):
@@ -278,7 +282,7 @@ class NVMeshNodeService(NodeServicer):
 		topology_info = {}
 
 		if Config.TOPOLOGY_TYPE == Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS:
-			zone = TopologyUtils.get_node_zone_from_topology(self.node_id)
+			zone = TopologyUtils.get_node_zone(self.node_id, logger=self.logger)
 			topology_key = TopologyUtils.get_topology_key()
 			topology_info[topology_key] = zone
 		elif Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:

@@ -12,7 +12,7 @@ import consts as Consts
 from csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse, Topology
 from csi.csi_pb2_grpc import ControllerServicer
 from config import Config, get_config_json
-from driver.sdk_helper import NVMeshSDKHelper
+from sdk_helper import NVMeshSDKHelper
 from topology import TopologyUtils
 
 
@@ -49,7 +49,7 @@ class NVMeshControllerService(ControllerServicer):
 		topology_requirements = reqDict.get('accessibilityRequirements')
 		self.logger.debug('CreateVolume received topology requirements {}'.format(topology_requirements))
 		zone = TopologyUtils.get_zone_from_topology(self.logger, topology_requirements)
-		volume_api = NVMeshSDKHelper.get_volume_api(self.logger, zone)
+		volume_api = TopologyUtils.get_volume_api_for_zone(self.logger, zone)
 		csi_metadata['zone'] = zone
 
 		volume = NVMeshVolume(
@@ -209,7 +209,7 @@ class NVMeshControllerService(ControllerServicer):
 		zone, nvmesh_vol_name = Utils.zone_and_vol_name_from_co_id(volume_id)
 		#secrets = request.secrets
 
-		volume_api = NVMeshSDKHelper.get_volume_api(self.logger, zone)
+		volume_api = TopologyUtils.get_volume_api_for_zone(self.logger, zone)
 
 		err, out = volume_api.delete([NVMeshVolume(_id=nvmesh_vol_name)])
 		if err:
@@ -262,7 +262,7 @@ class NVMeshControllerService(ControllerServicer):
 
 		# TODO: we should probably iterate over all management servers and return all volumes while populating the volume.accessible_topology field
 		zone = ''
-		volume_api = NVMeshSDKHelper.get_volume_api(self.logger, zone)
+		volume_api = TopologyUtils.get_volume_api_for_zone(self.logger, zone)
 		err, nvmeshVolumes = volume_api.get(projection=projection, page=page, count=count)
 
 		if err:
@@ -329,7 +329,7 @@ class NVMeshControllerService(ControllerServicer):
 		capacity_in_bytes = request.capacity_range.required_bytes
 		zone, nvmesh_vol_name = Utils.zone_and_vol_name_from_co_id(request.volume_id)
 
-		volume_api = NVMeshSDKHelper.get_volume_api(self.logger, zone)
+		volume_api = TopologyUtils.get_volume_api_for_zone(self.logger, zone)
 		volume = self.get_nvmesh_volume(volume_api, nvmesh_vol_name)
 
 		# Call Node Expansion Method to Expand a FileSystem
@@ -391,7 +391,7 @@ class NVMeshControllerService(ControllerServicer):
 			#raise DriverError(StatusCode.INVALID_ARGUMENT, "at least one of capacity_range.required_bytes, capacity_range.limit_bytes must be set")
 
 	def _get_nvmesh_volume_capacity(self, nvmesh_vol_name, zone=None):
-		volume_api = NVMeshSDKHelper.get_volume_api(self.logger, zone)
+		volume_api = TopologyUtils.get_volume_api_for_zone(self.logger, zone)
 
 		filterObj = [MongoObj(field='_id', value=nvmesh_vol_name)]
 		projection = [MongoObj(field='_id', value=1), MongoObj(field='capacity', value=1)]
@@ -403,7 +403,7 @@ class NVMeshControllerService(ControllerServicer):
 		return out[0].capacity
 
 	def _validate_volume_exists(self, nvmesh_vol_name, zone=None):
-		volume_api = NVMeshSDKHelper.get_volume_api(self.logger, zone)
+		volume_api = TopologyUtils.get_volume_api_for_zone(self.logger, zone)
 
 		filterObj = [MongoObj(field='_id', value=nvmesh_vol_name)]
 		projection = [MongoObj(field='_id', value=1)]
@@ -413,7 +413,7 @@ class NVMeshControllerService(ControllerServicer):
 			raise DriverError(StatusCode.NOT_FOUND, 'Could not find Volume with id {}'.format(nvmesh_vol_name))
 
 	def _get_volume_by_name(self, volume_id, zone=None):
-		volume_api = NVMeshSDKHelper.get_volume_api(self.logger, zone)
+		volume_api = TopologyUtils.get_volume_api_for_zone(self.logger, zone)
 
 		filterObj = [MongoObj(field='_id', value=volume_id)]
 		err, data = volume_api.get(filter=filterObj)

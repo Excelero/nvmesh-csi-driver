@@ -4,20 +4,13 @@
    "zoneSelectionPolicy": "random",
    "zones":{
       "A":{
-         "nodes":[
-            "nvme115.excelero.com",
-            "nvme117.excelero.com"
-         ],
          "management": {
             "servers": "10.0.1.117:4000"
          }
       },
       "C":{
-         "nodes":[
-            "nvme127.excelero.com"
-         ],
          "management": {
-            "servers": "10.0.1.117:4000"
+            "servers": "10.0.1.127:4000"
          }
       }
    }

@@ -6,9 +6,7 @@ from grpc import StatusCode
 import consts
 from common import DriverError
 from config import Config
-from driver import consts
-from driver.common import DriverError
-from driver.config import Config
+from sdk_helper import NVMeshSDKHelper
 
 
 class TopologyUtils(object):
@@ -32,14 +30,17 @@ class TopologyUtils(object):
 		return mgmt_info
 
 	@staticmethod
-	def get_node_zone_from_topology(node_id):
-		cluster_topology = Config.TOPOLOGY
-		for zone_name, zone_data in cluster_topology.get('zones').items():
-			nodes = zone_data['nodes']
-			if node_id in nodes:
+	def get_node_zone(node_id, logger):
+		logger.debug('Looking for node {} in all management servers'.format(node_id))
+		all_zones = Config.TOPOLOGY.get('zones').items()
+		for zone_name, zone_data in all_zones:
+			api_params = TopologyUtils.get_api_params(logger, zone_name)
+			is_in_zone = NVMeshSDKHelper.check_if_node_in_management(node_id, api_params, logger)
+			if is_in_zone:
+				logger.info('Node {} found on management server {}. settings zone to {}'.format(node_id, api_params, zone_name))
 				return zone_name
 
-		raise DriverError(StatusCode.INTERNAL, 'Could not find node %s in any of the zones in config.topology')
+		raise DriverError(StatusCode.INTERNAL, 'Could not find node {} in any of the management servers. Topology: {}'.format(node_id, all_zones))
 
 	@staticmethod
 	def get_all_zones_from_topology():
@@ -77,6 +78,53 @@ class TopologyUtils(object):
 
 		logger.debug('_get_zone_from_topology selected zone is {}'.format(selected_zone))
 		return selected_zone
+
+	@staticmethod
+	def get_api_params_from_config():
+		return {
+			'managementServers': Config.MANAGEMENT_SERVERS,
+			'managementProtocol': Config.MANAGEMENT_PROTOCOL,
+			'user': Config.MANAGEMENT_USERNAME,
+			'password': Config.MANAGEMENT_PASSWORD
+		}
+
+	@staticmethod
+	def get_api_params(logger, zone):
+		if Config.TOPOLOGY_TYPE == consts.TopologyType.SINGLE_ZONE_CLUSTER:
+			return TopologyUtils.get_api_params_from_config()
+
+		mgmt_info = TopologyUtils.get_management_info_from_zone(zone)
+
+		if not mgmt_info:
+			raise ValueError('Missing "management" key in Config.topology.zones.%s' % zone)
+
+		managementServers = mgmt_info.get('servers')
+		if not managementServers:
+			raise ValueError('Missing "servers" key in Config.topology.zones.%s.management ' % zone)
+
+		api_params = {
+			'managementServers': managementServers
+		}
+
+		user = mgmt_info.get('user')
+		password = mgmt_info.get('password')
+		protocol = mgmt_info.get('protocol')
+
+		if user:
+			api_params['user'] = user
+
+		if password:
+			api_params['password'] = password
+
+		if protocol:
+			api_params['protocol'] = protocol
+
+		return api_params
+
+	@staticmethod
+	def get_volume_api_for_zone(logger, zone=None):
+		api_params = TopologyUtils.get_api_params(logger, zone)
+		return NVMeshSDKHelper.get_volume_api(logger, api_params)
 
 class ZoneSelectionManager(object):
 	_zone_picker = None

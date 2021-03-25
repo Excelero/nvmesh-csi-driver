@@ -18,4 +18,4 @@ spec:
   volumes:
     - name: block-volume
       persistentVolumeClaim:
-        claimName: nvmesh-concatenated
+        claimName: block-pvc

@@ -16,7 +16,7 @@ class TestIdentityService(TestCaseWithServerRunning):
 
 	@classmethod
 	def setUpClass(cls):
-		cls.driver_server = start_server(Consts.DriverType.Node)
+		cls.driver_server = start_server(Consts.DriverType.Node, 'nvme117.excelero.com')
 		cls.identityClient = IdentityClient()
 
 	@classmethod

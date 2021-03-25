@@ -144,8 +144,5 @@ class ConfigValidator(object):
 		if not isinstance(zones, dict):
 			raise ConfigError('Expected "zones" key in ConfigMap.topology to be a dict, but received %s' % type(zones))
 
-		for zone_name, zone_data in zones.items():
-			if "nodes" not in zone_data:
-				raise ConfigError('Missing "nodes" key in ConfigMap.topology in zone %s' % zone_name)
 
 config_loader = ConfigLoader()

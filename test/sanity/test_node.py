@@ -1,4 +1,3 @@
-import socket
 import unittest
 
 from grpc import StatusCode
@@ -15,7 +14,7 @@ from test.sanity.helpers.error_handlers import CatchRequestErrors
 
 GB = pow(1024, 3)
 VOL_ID = "vol_1"
-MOCK_NODE_ID = "nvmesh-1.excelero.com"
+MOCK_NODE_ID = "nvme117.excelero.com"
 
 class TestNodeService(TestCaseWithServerRunning):
 	driver_server = None
@@ -23,6 +22,19 @@ class TestNodeService(TestCaseWithServerRunning):
 	def __init__(self, *args, **kwargs):
 		TestCaseWithServerRunning.__init__(self, *args, **kwargs)
 		self.driver_server = None
+
+	@staticmethod
+	def restart_server_with_topology(topology):
+		TestNodeService.driver_server.stop()
+
+		config = {
+			'TOPOLOGY_TYPE': consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
+			'TOPOLOGY': topology
+		}
+
+		ConfigLoaderMock(config).load()
+
+		TestNodeService.driver_server = start_server(Consts.DriverType.Node, MOCK_NODE_ID)
 
 	@classmethod
 	def setUpClass(cls):
@@ -56,6 +68,29 @@ class TestNodeService(TestCaseWithServerRunning):
 		print(topology_info)
 		# This is configured in ConfigLoaderMock.TOPOLOGY
 		self.assertEquals(topology_info.get(Consts.TopologyKey.ZONE), 'A')
+
+	@CatchRequestErrors
+	def test_get_info_node_not_found_in_any_mgmt(self):
+		topology = {
+				'zones': {
+					"A": {"management": {"servers": 'unreachable-server-1'}},
+					"B": {"management": {"servers": 'unreachable-server-1'}},
+					"C": {"management": {"servers": 'unreachable-server-1'}},
+				}
+			}
+
+		TestNodeService.restart_server_with_topology(topology)
+
+		def restore_default_server():
+			TestNodeService.restart_server_with_topology(DEFAULT_CONFIG_TOPOLOGY)
+
+		self.addCleanup(restore_default_server)
+
+		def do_request():
+			return self._client.NodeGetInfo()
+
+		self.assertReturnsGrpcError(do_request, StatusCode.INTERNAL, "Could not find node")
+
 
 	@CatchRequestErrors
 	def test_get_capabilities(self):
