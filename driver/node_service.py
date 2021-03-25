@@ -6,7 +6,7 @@ import os
 from google.protobuf.json_format import MessageToJson, MessageToDict
 from grpc import StatusCode
 
-from config import config_loader, Config, get_config_json
+from config import Config, get_config_json
 from FileSystemManager import FileSystemManager
 from common import Utils, CatchServerErrors, DriverError, FeatureSupportChecks
 import consts as Consts

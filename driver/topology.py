@@ -6,6 +6,9 @@ from grpc import StatusCode
 import consts
 from common import DriverError
 from config import Config
+from driver import consts
+from driver.common import DriverError
+from driver.config import Config
 
 
 class TopologyUtils(object):
@@ -49,6 +52,31 @@ class TopologyUtils(object):
 			return consts.TopologyKey.ZONE
 
 		return Config.TOPOLOGY.get('topologyKey', consts.TopologyKey.ZONE)
+
+	@staticmethod
+	def get_zone_from_topology(logger, topology_requirements):
+		if Config.TOPOLOGY_TYPE == consts.TopologyType.SINGLE_ZONE_CLUSTER:
+			return consts.SINGLE_CLUSTER_ZONE_NAME
+
+		# provisioner sidecar container should have --strict-topology flag set
+		# If volumeBindingMode is Immediate - all cluster topology will be received
+		# If volumeBindingMode is WaitForFirstConsumer - Only the topology of the node to which the pod is scheduled will be given
+		try:
+			topology_key = TopologyUtils.get_topology_key()
+			preferred_topologies = topology_requirements.get('preferred')
+			if len(preferred_topologies) == 1:
+				selected_zone = preferred_topologies[0]['segments'][topology_key]
+			else:
+				zones = map(lambda t: t['segments'][topology_key], preferred_topologies)
+				selected_zone = ZoneSelectionManager.pick_zone(zones)
+		except Exception as ex:
+			raise ValueError('Failed to get zone from topology. Error: %s' % ex)
+
+		if not selected_zone:
+			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Failed to get zone from topology')
+
+		logger.debug('_get_zone_from_topology selected zone is {}'.format(selected_zone))
+		return selected_zone
 
 class ZoneSelectionManager(object):
 	_zone_picker = None
@@ -103,3 +131,5 @@ class RoundRobinZonePicker(ZonePicker):
 		zone = self.zones_queue.get()
 		self.zones_queue.put(zone)
 		return zone
+
+

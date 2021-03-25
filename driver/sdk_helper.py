@@ -1,7 +1,11 @@
+from driver import consts
 from driver.common import DriverLogger, Utils
 from config import Config
 from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from NVMeshSDK.ConnectionManager import ManagementTimeout
+from driver.config import Config
+from driver.topology import TopologyUtils
+
 
 class NVMeshSDKHelper(object):
 	logger = DriverLogger("NVMeshSDKHelper")
@@ -54,3 +58,57 @@ class NVMeshSDKHelper(object):
 					pass
 			return version_info
 		return None
+
+	@staticmethod
+	def get_api_params_from_config():
+		return {
+			'managementServers': Config.MANAGEMENT_SERVERS,
+			'managementProtocol': Config.MANAGEMENT_PROTOCOL,
+			'user': Config.MANAGEMENT_USERNAME,
+			'password': Config.MANAGEMENT_PASSWORD
+		}
+
+	@staticmethod
+	def get_api_params(logger, zone):
+		if Config.TOPOLOGY_TYPE == consts.TopologyType.SINGLE_ZONE_CLUSTER:
+			return NVMeshSDKHelper.get_api_params_from_config()
+
+		mgmt_info = TopologyUtils.get_management_info_from_zone(zone)
+
+		if not mgmt_info:
+			raise ValueError('Missing "management" key in Config.topology.zones.%s' % zone)
+
+		managementServers = mgmt_info.get('servers')
+		if not managementServers:
+			raise ValueError('Missing "servers" key in Config.topology.zones.%s.management ' % zone)
+
+		api_params = {
+			'managementServers': managementServers
+		}
+
+		user = mgmt_info.get('user')
+		password = mgmt_info.get('password')
+		protocol = mgmt_info.get('protocol')
+
+		if user:
+			api_params['user'] = user
+
+		if password:
+			api_params['password'] = password
+
+		if protocol:
+			api_params['protocol'] = protocol
+
+		logger.debug('Topology zone {} management params:  is {}'.format(zone, api_params))
+		return api_params
+
+	@staticmethod
+	def get_volume_api(logger, zone=None):
+		api_params = NVMeshSDKHelper.get_api_params(logger, zone)
+
+		try:
+			volume_api = VolumeAPI(logger=logger.getChild('NVMeshSDK'), **api_params)
+			return volume_api
+		except Exception as ex:
+			logger.error('Failed to create VolumeAPI with params: {}. \nError {}'.format(api_params, ex))
+			raise

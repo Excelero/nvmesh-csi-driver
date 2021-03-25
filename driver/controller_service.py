@@ -1,21 +1,19 @@
 import time
 
-from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from google.protobuf.json_format import MessageToJson, MessageToDict
 from grpc import StatusCode
 
-from NVMeshSDK.APIs.TargetAPI import TargetAPI
 from NVMeshSDK.Entities.Volume import Volume as NVMeshVolume
 from NVMeshSDK.Consts import RAIDLevels, EcSeparationTypes
 from NVMeshSDK import Consts as NVMeshConsts
 from NVMeshSDK.MongoObj import MongoObj
-from common import CatchServerErrors, DriverError, Utils, NVMeshSDKHelper
+from common import CatchServerErrors, DriverError, Utils
 import consts as Consts
-from csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ControllerPublishVolumeResponse, ControllerUnpublishVolumeResponse, \
-	ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse, Topology
+from csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse, Topology
 from csi.csi_pb2_grpc import ControllerServicer
-from config import config_loader, Config, get_config_json
-from topology import TopologyUtils, ZoneSelectionManager
+from config import Config, get_config_json
+from driver.sdk_helper import NVMeshSDKHelper
+from topology import TopologyUtils
 
 
 class NVMeshControllerService(ControllerServicer):
@@ -49,7 +47,9 @@ class NVMeshControllerService(ControllerServicer):
 		nvmesh_params = self._handle_volume_req_parameters(reqDict)
 
 		topology_requirements = reqDict.get('accessibilityRequirements')
-		volume_api, zone = self._get_api_and_zone_from_topology(topology_requirements)
+		self.logger.debug('CreateVolume received topology requirements {}'.format(topology_requirements))
+		zone = TopologyUtils.get_zone_from_topology(self.logger, topology_requirements)
+		volume_api = NVMeshSDKHelper.get_volume_api(self.logger, zone)
 		csi_metadata['zone'] = zone
 
 		volume = NVMeshVolume(
@@ -81,77 +81,6 @@ class NVMeshControllerService(ControllerServicer):
 		volume_topology = Topology(segments={topology_key: zone})
 		csiVolume = Volume(volume_id=volume_id_for_co, capacity_bytes=capacity, accessible_topology=[volume_topology])
 		return CreateVolumeResponse(volume=csiVolume)
-
-	def _get_api_and_zone_from_topology(self, topology_requirements):
-		self.logger.debug('CreateVolume received topology requirements {}'.format(topology_requirements))
-		zone = self._get_zone_from_topology(topology_requirements)
-		api = self._get_volume_api(zone)
-		return api, zone
-
-	def _get_api_params_from_config(self):
-		return {
-			'managementServers': Config.MANAGEMENT_SERVERS,
-			'managementProtocol': Config.MANAGEMENT_PROTOCOL,
-			'user': Config.MANAGEMENT_USERNAME,
-			'password': Config.MANAGEMENT_PASSWORD
-		}
-
-	def _get_api_params(self, zone):
-		if Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
-			return self._get_api_params_from_config()
-
-		mgmt_info = TopologyUtils.get_management_info_from_zone(zone)
-
-		if not mgmt_info:
-			raise ValueError('Missing "management" key in Config.topology.zones.%s' % zone)
-
-		managementServers = mgmt_info.get('servers')
-		if not managementServers:
-			raise ValueError('Missing "servers" key in Config.topology.zones.%s.management ' % zone)
-
-		api_params = {
-			'managementServers': managementServers
-		}
-
-		user = mgmt_info.get('user')
-		password = mgmt_info.get('password')
-		protocol = mgmt_info.get('protocol')
-
-		if user:
-			api_params['user'] = user
-
-		if password:
-			api_params['password'] = password
-
-		if protocol:
-			api_params['protocol'] = protocol
-
-		self.logger.debug('Topology zone {} management params:  is {}'.format(zone, api_params))
-		return api_params
-
-	def _get_zone_from_topology(self, topology_requirements):
-		if Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
-			return Consts.SINGLE_CLUSTER_ZONE_NAME
-
-		# provisioner sidecar container should have --strict-topology flag set
-		# If volumeBindingMode is Immediate - all cluster topology will be received
-		# If volumeBindingMode is WaitForFirstConsumer - Only the topology of the node to which the pod is scheduled will be given
-		try:
-			topology_key = TopologyUtils.get_topology_key()
-			preferred_topologies = topology_requirements.get('preferred')
-			if len(preferred_topologies) == 1:
-				selected_zone = preferred_topologies[0]['segments'][topology_key]
-			else:
-				zones = map(lambda t: t['segments'][topology_key], preferred_topologies)
-				selected_zone = ZoneSelectionManager.pick_zone(zones)
-		except Exception as ex:
-			raise ValueError('Failed to get zone from topology. Error: %s' % ex)
-
-		if not selected_zone:
-			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Failed to get zone from topology')
-
-		self.logger.debug('_get_zone_from_topology selected zone is {}'.format(selected_zone))
-		return selected_zone
 
 	def _handle_create_volume_errors(self, err, data, volume, zone):
 		if err:
@@ -280,7 +209,7 @@ class NVMeshControllerService(ControllerServicer):
 		zone, nvmesh_vol_name = Utils.zone_and_vol_name_from_co_id(volume_id)
 		#secrets = request.secrets
 
-		volume_api = self._get_volume_api(zone)
+		volume_api = NVMeshSDKHelper.get_volume_api(self.logger, zone)
 
 		err, out = volume_api.delete([NVMeshVolume(_id=nvmesh_vol_name)])
 		if err:
@@ -333,7 +262,7 @@ class NVMeshControllerService(ControllerServicer):
 
 		# TODO: we should probably iterate over all management servers and return all volumes while populating the volume.accessible_topology field
 		zone = ''
-		volume_api = self._get_volume_api(zone)
+		volume_api = NVMeshSDKHelper.get_volume_api(self.logger, zone)
 		err, nvmeshVolumes = volume_api.get(projection=projection, page=page, count=count)
 
 		if err:
@@ -400,7 +329,7 @@ class NVMeshControllerService(ControllerServicer):
 		capacity_in_bytes = request.capacity_range.required_bytes
 		zone, nvmesh_vol_name = Utils.zone_and_vol_name_from_co_id(request.volume_id)
 
-		volume_api = self._get_volume_api(zone)
+		volume_api = NVMeshSDKHelper.get_volume_api(self.logger, zone)
 		volume = self.get_nvmesh_volume(volume_api, nvmesh_vol_name)
 
 		# Call Node Expansion Method to Expand a FileSystem
@@ -462,7 +391,7 @@ class NVMeshControllerService(ControllerServicer):
 			#raise DriverError(StatusCode.INVALID_ARGUMENT, "at least one of capacity_range.required_bytes, capacity_range.limit_bytes must be set")
 
 	def _get_nvmesh_volume_capacity(self, nvmesh_vol_name, zone=None):
-		volume_api = self._get_volume_api(zone)
+		volume_api = NVMeshSDKHelper.get_volume_api(self.logger, zone)
 
 		filterObj = [MongoObj(field='_id', value=nvmesh_vol_name)]
 		projection = [MongoObj(field='_id', value=1), MongoObj(field='capacity', value=1)]
@@ -474,7 +403,7 @@ class NVMeshControllerService(ControllerServicer):
 		return out[0].capacity
 
 	def _validate_volume_exists(self, nvmesh_vol_name, zone=None):
-		volume_api = self._get_volume_api(zone)
+		volume_api = NVMeshSDKHelper.get_volume_api(self.logger, zone)
 
 		filterObj = [MongoObj(field='_id', value=nvmesh_vol_name)]
 		projection = [MongoObj(field='_id', value=1)]
@@ -484,7 +413,7 @@ class NVMeshControllerService(ControllerServicer):
 			raise DriverError(StatusCode.NOT_FOUND, 'Could not find Volume with id {}'.format(nvmesh_vol_name))
 
 	def _get_volume_by_name(self, volume_id, zone=None):
-		volume_api = self._get_volume_api(zone)
+		volume_api = NVMeshSDKHelper.get_volume_api(self.logger, zone)
 
 		filterObj = [MongoObj(field='_id', value=volume_id)]
 		err, data = volume_api.get(filter=filterObj)
@@ -495,16 +424,6 @@ class NVMeshControllerService(ControllerServicer):
 				return "Could Not Find Volume {}".format(volume_id), None
 			else:
 				return None, data[0]
-
-	def _get_volume_api(self, zone=None):
-		api_params = self._get_api_params(zone)
-
-		try:
-			volume_api = VolumeAPI(logger=self.logger.getChild('NVMeshSDK'), **api_params)
-			return volume_api
-		except Exception as ex:
-			self.logger.error('Failed to create VolumeAPI with params: {}. \nError {}'.format(api_params, ex))
-			raise
 
 	def _log_mgmt_version_info(self, management_version_info):
 		msg = "Management Version:"
