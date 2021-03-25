@@ -11,10 +11,12 @@ spec:
   allowedHostPaths:
   - pathPrefix: /var/lib/kubelet/
   - pathPrefix: /dev
-  - pathPrefix: /bin
+  - pathPrefix: {{ .Values.hostBinariesPath }}
   - pathPrefix: /var/opt/NVMesh
   - pathPrefix: /opt/NVMesh
+{{ if .Values.systemdHost }}
   - pathPrefix: /run/systemd/journal
+{{ end }}
   allowedCapabilities:
   - 'SYS_ADMIN'
   volumes:
