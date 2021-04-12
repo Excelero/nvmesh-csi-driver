@@ -325,7 +325,11 @@ class FeatureSupportChecks(object):
 
 	@staticmethod
 	def is_access_mode_supported():
-		exit_code, stdout, stderr = Utils.run_command('python {}/nvmesh_attach_volumes --help | grep -e "access"'.format(Config.NVMESH_BIN_PATH))
+		attach_script_path = '{}/nvmesh_attach_volumes'.format(Config.NVMESH_BIN_PATH)
+		while not os.path.exists(attach_script_path):
+			print('Waiting for attach script to be available under {}'.format(attach_script_path))
+			time.sleep(5)
+		exit_code, stdout, stderr = Utils.run_command('python {} --help | grep -e "access"'.format(attach_script_path))
 		return exit_code == 0
 
 class FeatureSupport(object):

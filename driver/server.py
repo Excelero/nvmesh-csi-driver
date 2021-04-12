@@ -21,13 +21,13 @@ class NVMeshCSIDriverServer(object):
 		self.driver_type = driver_type
 		self.logger = DriverLogger()
 		config_loader.load()
-		FeatureSupportChecks.calculate_all_feature_support()
 
 		self.identity_service = NVMeshIdentityService(self.logger)
 
 		if self.driver_type == Consts.DriverType.Controller:
 			self.controller_service = NVMeshControllerService(self.logger)
 		else:
+			FeatureSupportChecks.calculate_all_feature_support()
 			self.node_service = NVMeshNodeService(self.logger)
 
 		self.server = None
