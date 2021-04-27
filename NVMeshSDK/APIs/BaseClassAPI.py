@@ -33,7 +33,7 @@ class BaseClassAPI(object):
         if not managementServers:
             managementServers, managementProtocol = self.getManagementServersAndProtocolFromConfigs()
 
-        managementServers = Utils.transformManagementClusterToUrls(managementServers, managementProtocol, httpServerPort='4000')
+        managementServers = Utils.transformManagementClusterToUrls(managementServers, managementProtocol)
 
         if not dbUUID:
             dbUUID = self.getDBUUID(managementServers)

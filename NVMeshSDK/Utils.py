@@ -190,11 +190,11 @@ class Utils:
         return dbUUID.strip().replace('-', '') if dbUUID else None
 
     @staticmethod
-    def transformManagementClusterToUrls(managementCluster, managementServerProtocol, httpServerPort):
+    def transformManagementClusterToUrls(managementCluster, managementServerProtocol):
         managementServerProtocol = managementServerProtocol + '://'
 
         return map(lambda address: managementServerProtocol + address,
-                   map(lambda address: '{0}:{1}'.format(address.split(':')[0], httpServerPort),
+                   map(lambda address: '{0}:{1}'.format(address.split(':')[0], address.split(':')[1]),
                        managementCluster.split(',')))
 
     @staticmethod

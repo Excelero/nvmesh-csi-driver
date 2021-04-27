@@ -109,7 +109,8 @@ class Connection(object):
         configs = Utils.readConfFile(self.configFile)
 
         if not configs:
-            print 'Failed to open the configuration file: {}, all configuration are set to the default.'.format(self.configFile)
+            pass
+            # print 'Failed to open the configuration file: {}, all configuration are set to the default.'.format(self.configFile)
         else:
             if 'HTTP_REQUEST_TIMEOUT' in configs:
                 self.httpRequestTimeout = configs['HTTP_REQUEST_TIMEOUT']
@@ -157,7 +158,7 @@ class Connection(object):
     def request(self, method, route, payload=None, postTimeout=None, numberOfRetries=0):
         if numberOfRetries == 0:
             route = Utils.encodePlusInRoute(route)
-            
+
         self.managementServer = self.managementServers[self.currentMgmtIndex]
         try:
             return self.doRequest(method, route, payload, postTimeout, numberOfRetries)
@@ -167,7 +168,7 @@ class Connection(object):
     def doRequest(self, method, route, payload=None, postTimeout=None, numberOfRetries=0):
         isAliveRoute = route == '/isAlive'
         volumeSaveRoute = 'volumes/save' in route
-        isDebug = self.logLevel == 'DEBUG'
+        isDebug = self.logger.level == 'DEBUG'
 
         if volumeSaveRoute:
             volName = payload[0]['name']
