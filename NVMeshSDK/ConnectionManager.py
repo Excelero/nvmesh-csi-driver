@@ -84,7 +84,7 @@ class Connection(object):
         self.user = user
         self.password = password
         self.session = requests.session()
-        self.isAlive()
+        self.login()
 
     def setLogger(self):
         logger = LoggerUtils.Logger()
@@ -200,9 +200,9 @@ class Connection(object):
                 res = self.login()
 
                 if volumeSaveRoute:
-                    self.logger.debug("after login, id: {0}, res: {1}".format(volName, res.content))
+                    self.logger.debug("after login, id: {0}, res: {1}".format(volName, res))
 
-                success = json.loads(res.content)['success']
+                success = res['success']
                 if success:
                     return self.request(method, route, payload, postTimeout)
 
@@ -267,8 +267,7 @@ class Connection(object):
 
     def login(self):
         try:
-            out = self.session.post("{}/login".format(self.managementServer),
-                              data={"username": self.user, "password": self.password}, verify=False, timeout=self.httpRequestTimeout)
+            err, out = self.post("/login", payload={"username": self.user, "password": self.password})
             return out
         except requests.ConnectionError as ex:
             raise ManagementTimeout(self.managementServer, ex.message)
