@@ -1,12 +1,14 @@
 import Queue
+import logging
 import random
+import threading
 
 from grpc import StatusCode
 
 import consts
+from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from common import DriverError
 from config import Config
-from sdk_helper import NVMeshSDKHelper
 
 
 class TopologyUtils(object):
@@ -30,17 +32,14 @@ class TopologyUtils(object):
 		return mgmt_info
 
 	@staticmethod
-	def get_node_zone(node_id, logger):
-		logger.debug('Looking for node {} in all management servers'.format(node_id))
-		all_zones = Config.TOPOLOGY.get('zones').items()
-		for zone_name, zone_data in all_zones:
-			api_params = TopologyUtils.get_api_params(logger, zone_name)
-			is_in_zone = NVMeshSDKHelper.check_if_node_in_management(node_id, api_params, logger)
-			if is_in_zone:
-				logger.info('Node {} found on management server {}. settings zone to {}'.format(node_id, api_params, zone_name))
+	def get_node_zone(node_id):
+		cluster_topology = Config.TOPOLOGY
+		for zone_name, zone_data in cluster_topology.get('zones').items():
+			nodes = zone_data['nodes']
+			if node_id in nodes:
 				return zone_name
 
-		raise DriverError(StatusCode.INTERNAL, 'Could not find node {} in any of the management servers. Topology: {}'.format(node_id, all_zones))
+		raise DriverError(StatusCode.INTERNAL, 'Could not find node %s in any of the zones in config.topology')
 
 	@staticmethod
 	def get_all_zones_from_topology():
@@ -89,7 +88,7 @@ class TopologyUtils(object):
 		}
 
 	@staticmethod
-	def get_api_params(logger, zone):
+	def get_api_params(zone):
 		if Config.TOPOLOGY_TYPE == consts.TopologyType.SINGLE_ZONE_CLUSTER:
 			return TopologyUtils.get_api_params_from_config()
 
@@ -121,10 +120,38 @@ class TopologyUtils(object):
 
 		return api_params
 
+class VolumeAPIPool(object):
+	__lock = threading.Lock()
+	__api_dict = {}
+
+
 	@staticmethod
-	def get_volume_api_for_zone(logger, zone=None):
-		api_params = TopologyUtils.get_api_params(logger, zone)
-		return NVMeshSDKHelper.get_volume_api(logger, api_params)
+	def get_volume_api_for_zone(zone):
+		api_params = TopologyUtils.get_api_params(zone)
+		management_servers = api_params['managementServers']
+		with VolumeAPIPool.__lock:
+			if management_servers in VolumeAPIPool.__api_dict:
+				api = VolumeAPIPool.__api_dict[management_servers]
+			else:
+				api = VolumeAPIPool._create_new_volume_api(api_params)
+				VolumeAPIPool.__api_dict[management_servers] = api
+
+		return api
+
+	@staticmethod
+	def _create_new_volume_api(api_params):
+		sdk_logger = logging.getLogger('NVMeshSDK')
+		try:
+			volume_api = VolumeAPI(logger=sdk_logger, **api_params)
+			return volume_api
+		except Exception as ex:
+			sdk_logger.error('Failed to create VolumeAPI with params: {}. \nError {}'.format(api_params, ex))
+			raise
+
+	@staticmethod
+	def isLocked():
+		return VolumeAPIPool.__lock.locked()
+
 
 class ZoneSelectionManager(object):
 	_zone_picker = None

@@ -5,7 +5,7 @@ import signal
 import sys, os
 from concurrent import futures
 from config import Config, config_loader
-from common import ServerLoggingInterceptor, DriverLogger, FeatureSupportChecks, LoggerUtils
+from common import ServerLoggingInterceptor, FeatureSupportChecks, LoggerUtils
 import consts as Consts
 from controller_service import NVMeshControllerService
 from csi import csi_pb2_grpc

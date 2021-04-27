@@ -1,13 +1,16 @@
+import logging
+import threading
+
 from NVMeshSDK.APIs.ClientAPI import ClientAPI
 from NVMeshSDK.MongoObj import MongoObj
-from common import DriverLogger, Utils
+from common import Utils
 from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from NVMeshSDK.ConnectionManager import ManagementTimeout
 from config import Config
 
 
 class NVMeshSDKHelper(object):
-	logger = DriverLogger("NVMeshSDKHelper")
+	logger = logging.getLogger("NVMeshSDKHelper")
 
 	@staticmethod
 	def _try_to_connect_to_single_management(logger):
@@ -65,15 +68,6 @@ class NVMeshSDKHelper(object):
 			return volume_api
 		except Exception as ex:
 			logger.error('Failed to create ClientAPI with params: {}. \nError {}'.format(api_params, ex))
-			raise
-
-	@staticmethod
-	def get_volume_api(logger, api_params):
-		try:
-			volume_api = VolumeAPI(logger=logger.getChild('NVMeshSDK'), **api_params)
-			return volume_api
-		except Exception as ex:
-			logger.error('Failed to create VolumeAPI with params: {}. \nError {}'.format(api_params, ex))
 			raise
 
 	@staticmethod

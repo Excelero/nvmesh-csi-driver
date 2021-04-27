@@ -11,17 +11,17 @@ DEFAULT_CONFIG_TOPOLOGY = {
 					"zones": {
 							"A": {
 								"management": {
-									"servers": ACTIVE_MANAGEMENT_SERVER
+									"servers": SanityTestConfig.ManagementServers[0]
 								}
 							},
 							"B": {
 								"management": {
-									"servers": "nvme117.excelero.com:4000"
+									"servers": SanityTestConfig.ManagementServers[1]
 								}
 							},
 							"C": {
 								"management": {
-									"servers": "10.0.1.117:4000"
+									"servers": SanityTestConfig.ManagementServers[1]
 								}
 							},
 						}

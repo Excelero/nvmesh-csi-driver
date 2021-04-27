@@ -27,7 +27,7 @@ class LoggerUtils(object):
 	def init_root_logger():
 		root_logger = logging.getLogger()
 		root_logger.setLevel(logging.getLevelName(Config.LOG_LEVEL or 'DEBUG'))
-		LoggerUtils.add_stdout_handler(root_logger, )
+		LoggerUtils.add_stdout_handler(root_logger)
 		return root_logger
 
 	@staticmethod
