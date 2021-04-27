@@ -76,6 +76,7 @@ spec:
             - "--immediate-topology"
             - "--extra-create-metadata"
             - "--csi-address=/csi/ctrl-csi.sock"
+            - "--timeout=300"
             - "--v=5"
           imagePullPolicy: "{{ .Values.csiExternalProvisioner.pullPolicy }}"
           volumeMounts:
