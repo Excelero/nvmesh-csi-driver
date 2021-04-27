@@ -1,11 +1,12 @@
+import logging
 import shutil
 
 from grpc import StatusCode
 
-from common import Utils, DriverLogger, DriverError
+from common import Utils, DriverError
 import consts as Consts
 
-logger = DriverLogger("FileSystemManager")
+logger = logging.getLogger("FileSystemManager")
 
 class ArgumentError(Exception):
 	pass

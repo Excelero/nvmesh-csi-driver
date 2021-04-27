@@ -24,6 +24,8 @@ class Config(object):
 	NVMESH_VERSION_INFO = None
 	TOPOLOGY_TYPE = None
 	TOPOLOGY = None
+	LOG_LEVEL = None
+	SDK_LOG_LEVEL = None
 
 class Parsers(object):
 	@staticmethod
@@ -98,6 +100,8 @@ class ConfigLoader(object):
 		Config.ATTACH_IO_ENABLED_TIMEOUT = int(_get_config_map_param('attachIOEnabledTimeout', default=30))
 		Config.PRINT_STACK_TRACES = _get_config_map_param('printStackTraces', default=False)
 		Config.TOPOLOGY = _get_config_map_param('topology', default=None)
+		Config.LOG_LEVEL = _get_config_map_param('logLevel', default='DEBUG')
+		Config.SDK_LOG_LEVEL = _get_config_map_param('sdkLogLevel', default='DEBUG')
 
 		ConfigValidator().validate()
 		print("Loaded Config with SOCKET_PATH={}, MANAGEMENT_SERVERS={}, DRIVER_NAME={}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS, Config.DRIVER_NAME))

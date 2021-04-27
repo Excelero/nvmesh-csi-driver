@@ -5,7 +5,7 @@ import signal
 import sys, os
 from concurrent import futures
 from config import Config, config_loader
-from common import ServerLoggingInterceptor, DriverLogger, FeatureSupportChecks
+from common import ServerLoggingInterceptor, DriverLogger, FeatureSupportChecks, LoggerUtils
 import consts as Consts
 from controller_service import NVMeshControllerService
 from csi import csi_pb2_grpc
@@ -19,7 +19,7 @@ def log(msg):
 class NVMeshCSIDriverServer(object):
 	def __init__(self, driver_type):
 		self.driver_type = driver_type
-		self.logger = DriverLogger()
+		self.logger = LoggerUtils.init_root_logger()
 		config_loader.load()
 
 		self.identity_service = NVMeshIdentityService(self.logger)

@@ -7,4 +7,4 @@ integration:
   skipECVolumes: true
 sanity:
   managementServers:
-    - 10.0.1.117:4000
+    - 10.0.1.115:4000

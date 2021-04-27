@@ -22,28 +22,30 @@ class ServerLoggingInterceptor(grpc.ServerInterceptor):
 		self.logger.debug('called method {}'.format(method))
 		return continuation(handler_call_details)
 
-class DriverLogger(logging.Logger):
-
-	def __init__(self, name="NVMeshCSIDriver", level=logging.DEBUG):
-		logging.Logger.__init__(self, name)
-		self.log_level = level
-		self.setLevel(level)
-		self.add_stdout_handler()
+class LoggerUtils(object):
+	@staticmethod
+	def init_root_logger():
+		root_logger = logging.getLogger()
+		root_logger.setLevel(logging.getLevelName(Config.LOG_LEVEL or 'DEBUG'))
+		LoggerUtils.add_stdout_handler(root_logger, )
+		return root_logger
 
 	@staticmethod
 	def _get_default_formatter():
 		formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
 		return formatter
 
-	def _add_handler(self, handler):
-		handler.setLevel(self.log_level)
-		formatter = DriverLogger._get_default_formatter()
+	@staticmethod
+	def _add_handler(logger, handler):
+		handler.setLevel(logger.level)
+		formatter = LoggerUtils._get_default_formatter()
 		handler.setFormatter(formatter)
-		self.addHandler(handler)
+		logger.addHandler(handler)
 
-	def add_stdout_handler(self):
+	@staticmethod
+	def add_stdout_handler(logger):
 		handler = logging.StreamHandler(sys.stdout)
-		self._add_handler(handler)
+		LoggerUtils._add_handler(logger, handler)
 		return handler
 
 def CatchServerErrors(func):
@@ -77,7 +79,7 @@ class DriverError(Exception):
 		self.code = code
 
 class Utils(object):
-	logger = DriverLogger("Utils")
+	logger = logging.getLogger("Utils")
 
 	@staticmethod
 	def volume_id_to_nvmesh_name(co_vol_name):

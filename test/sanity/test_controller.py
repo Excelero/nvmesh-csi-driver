@@ -1,5 +1,6 @@
 import json
 import unittest
+from threading import Thread
 
 from grpc._channel import _Rendezvous
 
@@ -37,6 +38,7 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 			'MANAGEMENT_PASSWORD': 'admin',
 			'TOPOLOGY_TYPE': None,
 			'TOPOLOGY': None,
+			'SDK_LOG_LEVEL': 'DEBUG'
 		}
 		ConfigLoaderMock(config).load()
 		print_config()
@@ -175,6 +177,51 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 
 		msg = self.ctrl_client.DeleteVolume(volume_id=volume_id)
 		self.assertTrue(msg)
+
+	@CatchRequestErrors
+	def test_create_multiple_volumes(self):
+		parameters = {'vpg': 'DEFAULT_RAID_10_VPG'}
+		volume_ids = []
+
+		threads = []
+
+		def create_volume(volume_name):
+			response = self.ctrl_client.CreateVolume(
+				name=volume_name,
+				capacity_in_bytes=2 * GB,
+				parameters=parameters,
+				topology_requirements=DEFAULT_TOPOLOGY_REQUIREMENTS)
+
+			volume_id = response.volume.volume_id
+			volume_ids.append(volume_id)
+			self.assertTrue(volume_id)
+
+			accessible_topology = response.volume.accessible_topology
+			self.assertTrue(accessible_topology[0].segments.get(Consts.TopologyKey.ZONE), DEFAULT_TOPOLOGY.segments.get(Consts.TopologyKey.ZONE))
+
+		def delete_volume(volume_id):
+			msg = self.ctrl_client.DeleteVolume(volume_id=volume_id)
+			self.assertTrue(msg)
+
+		for i in range(40):
+			volume_name = 'vol_%s' % i
+			t = Thread(target=create_volume, args=(volume_name,))
+			t.start()
+			threads.append(t)
+
+		for t in threads:
+			t.join()
+
+		print('All create threads finished')
+
+		threads = []
+		for volume_id in volume_ids:
+			t = Thread(target=delete_volume, args=(volume_id,))
+			t.start()
+			threads.append(t)
+
+		for t in threads:
+			t.join()
 
 	@CatchRequestErrors
 	def test_create_volume_with_zone_picking(self):

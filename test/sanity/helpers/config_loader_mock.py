@@ -40,7 +40,8 @@ DEFAULT_MOCK_CONFIG = {
 	'DRIVER_VERSION': "0.0.0",
 	'NVMESH_VERSION_INFO': None,
 	'TOPOLOGY_TYPE': consts.TopologyType.SINGLE_ZONE_CLUSTER,
-	'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY
+	'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY,
+	'SDK_LOG_LEVEL': 'DEBUG'
 }
 class ConfigLoaderMock:
 	def __init__(self, configOverrides=None):
