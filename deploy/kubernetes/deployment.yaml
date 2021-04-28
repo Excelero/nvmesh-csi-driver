@@ -3,7 +3,7 @@
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
-  name: psp.nvmesh-csi
+  name: nvmesh-csi
   labels:
     helm.sh/chart: nvmesh-csi-driver-1.1.1
     app.kubernetes.io/name: nvmesh-csi-driver
@@ -19,7 +19,7 @@ spec:
   - pathPrefix: /bin
   - pathPrefix: /var/opt/NVMesh
   - pathPrefix: /opt/NVMesh
-  - pathPrefix: /run/systemd/journal
+
   allowedCapabilities:
   - 'SYS_ADMIN'
   volumes:
@@ -247,10 +247,10 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: nvmesh-csi-driver-use-psp
+  name: psp:nvmesh-csi
 rules:
   - apiGroups: ["policy"]
-    resourceNames: ["psp.nvmesh-csi"]
+    resourceNames: ["nvmesh-csi"]
     resources: ["podsecuritypolicies"]
     verbs: ["use"]
 ---
@@ -300,7 +300,7 @@ roleRef:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: nvmesh-csi-driver-use-psp
+  name: nvmesh-csi:use-psp
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi
@@ -612,7 +612,9 @@ spec:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/component: controller
     spec:
+      hostNetwork: false
       serviceAccount: nvmesh-csi
+      terminationGracePeriodSeconds: 70
       containers:
         # NVMesh Driver
         - name: nvmesh-csi-driver
@@ -650,6 +652,7 @@ spec:
             - "--immediate-topology"
             - "--extra-create-metadata"
             - "--csi-address=/csi/ctrl-csi.sock"
+            - "--timeout=300s"
             - "--v=5"
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
