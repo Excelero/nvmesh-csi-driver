@@ -39,6 +39,7 @@ spec:
       {{- end }}
       hostNetwork: {{ .Values.controller.hostNetwork }}
       serviceAccount: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
+      terminationGracePeriodSeconds: 70
       containers:
         # NVMesh Driver
         - name: nvmesh-csi-driver
@@ -76,7 +77,7 @@ spec:
             - "--immediate-topology"
             - "--extra-create-metadata"
             - "--csi-address=/csi/ctrl-csi.sock"
-            - "--timeout=300"
+            - "--timeout=300s"
             - "--v=5"
           imagePullPolicy: "{{ .Values.csiExternalProvisioner.pullPolicy }}"
           volumeMounts:
