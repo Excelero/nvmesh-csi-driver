@@ -12,7 +12,7 @@ LABEL name="NVMesh CSI Driver" \
       summary="CSI Driver for NVMesh Storage Solution" \
       description="NVMesh CSI Driver allows Provisioning, Managing and Consuming NVMesh Volumes in Kubernetes"
 
-COPY build_tools/extras.repo /etc/yum.repos.d/extras.repo
+COPY extras.repo /etc/yum.repos.d/extras.repo
 
 RUN yum install -y python27 parted xfsprogs e2fsprogs
 
