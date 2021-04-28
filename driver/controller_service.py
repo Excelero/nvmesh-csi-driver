@@ -1,19 +1,19 @@
 import json
 import logging
-import time
+import uuid
 
 from google.protobuf.json_format import MessageToJson, MessageToDict
 from grpc import StatusCode
 
 from NVMeshSDK.Entities.Volume import Volume as NVMeshVolume
 from NVMeshSDK.Consts import RAIDLevels, EcSeparationTypes
-from NVMeshSDK import Consts as NVMeshConsts
 from NVMeshSDK.MongoObj import MongoObj
-from common import CatchServerErrors, DriverError, Utils, LoggerUtils
+from common import CatchServerErrors, DriverError, Utils
 import consts as Consts
 from csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse, Topology
 from csi.csi_pb2_grpc import ControllerServicer
 from config import Config, get_config_json
+from persistency import ThreadSafeDict, VolumesCache
 from sdk_helper import NVMeshSDKHelper
 from topology import TopologyUtils, VolumeAPIPool
 
@@ -28,49 +28,63 @@ class NVMeshControllerService(ControllerServicer):
 			management_version_info = NVMeshSDKHelper.get_management_version(api)
 			self._log_mgmt_version_info(management_version_info)
 
-		self.vol_to_zone_mapping = {}
-
 		self.logger.info('Config: {}'.format(get_config_json()))
+		self.volume_to_zone_mapping = VolumesCache()
 
 	@CatchServerErrors
 	def CreateVolume(self, request, context):
+		request_uuid = uuid.uuid4()
 		self._print_context_metadata(context)
 		Utils.validate_param_exists(request, 'name')
-		name = request.name
-		log = self.logger.getChild("CreateVolume-%s" % name)
+		request_name = request.name
+		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request_name)
 
-		#UNUSED - secrets = request.secrets
-		#UNUSED - volume_content_source = request.volume_content_source
+		volume_cache = self.volume_to_zone_mapping.get_or_create_new(nvmesh_vol_name, uuid=request_uuid)
 
+		with volume_cache.lock:
+			log = self.logger.getChild("CreateVolume:%s(uuid:%s)" % (request_name, request_uuid))
+
+			if volume_cache.csi_volume:
+				if volume_cache.csi_volume.capacity_bytes != self._parse_required_capacity(request.capacity_range):
+					raise DriverError(StatusCode.FAILED_PRECONDITION, 'Volume already exists with different capacity')
+
+				log.info('Returning volume from cache')
+				return CreateVolumeResponse(volume=volume_cache.csi_volume)
+
+			csiVolume = self.do_create_volume(log, nvmesh_vol_name, request)
+			volume_cache.csi_volume = csiVolume
+			return CreateVolumeResponse(volume=csiVolume)
+
+	def do_create_volume(self, log, nvmesh_vol_name, request):
+		# UNUSED - secrets = request.secrets
+		# UNUSED - volume_content_source = request.volume_content_source
 		reqDict = MessageToDict(request)
 		reqJson = MessageToJson(request)
 		log.info('request: {}'.format(reqJson))
-
-		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(name)
 		capacity = self._parse_required_capacity(request.capacity_range)
 		csi_metadata = self._build_metadata_field(reqDict)
 		nvmesh_params = self._handle_volume_req_parameters(reqDict, log)
-
 		topology_requirements = reqDict.get('accessibilityRequirements')
 		self.logger.debug('CreateVolume received topology requirements {}'.format(topology_requirements))
 		zone = TopologyUtils.get_zone_from_topology(log, topology_requirements)
 		volume_api = VolumeAPIPool.get_volume_api_for_zone(zone)
 		csi_metadata['zone'] = zone
-
 		volume = NVMeshVolume(
 			name=nvmesh_vol_name,
 			capacity=capacity,
 			csi_metadata=csi_metadata,
 			**nvmesh_params
 		)
-
 		log.debug('Creating volume: {}'.format(str(volume)))
 		err, data = volume_api.save([volume])
-
-		self._handle_create_volume_errors(err, data, volume, zone, log)
-
+		self._handle_create_volume_errors(err, data, volume, zone, volume_api, log)
 		if err:
-			raise DriverError(StatusCode.INVALID_ARGUMENT, err)
+			details = {
+				'zone': zone,
+				'managementServer': volume_api.managementConnection.managementServer,
+				'error': err
+			}
+			raise DriverError(StatusCode.INVALID_ARGUMENT, details)
 
 		# we return the zone:nvmesh_vol_name to the CO
 		# all subsequent requests for this volume will have volume_id of the zone:nvmesh_vol_name
@@ -78,9 +92,15 @@ class NVMeshControllerService(ControllerServicer):
 		topology_key = TopologyUtils.get_topology_key()
 		volume_topology = Topology(segments={topology_key: zone})
 		csiVolume = Volume(volume_id=volume_id_for_co, capacity_bytes=capacity, accessible_topology=[volume_topology])
-		return CreateVolumeResponse(volume=csiVolume)
+		return csiVolume
 
-	def _handle_create_volume_errors(self, err, data, volume, zone, log):
+	def add_details_to_error(self, zone, volume_api, err):
+		return {
+				'zone': zone,
+				'managementServer': volume_api.managementConnection.managementServer,
+				'error': err
+			}
+	def _handle_create_volume_errors(self, err, data, volume, zone, volume_api, log):
 		if err:
 			raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Error: {} Details: {} Volume Requested: {}'.format(err, data, str(volume)))
 		elif not type(data) == list or not data[0]['success']:
@@ -92,7 +112,8 @@ class NVMeshControllerService(ControllerServicer):
 				else:
 					raise DriverError(StatusCode.ALREADY_EXISTS, 'Error: {} Details: {}'.format(err, data))
 			else:
-				raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Error: {} Details: {}'.format(err, data))
+				details = self.add_details_to_error(zone, volume_api, data)
+				raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Error: {} Details: {}'.format(err, details))
 
 	def _build_metadata_field(self, req_dict):
 		capabilities = req_dict['volumeCapabilities']
@@ -207,6 +228,8 @@ class NVMeshControllerService(ControllerServicer):
 				pass
 			else:
 				raise DriverError(StatusCode.FAILED_PRECONDITION, err)
+
+		self.volume_to_zone_mapping.remove(nvmesh_vol_name)
 
 		return DeleteVolumeResponse()
 

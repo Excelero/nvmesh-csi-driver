@@ -1,4 +1,6 @@
 import json
+import threading
+import time
 import unittest
 from threading import Thread
 
@@ -21,7 +23,17 @@ VOL_1_ID = "vol_1"
 VOL_2_ID = "vol_2"
 DEFAULT_TOPOLOGY = Topology(segments={Consts.TopologyKey.ZONE: 'A'})
 DEFAULT_TOPOLOGY_REQUIREMENTS = TopologyRequirement(requisite=[DEFAULT_TOPOLOGY], preferred=[DEFAULT_TOPOLOGY])
-
+TOPO_REQ_MULTIPLE_TOPOLOGIES = TopologyRequirement(
+	requisite=[
+		Topology(segments={Consts.TopologyKey.ZONE: 'A'}),
+		Topology(segments={Consts.TopologyKey.ZONE: 'B'}),
+		Topology(segments={Consts.TopologyKey.ZONE: 'C'})
+	],
+	preferred=[
+		Topology(segments={Consts.TopologyKey.ZONE: 'A'}),
+		Topology(segments={Consts.TopologyKey.ZONE: 'B'}),
+		Topology(segments={Consts.TopologyKey.ZONE: 'C'})
+	])
 
 class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 	driver_server = None
@@ -78,9 +90,9 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 	@CatchRequestErrors
 	def test_success_create_existing_volume_with_the_same_capacity(self):
 		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
-		msg = self.ctrl_client.CreateVolume(name=VOL_1_ID, capacity_in_bytes=1 * GB, parameters=parameters)
+		msg = self.ctrl_client.CreateVolume(name='exists-same-capacity', capacity_in_bytes=1 * GB, parameters=parameters)
 		volume_id = msg.volume.volume_id
-		self.ctrl_client.CreateVolume(name=VOL_1_ID, capacity_in_bytes=1 * GB, parameters=parameters)
+		self.ctrl_client.CreateVolume(name='exists-same-capacity', capacity_in_bytes=1 * GB, parameters=parameters)
 		self.ctrl_client.DeleteVolume(volume_id=volume_id)
 
 	@CatchRequestErrors
@@ -116,7 +128,6 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 	def test_controller_expand_volume(self):
 		original_topology_type = Config.TOPOLOGY_TYPE
 		Config.TOPOLOGY_TYPE = Consts.TopologyType.SINGLE_ZONE_CLUSTER
-		print('TOPOLOGY_TYPE=%s' % Config.TOPOLOGY_TYPE)
 
 		def restoreConfigParams():
 			Config.TOPOLOGY_TYPE = original_topology_type
@@ -125,7 +136,6 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 		original_size = 5*GB
 		new_size = 10*GB
 		parameters = { 'vpg': 'DEFAULT_CONCATENATED_VPG' }
-		print('TOPOLOGY_TYPE=%s' % Config.TOPOLOGY_TYPE)
 		msg = self.ctrl_client.CreateVolume(name="vol_to_extend", capacity_in_bytes=original_size, parameters=parameters)
 		volume_id = msg.volume.volume_id
 		msg = self.ctrl_client.ControllerExpandVolume(volume_id=volume_id, new_capacity_in_bytes=new_size)
@@ -317,6 +327,65 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 
 		self.assertEquals(msg.capacity_bytes, new_size)
 
+	@CatchRequestErrors
+	def test_create_volume_idempotency_sequential(self):
+		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
+		def create_volume():
+			return self.ctrl_client.CreateVolume(
+				name='pvc-test-idempotency-sequential',
+				capacity_in_bytes=5 * GB,
+				parameters=parameters,
+				topology_requirements=TOPO_REQ_MULTIPLE_TOPOLOGIES)
+
+		response1 = create_volume()
+		volume_id_1 = response1.volume.volume_id
+		self.assertTrue(volume_id_1)
+
+		def delete_volume():
+			msg = self.ctrl_client.DeleteVolume(volume_id=volume_id_1)
+			self.assertTrue(msg)
+
+		self.addCleanup(delete_volume)
+
+		topology_1 = response1.volume.accessible_topology
+
+		response2 = create_volume()
+		volume_id_2 = response2.volume.volume_id
+		self.assertEqual(volume_id_1, volume_id_2)
+
+		topology_2 = response2.volume.accessible_topology
+		self.assertEqual(topology_1, topology_2)
+
+	@CatchRequestErrors
+	def test_create_volume_idempotency_parallel(self):
+		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
+		responses = {}
+		lock = threading.Lock()
+
+		def create_volume(index):
+			response = self.ctrl_client.CreateVolume(
+				name='pvc-test-idempotency-parallel',
+				capacity_in_bytes=5 * GB,
+				parameters=parameters,
+				topology_requirements=TOPO_REQ_MULTIPLE_TOPOLOGIES)
+
+			with lock:
+				responses[index] = response
+
+		t1 = threading.Thread(target=create_volume, args=(1,))
+		t2 = threading.Thread(target=create_volume, args=(2,))
+
+		t1.start()
+		t2.start()
+
+		t1.join()
+		t2.join()
+
+		self.ctrl_client.DeleteVolume(volume_id=responses[1].volume.volume_id or responses[2].volume.volume_id)
+
+		self.assertEqual(responses[1].volume.volume_id, responses[2].volume.volume_id)
+		self.assertEqual(responses[1].volume.accessible_topology, responses[2].volume.accessible_topology)
+
 	def test_round_robin_zone_picker(self):
 		picker = RoundRobinZonePicker()
 		selection_sequence = []
@@ -332,6 +401,46 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 		self.assertEqual(selection_sequence[0], selection_sequence[3])
 		self.assertEqual(selection_sequence[1], selection_sequence[4])
 		self.assertEqual(selection_sequence[2], selection_sequence[5])
+
+
+class TestServerShutdown(TestCaseWithServerRunning):
+	'''
+	These are test cases to check that while the server terminates all running requests are able to finish successfully
+	'''
+	def test_abort_during_request(self):
+		config = {
+			'MANAGEMENT_SERVERS': None,
+			'MANAGEMENT_PROTOCOL': None,
+			'MANAGEMENT_USERNAME': None,
+			'MANAGEMENT_PASSWORD': None,
+			'TOPOLOGY_TYPE': Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
+			'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY
+		}
+
+		ConfigLoaderMock(config).load()
+
+		driver_server = start_server(Consts.DriverType.Controller)
+		response_bucket = []
+
+		def create_volume(response_bucket):
+			ctrl_client = ControllerClient()
+			parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
+			res = ctrl_client.CreateVolume(
+				name='pvc-test-graceful-shutdown',
+				capacity_in_bytes=5 * GB,
+				parameters=parameters,
+				topology_requirements=TOPO_REQ_MULTIPLE_TOPOLOGIES)
+
+			print('create_volume returned %s' % res)
+			response_bucket.append(res.volume.volume_id)
+
+		t = threading.Thread(target=create_volume, args=(response_bucket,))
+		t.start()
+		time.sleep(2)
+		driver_server.stop()
+
+		# if volume_id is None that means the thread pre-maturely terminated
+		self.assertTrue(response_bucket[0])
 
 if __name__ == '__main__':
 	unittest.main()
