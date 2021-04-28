@@ -16,6 +16,8 @@ def log(msg):
 	print(msg)
 	sys.stdout.flush()
 
+SERVER_STOP_GRACE_SECONDS = 60
+
 class NVMeshCSIDriverServer(object):
 	def __init__(self, driver_type):
 		self.driver_type = driver_type
@@ -32,11 +34,18 @@ class NVMeshCSIDriverServer(object):
 
 		self.server = None
 		self.shouldContinue = True
+
+		def sigterm_handler(signum, frame):
+			self.stop()
+
+		signal.signal(signal.SIGTERM, sigterm_handler)
+		signal.signal(signal.SIGINT, sigterm_handler)
+
 		self.logger.info("NVMesh CSI Driver Type: {} Version: {}".format(self.driver_type, Config.DRIVER_VERSION))
 
 	def serve(self):
 		logging_interceptor = ServerLoggingInterceptor(self.logger)
-		self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10),interceptors=(logging_interceptor,))
+		self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10), interceptors=(logging_interceptor,))
 		csi_pb2_grpc.add_IdentityServicer_to_server(self.identity_service, self.server)
 
 		if self.driver_type == Consts.DriverType.Controller:
@@ -57,12 +66,13 @@ class NVMeshCSIDriverServer(object):
 
 			self.logger.info("Server Stopped")
 		except KeyboardInterrupt:
-			self.server.stop(0)
+			self.stop()
 
 	def stop(self):
 		self.logger.info("Server is Shutting Down..")
 		self.shouldContinue = False
-		self.server.stop(0)
+		stopped_event = self.server.stop(SERVER_STOP_GRACE_SECONDS)
+		stopped_event.wait()
 
 def get_driver_type():
 	if not 'DRIVER_TYPE' in os.environ:
@@ -80,12 +90,5 @@ def get_driver_type():
 if __name__ == '__main__':
 	driver_type = get_driver_type()
 	driver = NVMeshCSIDriverServer(driver_type)
-
-	def sigterm_handler(signum, frame):
-		driver.stop()
-
-	signal.signal(signal.SIGTERM, sigterm_handler)
-	signal.signal(signal.SIGINT, sigterm_handler)
-
 	driver.serve()
 	driver.logger.info("Server Process Finished")
