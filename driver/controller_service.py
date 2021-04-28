@@ -13,7 +13,7 @@ import consts as Consts
 from csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse, Topology
 from csi.csi_pb2_grpc import ControllerServicer
 from config import Config, get_config_json
-from persistency import ThreadSafeDict, VolumesCache
+from persistency import VolumesCache
 from sdk_helper import NVMeshSDKHelper
 from topology import TopologyUtils, VolumeAPIPool
 
@@ -34,12 +34,11 @@ class NVMeshControllerService(ControllerServicer):
 	@CatchServerErrors
 	def CreateVolume(self, request, context):
 		request_uuid = uuid.uuid4()
-		self._print_context_metadata(context)
 		Utils.validate_param_exists(request, 'name')
 		request_name = request.name
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request_name)
 
-		volume_cache = self.volume_to_zone_mapping.get_or_create_new(nvmesh_vol_name, uuid=request_uuid)
+		volume_cache = self.volume_to_zone_mapping.get_or_create_new(nvmesh_vol_name)
 
 		with volume_cache.lock:
 			log = self.logger.getChild("CreateVolume:%s(uuid:%s)" % (request_name, request_uuid))
@@ -322,13 +321,8 @@ class NVMeshControllerService(ControllerServicer):
 	def ListSnapshots(self, request, context):
 		raise NotImplementedError('Method not implemented!')
 
-	def _print_context_metadata(self, context):
-		metadata = context.invocation_metadata()
-		self.logger.debug(metadata)
-
 	@CatchServerErrors
 	def ControllerExpandVolume(self, request, context):
-		self._print_context_metadata(context)
 		capacity_in_bytes = request.capacity_range.required_bytes
 		zone, nvmesh_vol_name = Utils.zone_and_vol_name_from_co_id(request.volume_id)
 		log = logging.getLogger('ExpandVolume-%s' % nvmesh_vol_name)

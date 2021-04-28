@@ -27,7 +27,7 @@ class ThreadSafeDict(object):
 
 
 class VolumesCache(ThreadSafeDict):
-	def get_or_create_new(self, volume_id, uuid):
+	def get_or_create_new(self, volume_id):
 		with self._lock:
 			volume_cache = self._dict.get(volume_id)
 			if not volume_cache:
