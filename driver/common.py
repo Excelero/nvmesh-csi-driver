@@ -31,6 +31,12 @@ class LoggerUtils(object):
 		return root_logger
 
 	@staticmethod
+	def init_sdk_logger():
+		sdk_logger = logging.getLogger('NVMeshSDK')
+		sdk_logger.setLevel(logging.getLevelName(Config.SDK_LOG_LEVEL or 'DEBUG'))
+		LoggerUtils.add_stdout_handler(sdk_logger)
+
+	@staticmethod
 	def _get_default_formatter():
 		formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
 		return formatter
@@ -273,8 +279,9 @@ class Utils(object):
 		if isinstance(jsonObj, dict):
 			for key in jsonObj.keys():
 				sanitized = Utils.sanitize_json_key(key)
-				jsonObj[sanitized] = jsonObj[key]
-				del jsonObj[key]
+				if sanitized != key:
+					jsonObj[sanitized] = jsonObj[key]
+					del jsonObj[key]
 		elif isinstance(jsonObj, list):
 			for index, item in enumerate(jsonObj):
 				jsonObj[index] = Utils.sanitize_json_object_keys(item)

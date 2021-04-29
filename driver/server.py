@@ -22,6 +22,7 @@ class NVMeshCSIDriverServer(object):
 	def __init__(self, driver_type):
 		self.driver_type = driver_type
 		self.logger = LoggerUtils.init_root_logger()
+		LoggerUtils.init_sdk_logger()
 		config_loader.load()
 
 		self.identity_service = NVMeshIdentityService(self.logger)
