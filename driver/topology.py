@@ -54,6 +54,22 @@ class TopologyUtils(object):
 		return Config.TOPOLOGY.get('topologyKey', consts.TopologyKey.ZONE)
 
 	@staticmethod
+	def get_allowed_zones_from_topology(topology_requirements):
+		if Config.TOPOLOGY_TYPE == consts.TopologyType.SINGLE_ZONE_CLUSTER:
+			return [consts.SINGLE_CLUSTER_ZONE_NAME]
+
+		# provisioner sidecar container should have --strict-topology flag set
+		# If volumeBindingMode is Immediate - all cluster topology will be received
+		# If volumeBindingMode is WaitForFirstConsumer - Only the topology of the node to which the pod is scheduled will be given
+		try:
+			topology_key = TopologyUtils.get_topology_key()
+			preferred_topologies = topology_requirements.get('preferred')
+			zones = map(lambda t: t['segments'][topology_key], preferred_topologies)
+			return zones
+		except Exception as ex:
+			raise ValueError('Failed to get zone from topology. Error: %s' % ex)
+
+	@staticmethod
 	def get_zone_from_topology(logger, topology_requirements):
 		if Config.TOPOLOGY_TYPE == consts.TopologyType.SINGLE_ZONE_CLUSTER:
 			return consts.SINGLE_CLUSTER_ZONE_NAME
@@ -165,8 +181,8 @@ class ZoneSelectionManager(object):
 
 	@staticmethod
 	def _initialize_instance():
-		topology = Config.TOPOLOGY
-		selection_policy = topology.get('zoneSelectionPolicy')
+		topology = Config.TOPOLOGY or {}
+		selection_policy = topology.get('zoneSelectionPolicy', consts.ZoneSelectionPolicy.RANDOM)
 		if selection_policy == consts.ZoneSelectionPolicy.RANDOM:
 			return RandomZonePicker()
 		elif selection_policy == consts.ZoneSelectionPolicy.ROUND_ROBIN:

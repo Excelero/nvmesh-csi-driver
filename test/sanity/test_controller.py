@@ -63,13 +63,25 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 
 	@CatchRequestErrors
 	def test_create_and_delete_volume(self):
-		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
+		parameters = {
+			'vpg': 'DEFAULT_CONCATENATED_VPG',
+			'csi.storage.k8s.io/pvc/name': 'some-pvc-name',
+			'csi.storage.k8s.io/pv/name': 'pvc-efa59f83-807a-4682-8c95-29ff08cf6b93',
+			'csi.storage.k8s.io/pvc/namespace': 'default',
+		}
 		msg = self.ctrl_client.CreateVolume(name=VOL_1_ID, capacity_in_bytes=5 * GB, parameters=parameters)
 		volume_id = msg.volume.volume_id
 		self.assertTrue(volume_id)
 
 		msg = self.ctrl_client.DeleteVolume(volume_id=volume_id)
 		self.assertTrue(msg)
+
+	@CatchRequestErrors
+	def test_fail_to_create_volume_not_enough_space(self):
+		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
+		ten_tera_byte = 10 * 1000 * GB
+		with self.assertRaises(_Rendezvous):
+			self.ctrl_client.CreateVolume(name=VOL_2_ID, capacity_in_bytes=ten_tera_byte, parameters=parameters)
 
 	@CatchRequestErrors
 	def test_fail_to_create_existing_volume(self):
@@ -82,10 +94,8 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 
 		self.addCleanup(delete_volume)
 
-		def createExistingVolume():
+		with self.assertRaises(_Rendezvous):
 			self.ctrl_client.CreateVolume(name=VOL_2_ID, capacity_in_bytes=2 * GB, parameters=parameters)
-
-		self.assertRaises(_Rendezvous, createExistingVolume)
 
 	@CatchRequestErrors
 	def test_success_create_existing_volume_with_the_same_capacity(self):
@@ -135,7 +145,7 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 		self.addCleanup(restoreConfigParams)
 		original_size = 5*GB
 		new_size = 10*GB
-		parameters = { 'vpg': 'DEFAULT_CONCATENATED_VPG' }
+		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
 		msg = self.ctrl_client.CreateVolume(name="vol_to_extend", capacity_in_bytes=original_size, parameters=parameters)
 		volume_id = msg.volume.volume_id
 		msg = self.ctrl_client.ControllerExpandVolume(volume_id=volume_id, new_capacity_in_bytes=new_size)
@@ -158,7 +168,9 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 			'MANAGEMENT_USERNAME': None,
 			'MANAGEMENT_PASSWORD': None,
 			'TOPOLOGY_TYPE': Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
-			'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY
+			'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY,
+			'LOG_LEVEL': 'DEBUG',
+			'SDK_LOG_LEVEL': 'DEBUG'
 		}
 
 		ConfigLoaderMock(config).load()
@@ -187,6 +199,18 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 
 		msg = self.ctrl_client.DeleteVolume(volume_id=volume_id)
 		self.assertTrue(msg)
+
+	@CatchRequestErrors
+	def test_fail_to_create_volume_not_enough_space(self):
+		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
+		ten_tera_byte = 10 * 1000 * GB
+
+		with self.assertRaises(_Rendezvous):
+			self.ctrl_client.CreateVolume(
+				name=VOL_2_ID,
+				capacity_in_bytes=ten_tera_byte,
+				parameters=parameters,
+				topology_requirements=TOPO_REQ_MULTIPLE_TOPOLOGIES)
 
 	@CatchRequestErrors
 	def test_create_multiple_volumes(self):
@@ -235,32 +259,24 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 
 	@CatchRequestErrors
 	def test_create_volume_with_zone_picking(self):
-		all_topologies = [
-			Topology(segments={Consts.TopologyKey.ZONE: 'A'}),
-			Topology(segments={Consts.TopologyKey.ZONE: 'B'}),
-			Topology(segments={Consts.TopologyKey.ZONE: 'C'})
-		]
-
-		topology_requirements = TopologyRequirement(requisite=all_topologies, preferred=all_topologies)
 
 		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
 		response = self.ctrl_client.CreateVolume(
 			name=VOL_1_ID,
 			capacity_in_bytes=5 * GB,
 			parameters=parameters,
-			topology_requirements=topology_requirements)
+			topology_requirements=TOPO_REQ_MULTIPLE_TOPOLOGIES)
 
 		volume_id = response.volume.volume_id
 		self.assertTrue(volume_id)
 
+		self.addCleanup(lambda: self.ctrl_client.DeleteVolume(volume_id=volume_id))
+
 		accessible_topology = response.volume.accessible_topology
 		print('Got volume with accessible_topology=%s' % accessible_topology)
 		got = accessible_topology[0].segments.get(Consts.TopologyKey.ZONE)
-		all_options = map(lambda x: x.segments.get(Consts.TopologyKey.ZONE), all_topologies)
+		all_options = map(lambda x: x.segments.get(Consts.TopologyKey.ZONE), TOPO_REQ_MULTIPLE_TOPOLOGIES.preferred)
 		self.assertIn(got, all_options)
-
-		msg = self.ctrl_client.DeleteVolume(volume_id=volume_id)
-		self.assertTrue(msg)
 
 	@CatchRequestErrors
 	def test_fail_if_zone_not_in_topology_config(self):
@@ -401,6 +417,144 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 		self.assertEqual(selection_sequence[0], selection_sequence[3])
 		self.assertEqual(selection_sequence[1], selection_sequence[4])
 		self.assertEqual(selection_sequence[2], selection_sequence[5])
+
+class TestRetryOnAnotherZone(TestCaseWithServerRunning):
+	'''
+	Need a whole class as we need to start the server each test so that it will load a specific topology every time
+	'''
+
+	def test_retry_on_another_zone(self):
+		only_zone_c_active = {
+					"zones": {
+							"A": {
+								"management": {
+									"servers": "some-unavailable-server-1:4000"
+								}
+							},
+							"B": {
+								"management": {
+									"servers": "some-unavailable-server-2:4000"
+								}
+							},
+							"C": {
+								"management": {
+									"servers": ACTIVE_MANAGEMENT_SERVER
+								}
+							},
+							"D": {
+							"management": {
+								"servers": "some-unavailable-server-4:4000"
+							}
+						},
+						}
+					}
+
+		config = {
+			'TOPOLOGY_TYPE': Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
+			'TOPOLOGY': only_zone_c_active,
+			'LOG_LEVEL':'INFO',
+			'SDK_LOG_LEVEL': 'INFO'
+		}
+
+		ConfigLoaderMock(config).load()
+		driver_server = start_server(Consts.DriverType.Controller)
+
+		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
+		ctrl_client = ControllerClient()
+		res = ctrl_client.CreateVolume(
+				name=VOL_2_ID,
+				capacity_in_bytes=1 * GB,
+				parameters=parameters,
+				topology_requirements=TOPO_REQ_MULTIPLE_TOPOLOGIES)
+
+		driver_server.stop()
+
+		self.assertTrue(res.volume.volume_id.startswith('C:'))
+
+
+	@CatchRequestErrors
+	def test_fail_to_create_all_mgmts_not_available(self):
+		all_inactive = {
+			"zones": {
+				"A": {
+					"management": {"servers": "some-unavailable-server-1:4000"}
+				},
+				"B": {
+					"management": {"servers": "some-unavailable-server-2:4000"}
+				},
+				"C": {
+					"management": {"servers": "some-unavailable-server-3:4000"}
+				}
+			}
+		}
+
+		config = {
+			'TOPOLOGY_TYPE': Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
+			'TOPOLOGY': all_inactive,
+			'LOG_LEVEL': 'DEBUG',
+			'SDK_LOG_LEVEL': 'INFO'
+		}
+
+		ConfigLoaderMock(config).load()
+		driver_server = start_server(Consts.DriverType.Controller)
+
+		self.addCleanup(lambda: driver_server.stop())
+
+		with self.assertRaises(_Rendezvous):
+			parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
+			ctrl_client = ControllerClient()
+			res = ctrl_client.CreateVolume(
+				name=VOL_2_ID,
+				capacity_in_bytes=1 * GB,
+				parameters=parameters,
+				topology_requirements=TOPO_REQ_MULTIPLE_TOPOLOGIES)
+
+	@CatchRequestErrors
+	def test_fail_available_zones_not_in_allowed_topology(self):
+		all_inactive = {
+			"zones": {
+				"A": {
+					"management": {"servers": "some-unavailable-server-1:4000"}
+				},
+				"B": {
+					"management": ACTIVE_MANAGEMENT_SERVER
+				},
+				"C": {
+					"management": {"servers": "some-unavailable-server-3:4000"}
+				}
+			}
+		}
+
+		requirement = TopologyRequirement(
+			requisite=[
+				Topology(segments={Consts.TopologyKey.ZONE: 'A'}),
+				Topology(segments={Consts.TopologyKey.ZONE: 'C'})
+			],
+			preferred=[
+				Topology(segments={Consts.TopologyKey.ZONE: 'A'}),
+				Topology(segments={Consts.TopologyKey.ZONE: 'C'})
+			])
+
+		config = {
+			'TOPOLOGY_TYPE': Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
+			'TOPOLOGY': all_inactive,
+			'LOG_LEVEL': 'DEBUG',
+			'SDK_LOG_LEVEL': 'INFO'
+		}
+
+		ConfigLoaderMock(config).load()
+		driver_server = start_server(Consts.DriverType.Controller)
+
+		self.addCleanup(lambda: driver_server.stop())
+
+		with self.assertRaises(_Rendezvous):
+			parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
+			ctrl_client = ControllerClient()
+			res = ctrl_client.CreateVolume(
+				name=VOL_2_ID,
+				capacity_in_bytes=1 * GB,
+				parameters=parameters,
+				topology_requirements=requirement)
 
 
 class TestServerShutdown(TestCaseWithServerRunning):
