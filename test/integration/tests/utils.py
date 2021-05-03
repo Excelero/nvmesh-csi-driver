@@ -539,7 +539,17 @@ class KubeUtils(object):
 			'containers': [
 				{
 					'name': 'fs-consumer',
-					'image': 'excelero/fs-consumer-test:develop',
+					'image': 'registry.excelero.com/dev/io-test:1.0.0',
+					'env': [
+						{
+							'name': 'VOLUME_TYPE',
+							'value': 'Filesystem'
+						},
+						{
+							'name': 'VOLUME_PATH',
+							'value': '/mnt/vol'
+						}
+					],
 					'volumeMounts': [
 						{
 							'name': 'fs-volume',
@@ -607,8 +617,12 @@ class KubeUtils(object):
 			'containers': [
 				{
 					'name': 'block-volume-consumer',
-					'image': 'excelero/block-consumer-test:develop',
+					'image': 'registry.excelero.com/dev/io-test:1.0.0',
 					'env': [
+						{
+							'name': 'VOLUME_TYPE',
+							'value': 'Block'
+						},
 						{
 							'name': 'VOLUME_PATH',
 							'value': '/dev/my_block_dev'
