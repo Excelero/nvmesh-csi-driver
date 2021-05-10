@@ -72,6 +72,10 @@ class FileSystemManager(object):
 		if not flags:
 			flags = []
 
+		if fs_type == 'xfs':
+			# support older host kernels which don't support xfs superblock V5
+			flags.append('-m reflink=0')
+
 		cmd = "mkfs.{fs_type} {flags} {target_path}".format(fs_type=fs_type, flags=' '.join(flags), target_path=target_path)
 
 		exit_code, stdout, stderr = Utils.run_command(cmd)
