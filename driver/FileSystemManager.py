@@ -81,9 +81,21 @@ class FileSystemManager(object):
 
 	@staticmethod
 	def get_fs_type(target_path):
-		cmd = "blkid {} | awk '{{ print $3}}' | cut -c 7- | rev | cut -c 2- | rev".format(target_path)
+		cmd = "blkid -o export {}".format(target_path)
 		exit_code, stdout, stderr = Utils.run_command(cmd)
-		return stdout.strip()
+		try:
+			blkid_output = stdout.strip()
+			if blkid_output == '':
+				return blkid_output
+
+			for line in blkid_output.split('\n'):
+				key, value = line.split('=')
+				if key == 'TYPE':
+					return value
+
+			raise ValueError('Could not find TYPE key in blkid output')
+		except Exception as ex:
+			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Could not determine file system type for path {}. Error: {}'.format(target_path, ex))
 
 	@staticmethod
 	def remove_dir(dir_path):
