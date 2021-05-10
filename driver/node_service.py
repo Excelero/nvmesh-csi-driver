@@ -145,7 +145,7 @@ class NVMeshNodeService(NodeServicer):
 			mount_options.append('ro')
 
 		if access_type == Consts.VolumeAccessType.BLOCK:
-			# create an empty file for bind mount
+			# create an empty file for bind mount of a block device
 			with open(publish_path, 'w'):
 				pass
 
@@ -153,6 +153,11 @@ class NVMeshNodeService(NodeServicer):
 			self.logger.debug('NodePublishVolume trying to bind mount as block device {} to {}'.format(block_device_path, publish_path))
 			FileSystemManager.bind_mount(source=block_device_path, target=publish_path, mount_options=mount_options)
 		else:
+			self.logger.debug('NodePublishVolume creating directory for bind mount at {}'.format(publish_path))
+			# create an empty dir for bind mount of a file system
+			if not os.path.isdir(publish_path):
+				os.makedirs(publish_path)
+
 			self.logger.debug('NodePublishVolume trying to bind mount {} to {}'.format(staging_target_path, publish_path))
 			FileSystemManager.bind_mount(source=staging_target_path, target=publish_path, mount_options=mount_options)
 
