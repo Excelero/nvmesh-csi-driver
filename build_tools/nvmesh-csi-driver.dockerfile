@@ -14,7 +14,7 @@ LABEL name="NVMesh CSI Driver" \
 
 COPY extras.repo /etc/yum.repos.d/extras.repo
 
-RUN yum install -y python27 parted xfsprogs e2fsprogs
+RUN yum install -y python27 parted-3.2 xfsprogs-5.0.0 e2fsprogs-1.45.6
 
 COPY requirements.txt ./
 RUN pip2 install --no-cache-dir -r requirements.txt
