@@ -5,6 +5,11 @@
    "zones":{
       "A":{
          "management": {
+            "servers": "10.0.1.115:4000"
+         }
+      },
+      "B":{
+         "management": {
             "servers": "10.0.1.117:4000"
          }
       },

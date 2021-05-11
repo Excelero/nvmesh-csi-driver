@@ -192,6 +192,8 @@ spec:
           volumeMounts:
             - name: config-volume
               mountPath: /config
+            - name: topology-config-volume
+              mountPath: /topology
             - name: plugin-socket-dir
               mountPath: /csi
             - name: pods-mount-dir
@@ -231,6 +233,9 @@ spec:
         - name: config-volume
           configMap:
             name: {{ template "nvmesh-csi-driver.fullname" . }}-config
+        - name: topology-config-volume
+          configMap:
+            name: {{ template "nvmesh-csi-driver.fullname" . }}-topology
         - name: plugin-socket-dir
           hostPath:
             path: /var/lib/kubelet/plugins/{{ .Values.driverName }}/

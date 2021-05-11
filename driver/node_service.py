@@ -290,7 +290,7 @@ class NVMeshNodeService(NodeServicer):
 		topology_info = {}
 
 		if Config.TOPOLOGY_TYPE == Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS:
-			zone = TopologyUtils.get_node_zone(self.node_id)
+			zone = TopologyUtils.get_node_zone_or_wait(self.node_id)
 			topology_key = TopologyUtils.get_topology_key()
 			topology_info[topology_key] = zone
 		elif Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:

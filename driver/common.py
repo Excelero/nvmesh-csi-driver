@@ -343,3 +343,27 @@ class FeatureSupportChecks(object):
 
 class FeatureSupport(object):
 	AccessMode = None
+
+
+class BackoffDelay(object):
+	def __init__(self, initial_delay, factor, max_delay=None):
+		self.initial_delay = initial_delay
+		self.factor = factor
+		self.max_delay = max_delay
+		self.current_delay = self.initial_delay
+
+	def wait(self):
+		time.sleep(self.current_delay)
+		self.calculate_next_delay()
+
+	def calculate_next_delay(self):
+		self.current_delay = self.current_delay * self.factor
+
+		if self.max_delay:
+			self.current_delay = min(self.max_delay, self.current_delay)
+
+	def reset(self):
+		self.current_delay = self.initial_delay
+
+	def is_reset(self):
+		return self.current_delay == self.initial_delay

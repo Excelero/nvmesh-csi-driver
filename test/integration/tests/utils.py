@@ -32,6 +32,7 @@ class TestConfig(object):
 	NumberOfVolumes = 3
 	SkipECVolumes = True
 	SkipTopology = False
+	Topology = None
 
 def parse_config_from_file(test_config):
 	try:
@@ -41,6 +42,7 @@ def parse_config_from_file(test_config):
 		TestConfig.NumberOfVolumes = conf.get('numberOfVolumes', TestConfig.NumberOfVolumes)
 		TestConfig.SkipECVolumes = conf.get('skipECVolumes', TestConfig.SkipECVolumes)
 		TestConfig.SkipTopology = conf.get('skipTopology', TestConfig.SkipTopology)
+		TestConfig.Topology = conf.get('topology')
 	except Exception as ex:
 		print('Failed to parse test config. Error: %s' % ex)
 		raise
@@ -277,6 +279,12 @@ class KubeUtils(object):
 			logger.exception(ex)
 			msg = 'Failed to create storage class {}'.format(name)
 			raise TestError(msg)
+
+	@staticmethod
+	def create_storage_class_with_cleanup(unittest_instance, name, params, **kwargs):
+		sc = KubeUtils.create_storage_class(name, params, **kwargs)
+		unittest_instance.addCleanup(lambda: KubeUtils.delete_storage_class(name))
+		return sc
 
 	@staticmethod
 	def get_pvc_by_name(pvc_name):
@@ -969,3 +977,6 @@ class NVMeshUtils(object):
 			time.sleep(1)
 
 
+class VolumeBindingMode(object):
+	Immediate = 'Immediate'
+	WaitForFirstConsumer = 'WaitForFirstConsumer'

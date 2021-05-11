@@ -70,10 +70,19 @@ class NVMeshCSIDriverServer(object):
 			self.stop()
 
 	def stop(self):
-		self.logger.info("Server is Shutting Down..")
+		self.logger.info("Shutting Down..")
 		self.shouldContinue = False
+		try:
+			self.logger.debug("Shutting down TopologyService..")
+			self.controller_service.topology_service.stop()
+			self.controller_service.topology_service_thread.join()
+		except:
+			pass
+
+		self.logger.debug("Shutting down gRPC Server..")
 		stopped_event = self.server.stop(SERVER_STOP_GRACE_SECONDS)
 		stopped_event.wait()
+		self.logger.debug("Finished Shut down.")
 
 def get_driver_type():
 	if not 'DRIVER_TYPE' in os.environ:

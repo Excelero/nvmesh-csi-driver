@@ -1,16 +1,11 @@
-import os
-
 from csi.csi_pb2 import VolumeCapability
-
-
-
-
 
 DEFAULT_VOLUME_SIZE = 5000000000
 DEFAULT_DRIVER_NAME = "nvmesh-csi.excelero.com"
 DEFAULT_UDS_PATH = "unix:///tmp/csi.sock"
 SYSLOG_PATH = "/dev/log"
 SINGLE_CLUSTER_ZONE_NAME = 'single-zone-cluster'
+NODE_DRIVER_TOPOLOGY_PATH = '/topology/zones'
 
 class FSType(object):
 	XFS = 'xfs'

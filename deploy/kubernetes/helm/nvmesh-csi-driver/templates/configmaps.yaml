@@ -14,3 +14,13 @@ data:
   topology: |-
 {{ printf .Values.config.topologyJsonFilePath | .Files.Get | indent 4 }}
 {{- end }}
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ template "nvmesh-csi-driver.fullname" . }}-topology
+  namespace: {{ template "nvmesh-csi-driver.namespace" . }}
+  labels:
+    {{- include "nvmesh-csi-driver.labels" . | nindent 4 }}
+data:
+  zones: "{}"

@@ -3,3 +3,5 @@ futures==3.3.0
 protobuf==3.13.0
 requests==2.24.0
 packaging==20.4
+websocket-client==0.56.0
+kubernetes==11.0.0

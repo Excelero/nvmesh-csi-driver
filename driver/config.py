@@ -26,6 +26,7 @@ class Config(object):
 	TOPOLOGY = None
 	LOG_LEVEL = None
 	SDK_LOG_LEVEL = None
+	KUBE_CLIENT_LOG_LEVEL = None
 
 class Parsers(object):
 	@staticmethod
@@ -102,6 +103,7 @@ class ConfigLoader(object):
 		Config.TOPOLOGY = _get_config_map_param('topology', default=None)
 		Config.LOG_LEVEL = _get_config_map_param('logLevel', default='DEBUG')
 		Config.SDK_LOG_LEVEL = _get_config_map_param('sdkLogLevel', default='DEBUG')
+		Config.KUBE_CLIENT_LOG_LEVEL = _get_config_map_param('kubeClientLogLevel', default='INFO')
 
 		ConfigValidator().validate()
 		print("Loaded Config with SOCKET_PATH={}, MANAGEMENT_SERVERS={}, DRIVER_NAME={}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS, Config.DRIVER_NAME))

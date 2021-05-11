@@ -25,7 +25,7 @@ config:
 
   # Uncomment 'topologyJsonFilePath' to add topology info to the ConfigMap
   # Please view and edit the topology.json file or provide a path for your own topology json
-  #topologyJsonFilePath: topology.json
+  topologyJsonFilePath: topology.json
 
 hostBinariesPath: /bin
 systemdHost: false

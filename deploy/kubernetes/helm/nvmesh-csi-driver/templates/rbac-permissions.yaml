@@ -253,6 +253,28 @@ roleRef:
   kind: Role
   name: {{ template "nvmesh-csi-driver.fullname" . }}:external-resizer-cfg
   apiGroup: rbac.authorization.k8s.io
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:topology-manager
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "watch", "list", "delete", "update", "patch", "create"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:topology-manager
+subjects:
+  - kind: ServiceAccount
+    name: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
+    namespace: {{ template "nvmesh-csi-driver.namespace" . }}
+roleRef:
+  kind: ClusterRole
+  name: {{ template "nvmesh-csi-driver.fullname" . }}:topology-manager
+  apiGroup: rbac.authorization.k8s.io
 
 {{ if .Values.pspEnabled }}
 ---

@@ -1,14 +1,20 @@
 import Queue
+import json
 import logging
 import random
 import threading
+import time
 
 from grpc import StatusCode
 
 import consts
 from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
-from common import DriverError
+from common import DriverError, BackoffDelay
 from config import Config
+
+
+class NodeNotFoundInTopology(Exception):
+	pass
 
 
 class TopologyUtils(object):
@@ -32,14 +38,30 @@ class TopologyUtils(object):
 		return mgmt_info
 
 	@staticmethod
-	def get_node_zone(node_id):
-		cluster_topology = Config.TOPOLOGY
-		for zone_name, zone_data in cluster_topology.get('zones').items():
-			nodes = zone_data['nodes']
-			if node_id in nodes:
-				return zone_name
+	def get_node_zone_or_wait(node_id):
+		logger = logging.getLogger('get_node_zone_or_wait')
+		attempts_left = 6
+		backoff = BackoffDelay(initial_delay=2, factor=2, max_delay=60)
+		while attempts_left > 0:
+			try:
+				return TopologyUtils.get_node_zone(node_id)
+			except NodeNotFoundInTopology as ex:
+				attempts_left = attempts_left - 1
+				logger.debug('Could not find this node (%s) in the topology. waiting %d seconds before trying again' % (node_id, backoff.current_delay))
+				backoff.wait()
 
-		raise DriverError(StatusCode.INTERNAL, 'Could not find node %s in any of the zones in config.topology')
+		raise DriverError(StatusCode.INTERNAL, 'Could not find node %s in any of the zones in the topology. Check nvmesh-csi-topology ConfigMap')
+
+	@staticmethod
+	def get_node_zone(node_id):
+		with open(consts.NODE_DRIVER_TOPOLOGY_PATH) as fp:
+			zones = json.load(fp)
+			for zone_name, zone_data in zones.iteritems():
+				nodes = zone_data['nodes']
+				if node_id in nodes:
+					return zone_name
+
+		raise NodeNotFoundInTopology()
 
 	@staticmethod
 	def get_all_zones_from_topology():

@@ -41,8 +41,10 @@ DEFAULT_MOCK_CONFIG = {
 	'NVMESH_VERSION_INFO': None,
 	'TOPOLOGY_TYPE': consts.TopologyType.SINGLE_ZONE_CLUSTER,
 	'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY,
-	'SDK_LOG_LEVEL': 'DEBUG'
+	'SDK_LOG_LEVEL': 'DEBUG',
+	'KUBE_CLIENT_LOG_LEVEL': 'DEBUG',
 }
+
 class ConfigLoaderMock:
 	def __init__(self, configOverrides=None):
 

@@ -1,6 +1,7 @@
 import json
 import logging
 import uuid
+from threading import Thread
 
 from google.protobuf.json_format import MessageToJson, MessageToDict
 from grpc import StatusCode
@@ -14,6 +15,7 @@ import consts as Consts
 from csi.csi_pb2 import Volume, CreateVolumeResponse, DeleteVolumeResponse, ValidateVolumeCapabilitiesResponse, ListVolumesResponse, ControllerGetCapabilitiesResponse, ControllerServiceCapability, ControllerExpandVolumeResponse, Topology
 from csi.csi_pb2_grpc import ControllerServicer
 from config import Config, get_config_json
+from topology_service import TopologyService
 from persistency import VolumesCache
 from sdk_helper import NVMeshSDKHelper
 from topology import TopologyUtils, VolumeAPIPool, ZoneSelectionManager
@@ -31,6 +33,9 @@ class NVMeshControllerService(ControllerServicer):
 
 		self.logger.info('Config: {}'.format(get_config_json()))
 		self.volume_to_zone_mapping = VolumesCache()
+		self.topology_service = TopologyService()
+		self.topology_service_thread = None
+		self.start_topology_service_thread()
 
 	@CatchServerErrors
 	def CreateVolume(self, request, context):
@@ -451,3 +456,7 @@ class NVMeshControllerService(ControllerServicer):
 			for key, value in management_version_info.iteritems():
 				msg += "\n{}={}".format(key, value)
 		self.logger.info(msg)
+
+	def start_topology_service_thread(self):
+		self.topology_service_thread = Thread(target=self.topology_service.run)
+		self.topology_service_thread.start()

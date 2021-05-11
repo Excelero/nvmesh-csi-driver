@@ -2,11 +2,30 @@ integration:
   testNamespace: test-csi-driver-integration
   managementServers:
     - 10.0.1.115:4000
-    #- 10.0.1.117:4000
+    - 10.0.1.117:4000
   numberOfVolumes: 3
   skipECVolumes: true
   skipTopology: false
+  topology:
+    zones:
+      zone115:
+        management:
+          servers: 'n115:4000'
+        nodes: ['nvme115.excelero.com']
+      zone117:
+        management:
+          servers: 'n117:4000'
+        nodes: ['nvme117.excelero.com']
+      zone127:
+        management:
+          servers: 'n127:4000'
+        nodes: ['nvme127.excelero.com']
+
 sanity:
+  nodes:
+    - nvme115.excelero.com
+    - nvme117.excelero.com
+    - nvme127.excelero.com
   managementServers:
     - 10.0.1.115:4000
-    - 10.0.1.117:31400
+    - 10.0.1.117:4000
