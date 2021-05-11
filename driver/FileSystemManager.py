@@ -4,7 +4,7 @@ import shutil
 from grpc import StatusCode
 
 from common import Utils, DriverError
-import consts as Consts
+from consts import FSType
 
 logger = logging.getLogger("FileSystemManager")
 
@@ -72,7 +72,7 @@ class FileSystemManager(object):
 		if not flags:
 			flags = []
 
-		if fs_type == 'xfs':
+		if fs_type == FSType.XFS:
 			# support older host kernels which don't support xfs superblock V5
 			flags.append('-m reflink=0')
 
@@ -127,7 +127,7 @@ class FileSystemManager(object):
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Device not formatted with FileSystem found fs type {}'.format(fs_type))
 		elif fs_type.startswith('ext'):
 			cmd = 'resize2fs {}'.format(block_device_path)
-		elif fs_type == Consts.FSType.XFS:
+		elif fs_type == FSType.XFS:
 			cmd = 'xfs_growfs {}'.format(block_device_path)
 		else:
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'unknown fs_type {}'.format(fs_type))
