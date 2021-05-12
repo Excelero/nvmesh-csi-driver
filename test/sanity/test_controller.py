@@ -334,10 +334,11 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 	def test_controller_expand_volume(self):
 		original_size = 5*GB
 		new_size = 10*GB
-		parameters = { 'vpg': 'DEFAULT_CONCATENATED_VPG' }
+		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
 		print('TOPOLOGY_TYPE=%s' % Config.TOPOLOGY_TYPE)
 		msg = self.ctrl_client.CreateVolume(name="vol_to_extend", capacity_in_bytes=original_size, parameters=parameters, topology_requirements=DEFAULT_TOPOLOGY_REQUIREMENTS)
 		volume_id = msg.volume.volume_id
+		print(volume_id)
 		msg = self.ctrl_client.ControllerExpandVolume(volume_id=volume_id, new_capacity_in_bytes=new_size)
 		self.ctrl_client.DeleteVolume(volume_id=volume_id)
 

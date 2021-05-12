@@ -65,10 +65,11 @@ class TestAccessModes(unittest.TestCase):
 		self._create_pod_on_specific_node(pod1_name, pvc_name, node_index=1)
 		KubeUtils.wait_for_pod_to_be_running(pod1_name)
 
-		# Second Pod on the same Node should Fail
+		# Second Pod on the same Node - should be running
 		pod2_name = 'pod-2-node-1'
 		self._create_pod_on_specific_node(pod2_name, pvc_name, node_index=1)
-		KubeUtils.wait_for_pod_to_fail(pod2_name)
+		KubeUtils.wait_for_pod_to_be_running(pod2_name)
+		#KubeUtils.wait_for_pod_to_fail(pod2_name)
 
 		# Third Pod on a different Node should Fail
 		pod3_name = 'pod-3-node-2'
@@ -111,7 +112,7 @@ class TestAccessModes(unittest.TestCase):
 		self.addCleanup(lambda: KubeUtils.delete_storage_class(sc_name))
 
 		# Create NVMesh Volume
-		nvmesh_volume_name = "vol1"
+		nvmesh_volume_name = "test-mixed-access-modes"
 		volume = Volume(name=nvmesh_volume_name,
 						RAIDLevel=RAIDLevels.STRIPED_AND_MIRRORED_RAID_10,
 						VPG='DEFAULT_RAID_10_VPG',

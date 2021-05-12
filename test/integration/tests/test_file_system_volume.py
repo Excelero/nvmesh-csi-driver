@@ -2,19 +2,23 @@
 import time
 import unittest
 
+from driver.consts import FSType
 from utils import TestUtils, KubeUtils, NVMeshUtils
 
 logger = TestUtils.get_logger()
 
 class TestFileSystemVolume(unittest.TestCase):
 
-	def _test_fs_type(self, fs_type):
-
-		# Create Storage class for the specific File System Type
-		sc_name = 'raid1-{}'.format(fs_type)
-		sc_params = { 'fsType': fs_type, 'vpg': 'DEFAULT_RAID_1_VPG' }
-		KubeUtils.create_storage_class(sc_name, sc_params)
+	def _create_storage_class_for_fs_type(self, fs_type, vpg='DEFAULT_RAID_1_VPG'):
+		sc_name = 'file-system-volume-{}'.format(fs_type)
+		sc_params = {'fsType': fs_type, 'vpg': vpg}
 		self.addCleanup(lambda: KubeUtils.delete_storage_class(sc_name))
+		KubeUtils.create_storage_class(sc_name, sc_params)
+		return sc_name
+
+	def _test_fs_type(self, fs_type):
+		# Create Storage class for the specific File System Type
+		sc_name = self._create_storage_class_for_fs_type(fs_type)
 
 		# create the PVC
 		pvc_name = 'test-{}'.format(fs_type)
@@ -58,10 +62,10 @@ class TestFileSystemVolume(unittest.TestCase):
 		pod_log = KubeUtils.get_pod_log(pod_reader_name)
 		self.assertEqual(pod_log.strip(), data_to_write)
 
-	def test_extend_fs_volume(self):
+	def _test_extend_fs_volume(self, storage_class_name, fs_type):
 		# Create PVC
 		pvc_name = 'pvc-extend-fs'
-		KubeUtils.create_pvc_and_wait_to_bound(self, pvc_name, 'nvmesh-raid10', access_modes=['ReadWriteMany'])
+		KubeUtils.create_pvc_and_wait_to_bound(self, pvc_name, storage_class_name, access_modes=['ReadWriteMany'])
 
 		# Create Pod
 		pod_name = 'extend-fs-consumer'
@@ -89,28 +93,38 @@ class TestFileSystemVolume(unittest.TestCase):
 		KubeUtils.wait_for_pvc_to_extend(pvc_name, new_size)
 
 		# wait for NVMesh Volume to show the updated size
-		nvmesh_vol_name, mgmt_address = KubeUtils.get_nvmesh_vol_name_from_pvc_name(pvc_name)
+		nvmesh_vol_name = KubeUtils.get_nvmesh_vol_name_from_pvc_name(pvc_name)
 		size_5_gib_in_bytes = 5368709120
 
-		NVMeshUtils.wait_for_nvmesh_vol_properties(nvmesh_vol_name, { 'capacity': size_5_gib_in_bytes }, self, attempts=15)
+		NVMeshUtils.wait_for_nvmesh_vol_properties(nvmesh_vol_name, {'capacity': size_5_gib_in_bytes}, self, attempts=15)
 
 		# check block device size in container (using lsblk)
 		KubeUtils.wait_for_block_device_resize(self, pod_name, nvmesh_vol_name, '5G')
 
 		# check file system size inside the container  (using df -h)
-		self._wait_for_file_system_resize(pod_name, '4.9G')
+		expected_size = '4.9G' if fs_type == FSType.EXT4 else '5.0G'
+		self._wait_for_file_system_resize(pod_name, expected_size)
+
+	def test_extend_file_system_ext4(self):
+		fs_type = FSType.EXT4
+		sc_name = self._create_storage_class_for_fs_type(fs_type, vpg='DEFAULT_CONCATENATED_VPG')
+		self._test_extend_fs_volume(storage_class_name=sc_name, fs_type=fs_type)
+
+	def test_extend_file_system_xfs(self):
+		fs_type = FSType.XFS
+		sc_name = self._create_storage_class_for_fs_type(fs_type, vpg='DEFAULT_CONCATENATED_VPG')
+		self._test_extend_fs_volume(storage_class_name=sc_name, fs_type=fs_type)
 
 	def _wait_for_file_system_resize(self, pod_name, new_size, attempts=30):
 		size = None
 		while attempts:
 			attempts = attempts - 1
 
-			stdout = KubeUtils.run_command_in_container(pod_name, 'df -h /mnt/vol')
+			stdout = KubeUtils.run_command_in_container(pod_name, 'df -h --output=size /mnt/vol')
 			if stdout:
-				lines = stdout.split('\n')
-				line = lines[2]
-				columns = line.split()
-				size = columns[0]
+				lines = stdout.strip().split('\n')
+				line = lines[-1]
+				size = line.strip()
 
 				if size == new_size:
 					# success

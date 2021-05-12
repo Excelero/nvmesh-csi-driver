@@ -16,17 +16,22 @@ from NVMeshSDK.Consts import RAIDLevels
 from NVMeshSDK.MongoObj import MongoObj
 from driver import consts
 
+SERVICE_ACCOUNT_NAME = 'csi-driver-test-account'
+
 config.load_kube_config()
 
 core_api = client.CoreV1Api()
 storage_api = client.StorageV1Api()
 apps_api = client.AppsV1Api()
 
+IO_TEST_IMAGE_NAME = 'excelero/io-tools:1.0.0'
+
 class TestConfig(object):
 	TestNamespace = 'test-csi-driver-integration'
 	ManagementServers = ['localhost:4000']
 	NumberOfVolumes = 3
 	SkipECVolumes = True
+	SkipTopology = False
 
 def parse_config_from_file(test_config):
 	try:
@@ -35,6 +40,7 @@ def parse_config_from_file(test_config):
 		TestConfig.ManagementServers = conf.get('managementServers', TestConfig.ManagementServers)
 		TestConfig.NumberOfVolumes = conf.get('numberOfVolumes', TestConfig.NumberOfVolumes)
 		TestConfig.SkipECVolumes = conf.get('skipECVolumes', TestConfig.SkipECVolumes)
+		TestConfig.SkipTopology = conf.get('skipTopology', TestConfig.SkipTopology)
 	except Exception as ex:
 		print('Failed to parse test config. Error: %s' % ex)
 		raise
@@ -539,7 +545,7 @@ class KubeUtils(object):
 			'containers': [
 				{
 					'name': 'fs-consumer',
-					'image': 'registry.excelero.com/dev/io-test:1.0.0',
+					'image': IO_TEST_IMAGE_NAME,
 					'env': [
 						{
 							'name': 'VOLUME_TYPE',
@@ -617,7 +623,7 @@ class KubeUtils(object):
 			'containers': [
 				{
 					'name': 'block-volume-consumer',
-					'image': 'registry.excelero.com/dev/io-test:1.0.0',
+					'image': IO_TEST_IMAGE_NAME,
 					'env': [
 						{
 							'name': 'VOLUME_TYPE',

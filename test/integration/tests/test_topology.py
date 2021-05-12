@@ -6,6 +6,7 @@ from utils import TestUtils, KubeUtils, TestConfig
 logger = TestUtils.get_logger()
 
 
+@unittest.skipIf(TestConfig.SkipTopology, "Skipping Topology Tests")
 class TestTopology(unittest.TestCase):
 	def _create_first_consumer_storage_class(self):
 		# create storage class

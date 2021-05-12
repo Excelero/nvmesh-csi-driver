@@ -9,7 +9,6 @@ logger = TestUtils.get_logger()
 class TestMigration(unittest.TestCase):
 
 	def test_migration(self):
-
 		# create the PVC
 		pvc_name = 'pvc-migration-test'
 		sc_name = 'nvmesh-raid10'
@@ -25,11 +24,14 @@ class TestMigration(unittest.TestCase):
 		attempts = 10
 		pod = None
 		while attempts:
+			logger.debug('Waiting for deployment pods to be scheduled')
 			pod_list = KubeUtils.get_pods_for_deployment(dep_name)
 			if len(pod_list):
 				pod = pod_list[0]
 				break
 
+			attempts = attempts - 1
+			self.assertNotEqual(attempts, 0, 'Timed out waiting for deployment pod to be scheduled')
 			time.sleep(1)
 
 		initial_pod_name = pod.metadata.name
