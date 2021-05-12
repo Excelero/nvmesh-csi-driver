@@ -206,13 +206,16 @@ class NVMeshNodeService(NodeServicer):
 		volume_id = request.volume_id
 		volume_path = request.volume_path
 		capacity_range = request.capacity_range
-		nvmesh_vol_name = volume_id
-		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_vol_name)
 
 		reqJson = MessageToJson(request)
 		self.logger.debug('NodeExpandVolume called with request: {}'.format(reqJson))
 
-		fs_type = FileSystemManager.get_file_system_type(block_device_path)
+		zone, nvmesh_vol_name = Utils.zone_and_vol_name_from_co_id(request.volume_id)
+		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_vol_name)
+		self.logger.debug('NodeExpandVolume zone: {} nvmesh_vol_name: {} block_device_path: {}'.format(zone, nvmesh_vol_name, block_device_path))
+
+		fs_type = FileSystemManager.get_fs_type(block_device_path)
+		self.logger.debug('fs_type={}'.format(fs_type))
 
 		attempts_left = 20
 		resized = False

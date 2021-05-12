@@ -73,7 +73,7 @@ class FileSystemManager(object):
 			flags = []
 
 		if fs_type == FSType.XFS:
-			# support older host kernels which don't support xfs superblock V5
+			# support older host kernels which don't support this feature
 			flags.append('-m reflink=0')
 
 		cmd = "mkfs.{fs_type} {flags} {target_path}".format(fs_type=fs_type, flags=' '.join(flags), target_path=target_path)
@@ -85,6 +85,8 @@ class FileSystemManager(object):
 
 	@staticmethod
 	def get_fs_type(target_path):
+		# returns an empty string for a block device that has no FileSystem on it
+		# An alternate method is to use `df --output=fstype {target_path} | tail -1` but this will return "devtmpfs" if the block device has no FileSystem on it
 		cmd = "blkid -o export {}".format(target_path)
 		exit_code, stdout, stderr = Utils.run_command(cmd)
 		try:
@@ -123,9 +125,9 @@ class FileSystemManager(object):
 	def expand_file_system(block_device_path, fs_type):
 		fs_type = fs_type.strip()
 
-		if fs_type == 'devtmpfs':
+		if fs_type == '':
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Device not formatted with FileSystem found fs type {}'.format(fs_type))
-		elif fs_type.startswith('ext'):
+		elif fs_type == FSType.EXT4:
 			cmd = 'resize2fs {}'.format(block_device_path)
 		elif fs_type == FSType.XFS:
 			cmd = 'xfs_growfs {}'.format(block_device_path)
@@ -139,12 +141,6 @@ class FileSystemManager(object):
 			raise DriverError(StatusCode.INTERNAL, 'Error expanding File System {} on block device {}'.format(fs_type, block_device_path))
 
 		return exit_code, stdout, stderr
-
-	@staticmethod
-	def get_file_system_type(target_path):
-		cmd = "df -T {} | tail -1 | awk '{{ print $2}}'".format(target_path)
-		exit_code, stdout, stderr = Utils.run_command(cmd)
-		return stdout
 
 	@staticmethod
 	def get_block_device_size(block_device_path):
