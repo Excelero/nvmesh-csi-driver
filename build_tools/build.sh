@@ -80,6 +80,9 @@ parse_args() {
 }
 
 build_locally() {
+    echo "Pulling latest base image"
+    $DOCKER_OR_PODMAN pull registry.access.redhat.com/ubi8:latest
+
     echo "Building $DOCKER_OR_PODMAN image locally"
 
     cd ../
