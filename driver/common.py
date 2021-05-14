@@ -217,13 +217,13 @@ class Utils(object):
 				time.sleep(1)
 				now = datetime.now()
 		except Exception as ex:
-			import traceback
-			tb = traceback.format_exc()
-			print(tb)
-			raise DriverError(grpc.StatusCode.INTERNAL,
-							  "Error while trying to wait_for_volume_io_enabled. Error: {}.\nTraceback: {}".format(ex, tb))
+			Utils.logger.exception(ex)
+			raise DriverError(grpc.StatusCode.INTERNAL, "Error while trying to wait_for_volume_io_enabled. Error: {}.".format(ex))
 
-		raise DriverError(grpc.StatusCode.INTERNAL, "Timed-out after waiting {} seconds for volume {} to have IO Enabled. volume status: {}".format(Config.ATTACH_IO_ENABLED_TIMEOUT, nvmesh_volume_name, volume_status))
+		raise DriverError(grpc.StatusCode.INTERNAL, "Timed-out after waiting {} seconds for volume {} to have IO Enabled. volume status: {}".format(
+			Config.ATTACH_IO_ENABLED_TIMEOUT,
+			nvmesh_volume_name,
+			json.dumps(volume_status)))
 
 	@staticmethod
 	def get_volume_status(nvmesh_volume_name):
