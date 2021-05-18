@@ -1,19 +1,19 @@
 {
    "type": "multiple-nvmesh-clusters",
-   "topologyKey": "my-topology-key",
+   "topologyKey": "nvmesh-csi.excelero.com/zone",
    "zoneSelectionPolicy": "random",
    "zones":{
-      "A":{
+      "zoneA":{
          "management": {
             "servers": "10.0.1.115:4000"
          }
       },
-      "B":{
+      "zoneB":{
          "management": {
             "servers": "10.0.1.117:4000"
          }
       },
-      "C":{
+      "zoneC":{
          "management": {
             "servers": "10.0.1.127:4000"
          }
