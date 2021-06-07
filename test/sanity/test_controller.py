@@ -1,15 +1,18 @@
 import json
+import os
 import threading
 import time
 import unittest
 from threading import Thread
 
+from grpc import StatusCode
 from grpc._channel import _Rendezvous
 
 from driver.config import Config, print_config
 from driver.csi.csi_pb2 import TopologyRequirement, Topology
-from driver.topology import RoundRobinZonePicker
+from driver.topology_utils import RoundRobinZonePicker
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock, DEFAULT_CONFIG_TOPOLOGY, ACTIVE_MANAGEMENT_SERVER
+from test.sanity.helpers.sanity_test_config import SanityTestConfig
 from test.sanity.helpers.setup_and_teardown import start_server
 
 import driver.consts as Consts
@@ -34,6 +37,8 @@ TOPO_REQ_MULTIPLE_TOPOLOGIES = TopologyRequirement(
 		Topology(segments={Consts.TopologyKey.ZONE: 'B'}),
 		Topology(segments={Consts.TopologyKey.ZONE: 'C'})
 	])
+
+os.environ['DEVELOPMENT'] = 'TRUE'
 
 class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 	driver_server = None
@@ -286,7 +291,6 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 		wrong_topology_req = TopologyRequirement(requisite=[wrong_topology], preferred=[wrong_topology])
 
 		try:
-			print('Config.TOPOLOGY=%s' % json.dumps(Config.TOPOLOGY, indent=4))
 			self.ctrl_client.CreateVolume(name=VOL_2_ID, capacity_in_bytes=1 * GB, parameters=parameters, topology_requirements=wrong_topology_req)
 			self.fail('Expected ValueError exception')
 		except _Rendezvous as ex:
@@ -518,7 +522,7 @@ class TestRetryOnAnotherZone(TestCaseWithServerRunning):
 					"management": {"servers": "some-unavailable-server-1:4000"}
 				},
 				"B": {
-					"management": ACTIVE_MANAGEMENT_SERVER
+					"management": {"servers": ACTIVE_MANAGEMENT_SERVER}
 				},
 				"C": {
 					"management": {"servers": "some-unavailable-server-3:4000"}
@@ -557,6 +561,106 @@ class TestRetryOnAnotherZone(TestCaseWithServerRunning):
 				parameters=parameters,
 				topology_requirements=requirement)
 
+	@CatchRequestErrors
+	def test_disable_zone_single_allowed_zone(self):
+		single_inactive = {
+			"zones": {
+				"A": {
+					"management": {"servers": "some-unavailable-server-1:4000"}
+				}
+			}
+		}
+
+		single_zone = [Topology(segments={Consts.TopologyKey.ZONE: 'A'})]
+		requirement = TopologyRequirement(requisite=single_zone, preferred=single_zone)
+
+		config = {
+			'TOPOLOGY_TYPE': Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
+			'TOPOLOGY': single_inactive,
+			'LOG_LEVEL': 'DEBUG',
+			'SDK_LOG_LEVEL': 'INFO'
+		}
+
+		ConfigLoaderMock(config).load()
+		driver_server = start_server(Consts.DriverType.Controller)
+
+		self.addCleanup(lambda: driver_server.stop())
+
+		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
+		ctrl_client = ControllerClient()
+
+		def assert_fail_to_create_volume(volume_id):
+
+			try:
+				res = ctrl_client.CreateVolume(
+					name=volume_id,
+					capacity_in_bytes=1 * GB,
+					parameters=parameters,
+					topology_requirements=requirement)
+
+				self.addCleanup(lambda: ctrl_client.DeleteVolume(volume_id=res.volume_id))
+			except _Rendezvous as ex:
+				self.assertEquals(ex._state.code, StatusCode.RESOURCE_EXHAUSTED)
+				self.assertIn('Failed to create volume on all zones', ex.debug_error_string())
+
+		assert_fail_to_create_volume(VOL_1_ID)
+		assert_fail_to_create_volume(VOL_2_ID)
+
+	@CatchRequestErrors
+	def test_disable_zone_multiple_allowed_zone(self):
+		single_inactive = {
+			"zones": {
+				"A": {
+					"management": {"servers": "some-unavailable-server-1:4000"}
+				},
+				"B": {
+					"management": {"servers": "some-unavailable-server-2:4000"}
+				},
+				"C": {
+					"management": {"servers": "some-unavailable-server-3:4000"}
+				}
+			}
+		}
+
+		full_topology = [
+			Topology(segments={Consts.TopologyKey.ZONE: 'A'}),
+			Topology(segments={Consts.TopologyKey.ZONE: 'B'}),
+			Topology(segments={Consts.TopologyKey.ZONE: 'C'})
+		]
+		requirement = TopologyRequirement(requisite=full_topology, preferred=full_topology)
+
+		config = {
+			'TOPOLOGY_TYPE': Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
+			'TOPOLOGY': single_inactive,
+			'LOG_LEVEL': 'DEBUG',
+			'SDK_LOG_LEVEL': 'INFO'
+		}
+
+		ConfigLoaderMock(config).load()
+		driver_server = start_server(Consts.DriverType.Controller)
+
+		self.addCleanup(lambda: driver_server.stop())
+
+		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
+		ctrl_client = ControllerClient()
+
+		def assert_fail_to_create_volume(volume_id):
+			try:
+				res = ctrl_client.CreateVolume(
+					name=volume_id,
+					capacity_in_bytes=1 * GB,
+					parameters=parameters,
+					topology_requirements=requirement)
+
+				self.addCleanup(lambda: ctrl_client.DeleteVolume(volume_id=res.volume_id))
+			except _Rendezvous as ex:
+				self.assertEquals(ex._state.code, StatusCode.RESOURCE_EXHAUSTED)
+				self.assertIn('Failed to create volume on all zones', ex.debug_error_string())
+
+		assert_fail_to_create_volume(VOL_1_ID)
+		assert_fail_to_create_volume(VOL_2_ID)
+
+
 
 class TestServerShutdown(TestCaseWithServerRunning):
 	'''
@@ -564,12 +668,12 @@ class TestServerShutdown(TestCaseWithServerRunning):
 	'''
 	def test_abort_during_request(self):
 		config = {
-			'MANAGEMENT_SERVERS': None,
-			'MANAGEMENT_PROTOCOL': None,
-			'MANAGEMENT_USERNAME': None,
-			'MANAGEMENT_PASSWORD': None,
-			'TOPOLOGY_TYPE': Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
-			'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY
+			'MANAGEMENT_SERVERS': SanityTestConfig.ManagementServers[0],
+			'MANAGEMENT_PROTOCOL': 'https',
+			'MANAGEMENT_USERNAME': 'admin@excelero.com',
+			'MANAGEMENT_PASSWORD': 'admin',
+			'TOPOLOGY_TYPE': Consts.TopologyType.SINGLE_ZONE_CLUSTER,
+			'TOPOLOGY': None
 		}
 
 		ConfigLoaderMock(config).load()

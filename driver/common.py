@@ -64,18 +64,12 @@ def CatchServerErrors(func):
 			context.abort(drvErr.code, str(drvErr.message))
 
 		except Exception as ex:
-			exc_type, exc_obj, exc_tb = sys.exc_info()
-			exc_tb = exc_tb.tb_next
-			fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-
 			if Config.PRINT_STACK_TRACES:
-				import traceback
-				tb = traceback.format_exc()
-				print(tb)
+				self.logger.exception("Error caught in gRPC call  {} - {}".format(func.__name__, ex))
+			else:
+				self.logger.warning("Error caught in gRPC call {} - {}".format(func.__name__, ex))
 
-			details = "{type}: {msg} in {fname} on line: {lineno}".format(type=exc_type, msg=str(ex), fname=fname, lineno=exc_tb.tb_lineno)
-			self.logger.warning("Error caught in gRPC call {} - {}".format(func.__name__, details))
-			context.abort(grpc.StatusCode.INTERNAL, details)
+			context.abort(grpc.StatusCode.INTERNAL, str(ex))
 
 	return func_wrapper
 
@@ -334,6 +328,8 @@ class FeatureSupportChecks(object):
 
 	@staticmethod
 	def is_access_mode_supported():
+		if os.environ.get('DEVELOPMENT'):
+			return True
 		attach_script_path = '{}/nvmesh_attach_volumes'.format(Config.NVMESH_BIN_PATH)
 		while not os.path.exists(attach_script_path):
 			print('Waiting for attach script to be available under {}'.format(attach_script_path))

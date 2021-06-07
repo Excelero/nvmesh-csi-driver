@@ -2,7 +2,9 @@ import json
 import logging
 
 import config
-from topology_fetcher import TopologyFetcher, Topology
+from topology import Topology
+from topology_fetcher import TopologyFetcher
+
 import config_map_api
 
 

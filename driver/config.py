@@ -27,6 +27,7 @@ class Config(object):
 	LOG_LEVEL = None
 	SDK_LOG_LEVEL = None
 	KUBE_CLIENT_LOG_LEVEL = None
+	ZONE_MAX_DISABLED_TIME_IN_SECONDS = None
 
 class Parsers(object):
 	@staticmethod
@@ -104,9 +105,10 @@ class ConfigLoader(object):
 		Config.LOG_LEVEL = _get_config_map_param('logLevel', default='DEBUG')
 		Config.SDK_LOG_LEVEL = _get_config_map_param('sdkLogLevel', default='DEBUG')
 		Config.KUBE_CLIENT_LOG_LEVEL = _get_config_map_param('kubeClientLogLevel', default='INFO')
-
+		Config.ZONE_MAX_DISABLED_TIME_IN_SECONDS = _get_config_map_param('zoneMaxDisabledTimeInSeconds', 120)
 		ConfigValidator().validate()
 		print("Loaded Config with SOCKET_PATH={}, MANAGEMENT_SERVERS={}, DRIVER_NAME={}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS, Config.DRIVER_NAME))
+
 class ConfigValidator(object):
 	def validate(self):
 		if Config.TOPOLOGY:

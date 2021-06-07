@@ -13,7 +13,7 @@ import consts as Consts
 from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
 	NodeStageVolumeResponse, NodeUnstageVolumeResponse, NodeExpandVolumeResponse, Topology
 from csi.csi_pb2_grpc import NodeServicer
-from topology import TopologyUtils
+from topology_utils import TopologyUtils
 
 
 class NVMeshNodeService(NodeServicer):

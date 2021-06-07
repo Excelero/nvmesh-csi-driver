@@ -2,12 +2,13 @@ import json
 import logging
 import os
 import time
-import unittest
 
-from driver import consts
+from driver import consts, config_map_api
 from driver.common import LoggerUtils
+from driver.config_map_api import listen_for_changes
 from driver.mgmt_websocket_client import LoginFailed, FailedToConnect
-from driver.topology_fetcher import TopologyFetcher, Topology
+from driver.topology import Topology
+from driver.topology_fetcher import TopologyFetcher
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
 from test.sanity.helpers.sanity_test_config import SanityTestConfig
 from test.sanity.helpers.test_case_with_server import TestCaseWithServerRunning
@@ -45,7 +46,7 @@ class TestTopologyFetcher(TestCaseWithServerRunning):
 	These are test cases to check that while the server terminates all running requests are able to finish successfully
 	'''
 
-	def test_topology_fetcher(self):
+	def test_all_zones_are_accessible(self):
 		LoggerUtils.add_stdout_handler(logging.getLogger('topology-service'))
 
 		os.environ['DEVELOPMENT'] = 'TRUE'
@@ -122,3 +123,15 @@ class TestTopologyFetcher(TestCaseWithServerRunning):
 
 		with self.assertRaises(FailedToConnect):
 			fetcher.listen_on_node_changes_on_zone(zone_name, zone_config)
+
+	def test_watch_config_map_changes(self):
+		CSI_CONFIG_MAP_NAME = 'nvmesh-csi-config'
+		config_map_api.init()
+
+		def print_event(event):
+			event_type = event['type']
+			obj_name = event['raw_object']['metadata'].get('name')
+			print('%s %s' % (event_type, obj_name))
+
+
+		listen_for_changes(CSI_CONFIG_MAP_NAME, do_on_event=print_event)

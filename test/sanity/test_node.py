@@ -1,4 +1,6 @@
+import os
 import unittest
+from threading import Thread
 
 from grpc import StatusCode
 import driver.consts as Consts
@@ -15,6 +17,8 @@ from test.sanity.helpers.error_handlers import CatchRequestErrors
 GB = pow(1024, 3)
 VOL_ID = "vol_1"
 MOCK_NODE_ID = "nvme117.excelero.com"
+
+os.environ['DEVELOPMENT'] = 'TRUE'
 
 class TestNodeService(TestCaseWithServerRunning):
 	driver_server = None
@@ -43,7 +47,7 @@ class TestNodeService(TestCaseWithServerRunning):
 			'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY
 		}
 		ConfigLoaderMock(config).load()
-
+		os.environ['DEVELOPMENT'] = 'TRUE'
 		cls.driver_server = start_server(Consts.DriverType.Node, MOCK_NODE_ID)
 		cls._client = NodeClient()
 
@@ -52,7 +56,6 @@ class TestNodeService(TestCaseWithServerRunning):
 		print('stopping server')
 		cls.driver_server.stop()
 		print('server stopped')
-		print('server.server = %s' % cls.driver_server.server)
 
 	@CatchRequestErrors
 	def test_get_info_basic_test(self):
@@ -117,7 +120,38 @@ class TestNodeService(TestCaseWithServerRunning):
 		def do_request():
 			return self._client.NodeExpandVolume(volume_id=VOL_ID)
 
-		self.assertReturnsGrpcError(do_request, StatusCode.INVALID_ARGUMENT, "unknown fs_type")
+		self.assertReturnsGrpcError(do_request, StatusCode.INVALID_ARGUMENT, "Device not formatted with FileSystem")
+
+class TestNodeServiceGracefulShutdown(TestCaseWithServerRunning):
+	def test_node_graceful_shutdown(self):
+		config = {
+			'TOPOLOGY_TYPE': consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
+			'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY
+		}
+		ConfigLoaderMock(config).load()
+		os.environ['DEVELOPMENT'] = 'TRUE'
+
+		driver_server = start_server(Consts.DriverType.Node, MOCK_NODE_ID)
+		client = NodeClient()
+
+		results = []
+		def run_get_info(results):
+			print('Calling GetInfo')
+			res = client.NodeGetInfo()
+			results.append(res.node_id)
+
+		thread = Thread(target=run_get_info, args=(results,))
+		thread.start()
+
+		print('Stopping the gRPC server')
+		driver_server.stop()
+
+		thread.join()
+
+		self.assertEquals(len(results), 1)
+
+
+
 
 if __name__ == '__main__':
 	unittest.main()

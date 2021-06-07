@@ -1,7 +1,7 @@
 import logging
 import os
 
-from kubernetes import client, config
+from kubernetes import client, config, watch
 from kubernetes.client.rest import ApiException
 
 from config import Config
@@ -23,14 +23,14 @@ def init():
 	core_api = client.CoreV1Api()
 
 	kube_logger = logging.getLogger('kubernetes')
-	kube_logger.setLevel(logging.getLevelName(Config.KUBE_CLIENT_LOG_LEVEL))
+	kube_logger.setLevel(logging.getLevelName(Config.KUBE_CLIENT_LOG_LEVEL or 'DEBUG'))
 
 class ConfigMapNotFound(Exception):
 	pass
 
 
 def load(config_map_name):
-	config_maps = core_api.list_namespaced_config_map(namespace,field_selector='metadata.name=%s' % config_map_name)
+	config_maps = core_api.list_namespaced_config_map(namespace, field_selector='metadata.name=%s' % config_map_name)
 	if len(config_maps.items):
 		return config_maps.items[0]
 	else:
@@ -63,3 +63,11 @@ def create(config_map_name, data):
 		return api_response
 	except ApiException as e:
 		raise
+
+def listen_for_changes(config_map_name, do_on_event):
+	core_api = client.CoreV1Api()
+	watcher = watch.Watch()
+	stream = watcher.stream(core_api.list_namespaced_config_map, namespace=namespace, field_selector='metadata.name=%s' % config_map_name)
+	for raw_event in stream:
+		print("Kubernetes Event: %s %s" % (raw_event['type'], raw_event['object'].metadata.name))
+		do_on_event(raw_event)

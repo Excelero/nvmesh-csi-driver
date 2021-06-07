@@ -1,79 +1,15 @@
-import json
 import threading
 import logging
 
 from NVMeshSDK.APIs.ClientAPI import ClientAPI
 from common import BackoffDelay
+from config import Config
 from mgmt_websocket_client import ManagementWebSocketClient, EmptyResponseFromServer, FailedToConnect
 
 logger = logging.getLogger('topology-service')
 
 sdk_logger = logging.getLogger('NVMeshSDK')
 sdk_logger.setLevel(logging.DEBUG)
-
-class SetEncoder(json.JSONEncoder):
-	def default(self, obj):
-		if isinstance(obj, set):
-			return list(obj)
-		return json.JSONEncoder.default(self, obj)
-
-class Topology(object):
-	def __init__(self):
-		self.lock = threading.Lock()
-		self.nodes = {}
-		self.zones = {}
-		self.on_change_listeners = []
-
-	def on_change(self):
-		for listener in self.on_change_listeners:
-			listener()
-
-	def add_zone_config(self, zone_name, zone):
-		with self.lock:
-			zone['nodes'] = set()
-			self.zones[zone_name] = zone
-
-	def add_nodes_for_zone(self, zone, node_ids):
-		with self.lock:
-			for node_id in node_ids:
-				old_zone = self.nodes.get(node_id)
-				if old_zone != zone:
-					self.nodes[node_id] = zone
-					self.zones[zone]['nodes'].add(node_id)
-
-					if old_zone:
-						self.zones[old_zone]['nodes'].remove(node_id)
-						logger.info('Node {} moved from zone {} to zone {}'.format(node_id, old_zone, zone))
-					else:
-						logger.info('Node {} added to zone {}'.format(node_id, zone))
-		self.on_change()
-
-	def remove_nodes_for_zone(self, zone, node_ids):
-		with self.lock:
-			for node_id in node_ids:
-				if self.nodes.get(node_id) == zone:
-					del self.nodes[node_id]
-					logger.info('Node {} removed from zone {}'.format(node_id, zone))
-
-				self.zones[zone]['nodes'].discard(node_id)
-
-		self.on_change()
-
-	def get_zone_for_node_id(self, node_id):
-		# Could return None
-		with self.lock:
-			zone = self.nodes.get(node_id)
-
-		return zone
-
-	def get_serializable_topology(self):
-		with self.lock:
-			json_str = json.dumps(self.zones, cls=SetEncoder)
-
-		return json.loads(json_str)
-
-	def __str__(self):
-		return self.get_serializable_topology()
 
 class TopologyFetcher(object):
 	def __init__(self, topology):
@@ -93,7 +29,7 @@ class TopologyFetcher(object):
 		mgmt_address = zone_config.get('management').get('servers')
 		logger.debug('Connecting to management for zone %s on servers %s ' % (zone, mgmt_address))
 
-		backoff = BackoffDelay(initial_delay=5, factor=2, max_delay=300)
+		backoff = BackoffDelay(initial_delay=5, factor=2, max_delay=Config.ZONE_MAX_DISABLED_TIME_IN_SECONDS)
 		while self.should_continue:
 			try:
 				self.listen_on_node_changes_on_zone(zone, zone_config)
@@ -107,6 +43,7 @@ class TopologyFetcher(object):
 			except Exception as ex:
 				logger.exception(ex)
 			finally:
+				self.topology.disable_zone(zone)
 				backoff.wait()
 
 		logger.info('Stopped listening thread for zone %s management server %s.' % (zone, mgmt_address))
@@ -146,6 +83,8 @@ class TopologyFetcher(object):
 		ws_client.connect()
 		ws_client.login(username=api_params.get('user'), password=api_params.get('password'))
 		self.ws_clients[zone] = ws_client
+
+		self.topology.make_sure_zone_enabled(zone)
 		logger.debug('Listening on client changes for zone %s on servers %s ' % (zone, api_params['managementServers']))
 
 		# send a message to request updates on client changes

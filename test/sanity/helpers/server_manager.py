@@ -10,28 +10,31 @@ from driver.server import NVMeshCSIDriverServer
 
 class ServerManager(object):
 	def __init__(self, driverType, mock_node_id=None):
-		self.server = NVMeshCSIDriverServer(driverType)
-		if mock_node_id and driverType == consts.DriverType.Node:
-			self.server.node_service.node_id = mock_node_id
+		self.driverType = driverType
+		self.mock_node_id = mock_node_id
+		self.process = None
+		self.pid = -1
 
-		self.process = Process(target=self.server.serve)
+	def init_and_start_csi_server(self):
+		server = NVMeshCSIDriverServer(self.driverType)
+		if self.mock_node_id and self.driverType == consts.DriverType.Node:
+			server.node_service.node_id = self.mock_node_id
+		server.serve()
 
 	def start(self):
+		self.process = Process(target=self.init_and_start_csi_server)
 		self.process.start()
-		print('Service started on pid {}'.format(self.get_pid()))
-		print('waiting for service to be available')
-		time.sleep(0.5)
+		self.pid = int(self.process.pid)
+		print('Service started on pid {}'.format(self.pid))
 
 	def stop(self):
-		if self.get_pid():
-			try:
-				os.kill(self.get_pid(), signal.SIGTERM)
-				self.process.join()
-			except OSError:
-				pass
-
-	def get_pid(self):
-		return int(self.process.pid or 0)
+		try:
+			if self.pid:
+				os.kill(int(self.pid), signal.SIGTERM)
+		except OSError:
+			pass
+		finally:
+			self.process.join()
 
 	def __del__(self):
 		if hasattr(self, 'process') and self.process:

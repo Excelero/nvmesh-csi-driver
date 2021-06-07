@@ -1,5 +1,7 @@
+import datetime
 import json
 import logging
+import threading
 import uuid
 from threading import Thread
 
@@ -18,7 +20,7 @@ from config import Config, get_config_json
 from topology_service import TopologyService
 from persistency import VolumesCache
 from sdk_helper import NVMeshSDKHelper
-from topology import TopologyUtils, VolumeAPIPool, ZoneSelectionManager
+from topology_utils import TopologyUtils, VolumeAPIPool, ZoneSelectionManager
 
 
 class NVMeshControllerService(ControllerServicer):
@@ -78,9 +80,10 @@ class NVMeshControllerService(ControllerServicer):
 			**nvmesh_params
 		)
 
-		zones = TopologyUtils.get_allowed_zones_from_topology(topology_requirements)
-		log.debug('Available zones: %s' % zones)
-		zone = self.create_volume_on_a_valid_zone(volume, zones, log)
+		allowed_zones = TopologyUtils.get_allowed_zones_from_topology(topology_requirements)
+
+		log.debug('Allowed zones: %s' % allowed_zones)
+		zone = self.create_volume_on_a_valid_zone(volume, allowed_zones, log)
 
 		# we return the zone:nvmesh_vol_name to the CO
 		# all subsequent requests for this volume will have volume_id of the zone:nvmesh_vol_name
@@ -95,7 +98,12 @@ class NVMeshControllerService(ControllerServicer):
 		while True:
 			selected_zone = ZoneSelectionManager.pick_zone(list(zones_left))
 			zones_left.remove(selected_zone)
+
 			try:
+				is_zone_disabled = self.topology_service.topology.is_zone_disabled(selected_zone)
+				if is_zone_disabled:
+					raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Zone {} is disabled. Skipping this zone'.format(selected_zone))
+
 				self.create_volume_in_zone(volume, selected_zone, log)
 				return selected_zone
 			except DriverError as ex:
@@ -108,12 +116,12 @@ class NVMeshControllerService(ControllerServicer):
 				else:
 					raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Failed to create volume on all zones ({})'.format(zones))
 
-
 	def create_volume_in_zone(self, volume, zone, log):
 		csi_metadata = volume.csi_metadata
 		csi_metadata['zone'] = zone
 		log.info('Creating volume {} in zone {}'.format(volume.name, zone))
 		log.debug('Creating volume: {}'.format(str(volume)))
+		time1 = datetime.datetime.now()
 
 		data = None
 		try:
@@ -126,6 +134,7 @@ class NVMeshControllerService(ControllerServicer):
 			api_params = TopologyUtils.get_api_params(zone)
 			mgmt_server = api_params['managementServers']
 
+		time2 = datetime.datetime.now()
 		self._handle_create_volume_errors(err, data, volume, zone, mgmt_server, log)
 
 	def _handle_create_volume_errors(self, err, data, volume, zone, mgmt_server, log):
@@ -136,18 +145,23 @@ class NVMeshControllerService(ControllerServicer):
 
 		if err:
 			# Failed to Connect to Management or other HTTP Error
+			self.topology_service.topology.disable_zone(zone)
 			raise DriverError(StatusCode.RESOURCE_EXHAUSTED, '{} Error: {}'.format(failed_to_create_msg, err))
-		elif not type(data) == list or not data[0]['success']:
-			volume_already_exists = 'Name already Exists' in data[0]['error'] or 'duplicate key error' in json.dumps(data[0]['error'])
-			if volume_already_exists:
-				existing_capacity = self._get_nvmesh_volume_capacity(volume.name, log, zone)
-				if volume.capacity == existing_capacity:
-					# Idempotency - same Name same Capacity - return success
-					pass
+		else:
+			# management returned a response
+			self.topology_service.topology.make_sure_zone_enabled(zone)
+
+			if not type(data) == list or not data[0]['success']:
+				volume_already_exists = 'Name already Exists' in data[0]['error'] or 'duplicate key error' in json.dumps(data[0]['error'])
+				if volume_already_exists:
+					existing_capacity = self._get_nvmesh_volume_capacity(volume.name, log, zone)
+					if volume.capacity == existing_capacity:
+						# Idempotency - same Name same Capacity - return success
+						pass
+					else:
+						raise DriverError(StatusCode.ALREADY_EXISTS, 'Volume already exists with different capacity. Details: {}'.format(data))
 				else:
-					raise DriverError(StatusCode.ALREADY_EXISTS, 'Volume already exists with different capacity. Details: {}'.format(data))
-			else:
-				raise DriverError(StatusCode.RESOURCE_EXHAUSTED, failed_to_create_msg + '. Response: {} Volume Requested: {}'.format(data, str(volume)))
+					raise DriverError(StatusCode.RESOURCE_EXHAUSTED, failed_to_create_msg + '. Response: {} Volume Requested: {}'.format(data, str(volume)))
 
 	def _build_metadata_field(self, req_dict):
 		capabilities = req_dict['volumeCapabilities']
