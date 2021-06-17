@@ -59,4 +59,4 @@ class ConfigLoaderMock:
 		for key in self.configDict.keys():
 			setattr(Config, key, self.configDict[key])
 
-		ConfigValidator().validate_topology()
+		ConfigValidator().validate_topology_config()

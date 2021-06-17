@@ -26,10 +26,10 @@ class Topology(object):
 		for listener in self.on_change_listeners:
 			listener()
 
-	def add_zone_config(self, zone_name, zone):
+	def set_zone_config_without_lock(self, zone_name, zone_config):
 		with self.lock:
-			zone['nodes'] = set()
-			self.zones[zone_name] = zone
+			zone_config['nodes'] = set()
+			self.zones[zone_name] = zone_config
 
 	def add_nodes_for_zone(self, zone, node_ids):
 		with self.lock:
@@ -44,6 +44,16 @@ class Topology(object):
 						logger.info('Node {} moved from zone {} to zone {}'.format(node_id, old_zone, zone))
 					else:
 						logger.info('Node {} added to zone {}'.format(node_id, zone))
+		self.on_change()
+
+	def remove_zone(self, zone):
+		nodes = self.zones[zone]['nodes']
+		for node_id in nodes:
+			if self.nodes[node_id] == zone:
+				self.nodes.pop(node_id, None)
+
+		del self.zones[zone]
+		logger.info('Zone {} with {} nodes was removed'.format(zone, len(nodes)))
 		self.on_change()
 
 	def remove_nodes_for_zone(self, zone, node_ids):
@@ -65,9 +75,7 @@ class Topology(object):
 		return zone
 
 	def get_serializable_topology(self):
-		with self.lock:
-			json_str = json.dumps(self.zones, cls=SetEncoder)
-
+		json_str = json.dumps(self.zones, cls=SetEncoder)
 		return json.loads(json_str)
 
 	def disable_zone(self, zone):

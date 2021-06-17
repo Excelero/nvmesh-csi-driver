@@ -3,13 +3,12 @@ import json
 import logging
 import random
 import threading
-import time
 
 from grpc import StatusCode
 
 import consts
 from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
-from common import DriverError, BackoffDelay
+from common import DriverError
 from config import Config
 
 
@@ -35,21 +34,6 @@ class TopologyUtils(object):
 			raise ValueError('Zone {0} missing mgmt_info in Config.topology.zones.{0}'.format(zone))
 
 		return mgmt_info
-
-	@staticmethod
-	def get_node_zone_or_wait(node_id):
-		logger = logging.getLogger('get_node_zone_or_wait')
-		attempts_left = 6
-		backoff = BackoffDelay(initial_delay=2, factor=2, max_delay=60)
-		while attempts_left > 0:
-			try:
-				return TopologyUtils.get_node_zone(node_id)
-			except NodeNotFoundInTopology as ex:
-				attempts_left = attempts_left - 1
-				logger.debug('Could not find this node (%s) in the topology. waiting %d seconds before trying again' % (node_id, backoff.current_delay))
-				backoff.wait()
-
-		raise DriverError(StatusCode.INTERNAL, 'Could not find node %s in any of the zones in the topology. Check nvmesh-csi-topology ConfigMap' % node_id)
 
 	@staticmethod
 	def get_node_zone(node_id):
@@ -153,7 +137,7 @@ class TopologyUtils(object):
 			api_params['password'] = password
 
 		if protocol:
-			api_params['protocol'] = protocol
+			api_params['managementProtocol'] = protocol
 
 		return api_params
 

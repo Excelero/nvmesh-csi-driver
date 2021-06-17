@@ -8,16 +8,16 @@ from grpc import StatusCode
 
 from config import Config, get_config_json
 from FileSystemManager import FileSystemManager
-from common import Utils, CatchServerErrors, DriverError, FeatureSupportChecks
+from common import Utils, CatchServerErrors, DriverError, FeatureSupportChecks, BackoffDelay, BackoffDelayWithStopEvent
 import consts as Consts
 from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
 	NodeStageVolumeResponse, NodeUnstageVolumeResponse, NodeExpandVolumeResponse, Topology
 from csi.csi_pb2_grpc import NodeServicer
-from topology_utils import TopologyUtils
+from topology_utils import TopologyUtils, NodeNotFoundInTopology
 
 
 class NVMeshNodeService(NodeServicer):
-	def __init__(self, logger):
+	def __init__(self, logger, stop_event):
 		NodeServicer.__init__(self)
 		self.node_id = socket.gethostname()
 
@@ -29,6 +29,7 @@ class NVMeshNodeService(NodeServicer):
 		self.topology = None
 
 		self.logger.info('Config: {}'.format(get_config_json()))
+		self.stop_event = stop_event
 
 	@CatchServerErrors
 	def NodeStageVolume(self, request, context):
@@ -290,7 +291,7 @@ class NVMeshNodeService(NodeServicer):
 		topology_info = {}
 
 		if Config.TOPOLOGY_TYPE == Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS:
-			zone = TopologyUtils.get_node_zone_or_wait(self.node_id)
+			zone = self.get_node_zone_or_wait(self.node_id)
 			topology_key = TopologyUtils.get_topology_key()
 			topology_info[topology_key] = zone
 		elif Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
@@ -301,3 +302,18 @@ class NVMeshNodeService(NodeServicer):
 
 		self.logger.debug('Node topology: %s' % topology_info)
 		return Topology(segments=topology_info)
+
+	def get_node_zone_or_wait(self, node_id):
+		attempts_left = 6
+		backoff = BackoffDelayWithStopEvent(self.stop_event, initial_delay=2, factor=2, max_delay=60)
+		while attempts_left > 0:
+			try:
+				return TopologyUtils.get_node_zone(node_id)
+			except NodeNotFoundInTopology:
+				attempts_left = attempts_left - 1
+				self.logger.debug('Could not find this node (%s) in the topology. waiting %d seconds before trying again' % (node_id, backoff.current_delay))
+				stopped_flag = backoff.wait()
+				if stopped_flag:
+					raise DriverError(StatusCode.INTERNAL, 'Driver stopped')
+
+		raise DriverError(StatusCode.INTERNAL, 'Could not find node %s in any of the zones in the topology. Check nvmesh-csi-topology ConfigMap' % node_id)

@@ -341,6 +341,9 @@ class FeatureSupport(object):
 	AccessMode = None
 
 
+'''
+Helper for a back-off mechanism to allow repeated action with an increasing delay after each failure
+'''
 class BackoffDelay(object):
 	def __init__(self, initial_delay, factor, max_delay=None):
 		self.initial_delay = initial_delay
@@ -363,3 +366,17 @@ class BackoffDelay(object):
 
 	def is_reset(self):
 		return self.current_delay == self.initial_delay
+
+'''
+Helper for a back-off mechanism using the threading.Event() wait() method which will exit when the event is set
+'''
+class BackoffDelayWithStopEvent(BackoffDelay):
+	''
+	def __init__(self, event, initial_delay, factor, max_delay=None):
+		self.event = event
+		super(BackoffDelayWithStopEvent, self).__init__(initial_delay, factor, max_delay)
+
+	def wait(self):
+		event_flag = self.event.wait(self.current_delay)
+		self.calculate_next_delay()
+		return event_flag

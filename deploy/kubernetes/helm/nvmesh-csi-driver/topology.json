@@ -15,7 +15,10 @@
       },
       "zoneC":{
          "management": {
-            "servers": "10.0.1.127:4000"
+            "servers": "10.0.1.127:4000",
+            "user": "some-user",
+            "password": "some-password",
+            "protocol": "https"
          }
       }
    }

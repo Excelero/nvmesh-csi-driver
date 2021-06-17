@@ -3,12 +3,15 @@ import logging
 import os
 import time
 
+
+os.environ['DEVELOPMENT'] = 'TRUE'
+
 from driver import consts, config_map_api
 from driver.common import LoggerUtils
-from driver.config_map_api import listen_for_changes
+from driver.config_map_api import watch
 from driver.mgmt_websocket_client import LoginFailed, FailedToConnect
 from driver.topology import Topology
-from driver.topology_fetcher import TopologyFetcher
+from driver.topology_fetcher import ZoneTopologyFetcherThread
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
 from test.sanity.helpers.sanity_test_config import SanityTestConfig
 from test.sanity.helpers.test_case_with_server import TestCaseWithServerRunning
@@ -41,7 +44,7 @@ TOPOLOGY = {
 				}
 			}
 
-class TestTopologyFetcher(TestCaseWithServerRunning):
+class TestTopologyFetcherThread(TestCaseWithServerRunning):
 	'''
 	These are test cases to check that while the server terminates all running requests are able to finish successfully
 	'''
@@ -86,8 +89,9 @@ class TestTopologyFetcher(TestCaseWithServerRunning):
 		}
 
 		topology = Topology()
-		topology.add_zone_config(zone_name, zone_config)
-		fetcher = TopologyFetcher(topology=topology)
+		with topology.lock:
+			topology.set_zone_config_without_lock(zone_name, zone_config)
+		fetcher = ZoneTopologyFetcherThread(zone_name, zone_config, topology)
 
 		with self.assertRaises(LoginFailed):
 			fetcher.listen_on_node_changes_on_zone(zone_name, zone_config)
@@ -102,8 +106,8 @@ class TestTopologyFetcher(TestCaseWithServerRunning):
 		}
 
 		topology = Topology()
-		topology.add_zone_config(zone_name, zone_config)
-		fetcher = TopologyFetcher(topology=topology)
+		topology.set_zone_config_without_lock(zone_name, zone_config)
+		fetcher = ZoneTopologyFetcherThread(zone_name, zone_config, topology)
 
 		with self.assertRaises(FailedToConnect):
 			fetcher.listen_on_node_changes_on_zone(zone_name, zone_config)
@@ -118,8 +122,8 @@ class TestTopologyFetcher(TestCaseWithServerRunning):
 		}
 
 		topology = Topology()
-		topology.add_zone_config(zone_name, zone_config)
-		fetcher = TopologyFetcher(topology=topology)
+		topology.set_zone_config_without_lock(zone_name, zone_config)
+		fetcher = ZoneTopologyFetcherThread(zone_name, zone_config, topology)
 
 		with self.assertRaises(FailedToConnect):
 			fetcher.listen_on_node_changes_on_zone(zone_name, zone_config)
@@ -133,5 +137,4 @@ class TestTopologyFetcher(TestCaseWithServerRunning):
 			obj_name = event['raw_object']['metadata'].get('name')
 			print('%s %s' % (event_type, obj_name))
 
-
-		listen_for_changes(CSI_CONFIG_MAP_NAME, do_on_event=print_event)
+		watch(CSI_CONFIG_MAP_NAME, do_on_event=print_event)

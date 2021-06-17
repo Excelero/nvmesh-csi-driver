@@ -1,3 +1,5 @@
+import threading
+
 import grpc
 import time
 import signal
@@ -22,16 +24,18 @@ class NVMeshCSIDriverServer(object):
 	def __init__(self, driver_type):
 		self.driver_type = driver_type
 		self.logger = LoggerUtils.init_root_logger()
+		self.stop_event = threading.Event()
+
 		LoggerUtils.init_sdk_logger()
 		config_loader.load()
 
 		self.identity_service = NVMeshIdentityService(self.logger)
 
 		if self.driver_type == Consts.DriverType.Controller:
-			self.controller_service = NVMeshControllerService(self.logger)
+			self.controller_service = NVMeshControllerService(self.logger,stop_event=self.stop_event)
 		else:
 			FeatureSupportChecks.calculate_all_feature_support()
-			self.node_service = NVMeshNodeService(self.logger)
+			self.node_service = NVMeshNodeService(self.logger, stop_event=self.stop_event)
 
 		self.server = None
 		self.shouldContinue = True
@@ -62,28 +66,27 @@ class NVMeshCSIDriverServer(object):
 
 	def wait_forever(self):
 		try:
-			while self.shouldContinue:
-				time.sleep(1)
-
+			self.stop_event.wait()
 			self.logger.info("Server Stopped")
 		except KeyboardInterrupt:
 			self.stop()
 
 	def stop(self):
 		self.logger.info("Shutting Down..")
-		self.shouldContinue = False
+		self.stop_event.set()
 
 		if self.driver_type == Consts.DriverType.Controller:
 			try:
 				self.logger.debug("Shutting down TopologyService..")
 				self.controller_service.topology_service.stop()
 				self.controller_service.topology_service_thread.join()
-			except:
-				pass
+
+			except Exception as e:
+				self.logger.exception(e)
 
 		self.logger.debug("Shutting down gRPC Server..")
-		stopped_event = self.server.stop(SERVER_STOP_GRACE_SECONDS)
-		stopped_event.wait()
+		grpc_stopped_event = self.server.stop(SERVER_STOP_GRACE_SECONDS)
+		grpc_stopped_event.wait()
 		self.logger.debug("Finished Shut down.")
 
 def get_driver_type():

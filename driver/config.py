@@ -110,7 +110,8 @@ class ConfigLoader(object):
 		print("Loaded Config with SOCKET_PATH={}, MANAGEMENT_SERVERS={}, DRIVER_NAME={}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS, Config.DRIVER_NAME))
 
 class ConfigValidator(object):
-	def validate(self):
+	@staticmethod
+	def validate():
 		if Config.TOPOLOGY:
 			if Config.MANAGEMENT_SERVERS:
 				print("WARNING: MANAGEMENT_SERVERS env variable has no effect when multipleNVMeshBackends is set to True")
@@ -124,9 +125,10 @@ class ConfigValidator(object):
 			except ValueError as ex:
 				raise ConfigError('Failed to parse config.topology. Error %s. originalValue:\n%s' % (ex, Config.TOPOLOGY))
 
-		self.validate_topology()
+		ConfigValidator.validate_and_set_topology()
 
-	def validate_topology(self):
+	@staticmethod
+	def validate_and_set_topology():
 		if not Config.TOPOLOGY:
 			Config.TOPOLOGY_TYPE = Consts.TopologyType.SINGLE_ZONE_CLUSTER
 			return
@@ -142,6 +144,10 @@ class ConfigValidator(object):
 		if Config.TOPOLOGY_TYPE not in supportedTopologyTypes:
 			raise ConfigError('Unsupported topologyType %s' % Config.TOPOLOGY_TYPE)
 
+		ConfigValidator.validate_topology_config(topology_conf)
+
+	@staticmethod
+	def validate_topology_config(topology_conf):
 		if "zoneSelectionPolicy" not in topology_conf:
 			topology_conf["zoneSelectionPolicy"] = Consts.ZoneSelectionPolicy.RANDOM
 
@@ -151,6 +157,13 @@ class ConfigValidator(object):
 		zones = topology_conf["zones"]
 		if not isinstance(zones, dict):
 			raise ConfigError('Expected "zones" key in ConfigMap.topology to be a dict, but received %s' % type(zones))
+
+		for zone_id, zone_config in zones.items():
+			if "management" not in zone_config:
+				raise ConfigError('Missing "management" key in ConfigMap.topology in zone %s' % type(zone_id))
+
+			if "servers" not in zone_config["management"]:
+				raise ConfigError('Missing "management.servers" key in ConfigMap.topology in zone %s' % type(zone_id))
 
 
 config_loader = ConfigLoader()

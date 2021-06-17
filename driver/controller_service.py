@@ -1,7 +1,6 @@
 import datetime
 import json
 import logging
-import threading
 import uuid
 from threading import Thread
 
@@ -24,9 +23,10 @@ from topology_utils import TopologyUtils, VolumeAPIPool, ZoneSelectionManager
 
 
 class NVMeshControllerService(ControllerServicer):
-	def __init__(self, logger):
+	def __init__(self, logger, stop_event):
 		ControllerServicer.__init__(self)
 		self.logger = logger
+		self.stop_event = stop_event
 
 		if Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
 			api = NVMeshSDKHelper.init_session_with_single_management(self.logger)
@@ -114,7 +114,7 @@ class NVMeshControllerService(ControllerServicer):
 				if len(zones_left):
 					log.info('retrying volume creation for {} on zones: {}'.format(volume.name, ','.join(list(zones_left))))
 				else:
-					raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Failed to create volume on all zones ({})'.format(zones))
+					raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Failed to create volume on all zones ({})'.format(', '.join(zones)))
 
 	def create_volume_in_zone(self, volume, zone, log):
 		csi_metadata = volume.csi_metadata
@@ -472,5 +472,5 @@ class NVMeshControllerService(ControllerServicer):
 		self.logger.info(msg)
 
 	def start_topology_service_thread(self):
-		self.topology_service_thread = Thread(target=self.topology_service.run)
+		self.topology_service_thread = Thread(name='topology-service-thread', target=self.topology_service.run)
 		self.topology_service_thread.start()

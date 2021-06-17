@@ -1,7 +1,7 @@
 import logging
 import os
 
-from kubernetes import client, config, watch
+from kubernetes import client, config, watch as client_watch
 from kubernetes.client.rest import ApiException
 
 from config import Config
@@ -64,10 +64,8 @@ def create(config_map_name, data):
 	except ApiException as e:
 		raise
 
-def listen_for_changes(config_map_name, do_on_event):
+def watch(config_map_name, **kwargs):
 	core_api = client.CoreV1Api()
-	watcher = watch.Watch()
-	stream = watcher.stream(core_api.list_namespaced_config_map, namespace=namespace, field_selector='metadata.name=%s' % config_map_name)
-	for raw_event in stream:
-		print("Kubernetes Event: %s %s" % (raw_event['type'], raw_event['object'].metadata.name))
-		do_on_event(raw_event)
+	watcher = client_watch.Watch()
+	stream = watcher.stream(core_api.list_namespaced_config_map, namespace=namespace, field_selector='metadata.name=%s' % config_map_name, **kwargs)
+	return stream, watcher
