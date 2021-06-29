@@ -28,6 +28,8 @@ class Config(object):
 	SDK_LOG_LEVEL = None
 	KUBE_CLIENT_LOG_LEVEL = None
 	ZONE_MAX_DISABLED_TIME_IN_SECONDS = None
+	TOPOLOGY_CONFIG_MAP_NAME = None
+	CSI_CONFIG_MAP_NAME = None
 
 class Parsers(object):
 	@staticmethod
@@ -106,6 +108,9 @@ class ConfigLoader(object):
 		Config.SDK_LOG_LEVEL = _get_config_map_param('sdkLogLevel', default='DEBUG')
 		Config.KUBE_CLIENT_LOG_LEVEL = _get_config_map_param('kubeClientLogLevel', default='INFO')
 		Config.ZONE_MAX_DISABLED_TIME_IN_SECONDS = _get_config_map_param('zoneMaxDisabledTimeInSeconds', 120)
+		Config.TOPOLOGY_CONFIG_MAP_NAME = _get_config_map_param('topologyConfigMapName', 'nvmesh-csi-topology')
+		Config.CSI_CONFIG_MAP_NAME = _get_config_map_param('csiConfigMapName', 'nvmesh-csi-config')
+
 		ConfigValidator().validate()
 		print("Loaded Config with SOCKET_PATH={}, MANAGEMENT_SERVERS={}, DRIVER_NAME={}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS, Config.DRIVER_NAME))
 

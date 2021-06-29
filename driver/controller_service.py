@@ -28,16 +28,17 @@ class NVMeshControllerService(ControllerServicer):
 		self.logger = logger
 		self.stop_event = stop_event
 
-		if Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
-			api = NVMeshSDKHelper.init_session_with_single_management(self.logger)
-			management_version_info = NVMeshSDKHelper.get_management_version(api)
-			self._log_mgmt_version_info(management_version_info)
-
 		self.logger.info('Config: {}'.format(get_config_json()))
 		self.volume_to_zone_mapping = VolumesCache()
 		self.topology_service = TopologyService()
 		self.topology_service_thread = None
-		self.start_topology_service_thread()
+
+		if Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
+			api = NVMeshSDKHelper.init_session_with_single_management(self.logger)
+			management_version_info = NVMeshSDKHelper.get_management_version(api)
+			self._log_mgmt_version_info(management_version_info)
+		else:
+			self.start_topology_service_thread()
 
 	@CatchServerErrors
 	def CreateVolume(self, request, context):
@@ -262,23 +263,25 @@ class NVMeshControllerService(ControllerServicer):
 
 		err, out = volume_api.delete([NVMeshVolume(_id=nvmesh_vol_name)])
 		if err:
-			self.logger.error(err)
+			log.error(err)
 			raise DriverError(StatusCode.INTERNAL, err)
 
-		self.logger.debug(out)
+		log.debug(out)
 
 		if not out[0]['success']:
 			err = out[0]['error']
 
-			if err == "Couldn't find the specified volume":
+			if err == "Couldn't find the specified volume" or err.startswith("Failed to find marked volume"):
 				# Idempotency - Trying to remove a Volume that doesn't exists, perhaps already deleted
 				# should return success
+				log.debug("Volume already deleted")
 				pass
 			else:
 				raise DriverError(StatusCode.FAILED_PRECONDITION, err)
+		else:
+			log.debug("Volume deleted successfully from zone %s" % zone)
 
 		self.volume_to_zone_mapping.remove(nvmesh_vol_name)
-
 		return DeleteVolumeResponse()
 
 	@CatchServerErrors

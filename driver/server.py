@@ -29,6 +29,8 @@ class NVMeshCSIDriverServer(object):
 		LoggerUtils.init_sdk_logger()
 		config_loader.load()
 
+		self.logger.info("NVMesh CSI Driver Type: {} Version: {}".format(self.driver_type, Config.DRIVER_VERSION))
+
 		self.identity_service = NVMeshIdentityService(self.logger)
 
 		if self.driver_type == Consts.DriverType.Controller:
@@ -41,12 +43,12 @@ class NVMeshCSIDriverServer(object):
 		self.shouldContinue = True
 
 		def sigterm_handler(signum, frame):
+			print('>>>>>>>>>>>>>>>>>>>> in sigterm_handler')
 			self.stop()
 
 		signal.signal(signal.SIGTERM, sigterm_handler)
 		signal.signal(signal.SIGINT, sigterm_handler)
 
-		self.logger.info("NVMesh CSI Driver Type: {} Version: {}".format(self.driver_type, Config.DRIVER_VERSION))
 
 	def serve(self):
 		logging_interceptor = ServerLoggingInterceptor(self.logger)
@@ -76,13 +78,7 @@ class NVMeshCSIDriverServer(object):
 		self.stop_event.set()
 
 		if self.driver_type == Consts.DriverType.Controller:
-			try:
-				self.logger.debug("Shutting down TopologyService..")
-				self.controller_service.topology_service.stop()
-				self.controller_service.topology_service_thread.join()
-
-			except Exception as e:
-				self.logger.exception(e)
+			self.controller_service.stop()
 
 		self.logger.debug("Shutting down gRPC Server..")
 		grpc_stopped_event = self.server.stop(SERVER_STOP_GRACE_SECONDS)

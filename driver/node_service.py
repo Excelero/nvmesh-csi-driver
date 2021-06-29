@@ -303,6 +303,7 @@ class NVMeshNodeService(NodeServicer):
 		self.logger.debug('Node topology: %s' % topology_info)
 		return Topology(segments=topology_info)
 
+
 	def get_node_zone_or_wait(self, node_id):
 		attempts_left = 6
 		backoff = BackoffDelayWithStopEvent(self.stop_event, initial_delay=2, factor=2, max_delay=60)
@@ -317,3 +318,16 @@ class NVMeshNodeService(NodeServicer):
 					raise DriverError(StatusCode.INTERNAL, 'Driver stopped')
 
 		raise DriverError(StatusCode.INTERNAL, 'Could not find node %s in any of the zones in the topology. Check nvmesh-csi-topology ConfigMap' % node_id)
+
+	def _parse_mount_options(self, mount_request):
+		mount_options = []
+		permissions = '777'
+
+		if mount_request.mount_flags:
+			for flag in mount_request.mount_flags:
+				if flag.startswith('nvmesh:chmod='):
+					permissions = flag.split('=')[1]
+				else:
+					mount_options.append(flag)
+
+		return permissions, mount_options

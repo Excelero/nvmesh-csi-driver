@@ -4,7 +4,6 @@ import os
 
 from driver.config import ConfigError, config_loader, Config
 
-@unittest.skip
 class TestConfigFile(TestCase):
 	def test_load(self):
 		from driver.config import Config
