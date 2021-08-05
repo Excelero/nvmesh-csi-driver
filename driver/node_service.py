@@ -62,11 +62,8 @@ class NVMeshNodeService(NodeServicer):
 			mount_request = volume_capability.mount
 			self.logger.info('Requested Mounted FileSystem Volume with fs_type={}'.format(mount_request.fs_type))
 			fs_type = mount_request.fs_type or Consts.FSType.EXT4
-			mount_options = []
 
-			if mount_request.mount_flags:
-				for flag in mount_request.mount_flags:
-					mount_options.append(flag)
+			mount_permissions, mount_options = self._parse_mount_options(mount_request)
 
 			FileSystemManager.format_block_device(block_device_path, fs_type)
 
@@ -74,7 +71,7 @@ class NVMeshNodeService(NodeServicer):
 				self.logger.warning('path {} is already mounted'.format(staging_target_path))
 
 			FileSystemManager.mount(source=block_device_path, target=staging_target_path, mount_options=mount_options)
-
+			FileSystemManager.chmod(mount_permissions, staging_target_path)
 		elif access_type == Consts.VolumeAccessType.BLOCK:
 			self.logger.info('Requested Block Volume')
 			# We do not mount here, NodePublishVolume will mount directly from the block device to the publish_path
@@ -135,11 +132,7 @@ class NVMeshNodeService(NodeServicer):
 		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
 			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(nvmesh_volume_name))
 
-		mount_options = []
-
-		if volume_capability.mount.mount_flags:
-			for flag in volume_capability.mount.mount_flags:
-				mount_options.append(flag)
+		mount_permissions, mount_options = self._parse_mount_options(volume_capability.mount)
 
 		# K8s Bug Workaround: readonly flag is not sent to CSI, so we try to also infer from the AccessMode
 		if readonly or access_mode == Consts.AccessMode.MULTI_NODE_READER_ONLY:
@@ -162,6 +155,7 @@ class NVMeshNodeService(NodeServicer):
 			self.logger.debug('NodePublishVolume trying to bind mount {} to {}'.format(staging_target_path, publish_path))
 			FileSystemManager.bind_mount(source=staging_target_path, target=publish_path, mount_options=mount_options)
 
+		FileSystemManager.chmod(mount_permissions, publish_path)
 		return NodePublishVolumeResponse()
 
 	@CatchServerErrors

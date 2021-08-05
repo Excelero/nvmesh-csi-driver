@@ -26,6 +26,14 @@ class FileSystemManager(object):
 		return exit_code == 0
 
 	@staticmethod
+	def chmod(permissions_mask, path):
+		cmd = 'chmod {mask} {path}'.format(mask=permissions_mask, path=path)
+		exit_code, stdout, stderr = Utils.run_command(cmd)
+
+		if exit_code != 0:
+			raise Exception("Failed changing permissions on {} code:{} stdout:{} stderr:{}".format(path, exit_code, stdout, stderr))
+
+	@staticmethod
 	def mount(source, target, flags=None, mount_options=None):
 		flags_str = ' '.join(flags) if flags else ''
 		mount_opts_str = '-o ' + ','.join(mount_options) if mount_options else ''
