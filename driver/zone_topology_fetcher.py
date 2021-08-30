@@ -69,7 +69,8 @@ class ZoneTopologyFetcherThread(threading.Thread):
 		api_params = self.get_api_params(mgmt_info)
 
 		ws_addresses = self.get_ws_servers_list(mgmt_info)
-		self.ws_client = ManagementWebSocketClient(client_id='csi-driver-topology-fetcher', servers_list=ws_addresses)
+		ssl = api_params.get('managementProtocol') == 'https'
+		self.ws_client = ManagementWebSocketClient(client_id='csi-driver-topology-fetcher', servers_list=ws_addresses, ssl=ssl)
 		self.ws_client.connect()
 		self.ws_client.login(username=api_params.get('user'), password=api_params.get('password'))
 

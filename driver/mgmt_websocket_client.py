@@ -28,10 +28,10 @@ class LoginFailed(Exception):
 	pass
 
 class ManagementWebSocketClient(object):
-	def __init__(self, servers_list, secure=True, client_id='python-ws-client'):
+	def __init__(self, servers_list, ssl=True, client_id='python-ws-client'):
 		self.client_id = client_id
 		self.servers_list = servers_list
-		self.secure = secure
+		self.ssl = ssl
 		self.selected_server = None
 		self.url = None
 		self.ws = websocket.WebSocket(sslopt=sslopt)
@@ -52,7 +52,7 @@ class ManagementWebSocketClient(object):
 		raise FailedToConnect('Failed to connect to any of the servers in %s' % self.servers_list)
 
 	def _build_url(self):
-		protocol = 'wss' if self.secure else 'ws'
+		protocol = 'wss' if self.ssl else 'ws'
 		return '{protocol}://{address_with_port}'.format(
 			protocol=protocol,
 			address_with_port=self.selected_server)
@@ -111,7 +111,7 @@ class ManagementWebSocketClient(object):
 		return msg
 
 if __name__ == '__main__':
-	c = ManagementWebSocketClient(client_id='test-python-client', servers_list=['10.0.1.117:4001'])
+	c = ManagementWebSocketClient(client_id='test-python-client', servers_list=['localhost:4001'])
 	c.connect()
 	c.login()
 
