@@ -126,7 +126,8 @@ class TestNodeServiceGracefulShutdown(TestCaseWithServerRunning):
 	def test_node_graceful_shutdown(self):
 		config = {
 			'TOPOLOGY_TYPE': consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
-			'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY
+			'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY,
+			'LOG_LEVEL': 'DEBUG',
 		}
 		ConfigLoaderMock(config).load()
 		os.environ['DEVELOPMENT'] = 'TRUE'

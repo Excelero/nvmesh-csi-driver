@@ -7,6 +7,7 @@ DEPLOY=false
 DEPLOY_ONLY=false
 DOCKER_OR_PODMAN=docker
 ONLY_MANIFESTS=false
+BUILD_CLUSTER_SIM=false
 
 if [ -z "$DRIVER_VERSION" ]; then
     echo "Could not find version in $VERSION_FILE_PATH"
@@ -21,6 +22,7 @@ show_help() {
     echo "  --servers               remote servers on which to build the docker image. example: ./build.sh --servers kube-master kube-node-1 kube-node-2"
     echo "  --deploy                after build deploy using kubectl on the first server. example: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy"
     echo "  --build-tests           build also the integration testing containers. example: ./build.sh --servers kube-master kube-node-1 kube-node-2 --deploy --build-tests"
+    echo "  --build-cluster-sim     build the nvmesh-cluster-simulator locally for running sanity tests"
     echo "  --podman                use podman instead of docker for building the image"
     echo "  --only-manifests        build deployment.yaml and exit"
 }
@@ -64,6 +66,10 @@ parse_args() {
         ;;
         --only-manifests)
             ONLY_MANIFESTS=true
+            shift
+        ;;
+        --build-cluster-sim)
+            BUILD_CLUSTER_SIM=true
             shift
         ;;
         -h|--help)
@@ -161,10 +167,19 @@ build_on_remote_machines() {
     fi
 }
 
+build_locally_nvmesh_cluster_sim() {
+    cd ../test/sanity/nvmesh_cluster_simulator/mgmt-sim/
+    make build
+    retval=$?
+    cd -
+    return $retval
+}
+
 build_testsing_containers() {
     echo "Building testing containers"
     echo "running local build.sh for testing containers on remote machine ($server).."
     cd $REPO_PATH/test/integration ; ./build.sh
+    cd -
 }
 
 deploy() {
@@ -182,6 +197,11 @@ deploy() {
 
 ### MAIN ###
 parse_args $@
+
+if [ "$BUILD_CLUSTER_SIM" == "true" ];then
+    build_locally_nvmesh_cluster_sim
+    exit $?
+fi
 
 if [ "$DEPLOY_ONLY" == "true" ]; then
     if [ "$ONLY_MANIFESTS" == "true" ]; then

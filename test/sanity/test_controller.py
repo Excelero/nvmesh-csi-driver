@@ -1,5 +1,7 @@
 import json
+import logging
 import os
+import signal
 import threading
 import time
 import unittest
@@ -11,7 +13,7 @@ from grpc._channel import _Rendezvous
 from driver.config import Config, print_config
 from driver.csi.csi_pb2 import TopologyRequirement, Topology
 from driver.topology_utils import RoundRobinZonePicker
-from test.sanity.helpers.config_loader_mock import ConfigLoaderMock, DEFAULT_CONFIG_TOPOLOGY, ACTIVE_MANAGEMENT_SERVER
+from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
 from test.sanity.helpers.sanity_test_config import SanityTestConfig
 from test.sanity.helpers.setup_and_teardown import start_server
 
@@ -20,36 +22,41 @@ import driver.consts as Consts
 from test.sanity.helpers.test_case_with_server import TestCaseWithServerRunning
 from test.sanity.clients.controller_client import ControllerClient
 from test.sanity.helpers.error_handlers import CatchRequestErrors
+from test.sanity.nvmesh_cluster_simulator.simulate_cluster import NVMeshCluster, create_clusters, get_config_topology_from_cluster_list
 
 GB = pow(1024, 3)
 VOL_1_ID = "vol_1"
 VOL_2_ID = "vol_2"
-DEFAULT_TOPOLOGY = Topology(segments={Consts.TopologyKey.ZONE: 'A'})
+DEFAULT_TOPOLOGY = Topology(segments={Consts.TopologyKey.ZONE: 'zone_1'})
 DEFAULT_TOPOLOGY_REQUIREMENTS = TopologyRequirement(requisite=[DEFAULT_TOPOLOGY], preferred=[DEFAULT_TOPOLOGY])
 TOPO_REQ_MULTIPLE_TOPOLOGIES = TopologyRequirement(
 	requisite=[
-		Topology(segments={Consts.TopologyKey.ZONE: 'A'}),
-		Topology(segments={Consts.TopologyKey.ZONE: 'B'}),
-		Topology(segments={Consts.TopologyKey.ZONE: 'C'})
+		Topology(segments={Consts.TopologyKey.ZONE: 'zone_1'}),
+		Topology(segments={Consts.TopologyKey.ZONE: 'zone_2'}),
+		Topology(segments={Consts.TopologyKey.ZONE: 'zone_3'})
 	],
 	preferred=[
-		Topology(segments={Consts.TopologyKey.ZONE: 'A'}),
-		Topology(segments={Consts.TopologyKey.ZONE: 'B'}),
-		Topology(segments={Consts.TopologyKey.ZONE: 'C'})
+		Topology(segments={Consts.TopologyKey.ZONE: 'zone_1'}),
+		Topology(segments={Consts.TopologyKey.ZONE: 'zone_2'}),
+		Topology(segments={Consts.TopologyKey.ZONE: 'zone_3'})
 	])
 
 os.environ['DEVELOPMENT'] = 'TRUE'
 
 class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 	driver_server = None
+	cluster1 = None
 
 	def __init__(self, *args, **kwargs):
 		TestCaseWithServerRunning.__init__(self, *args, **kwargs)
 
 	@classmethod
 	def setUpClass(cls):
+		cls.cluster1 = NVMeshCluster('cluster1')
+		cls.cluster1.start()
+
 		config = {
-			'MANAGEMENT_SERVERS': ACTIVE_MANAGEMENT_SERVER,
+			'MANAGEMENT_SERVERS': cls.cluster1.get_mgmt_server_string(),
 			'MANAGEMENT_PROTOCOL': 'https',
 			'MANAGEMENT_USERNAME': 'admin@excelero.com',
 			'MANAGEMENT_PASSWORD': 'admin',
@@ -57,14 +64,17 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 			'TOPOLOGY': None,
 			'SDK_LOG_LEVEL': 'DEBUG'
 		}
+
 		ConfigLoaderMock(config).load()
 		print_config()
-		cls.driver_server = start_server(Consts.DriverType.Controller)
+		cls.driver_server = start_server(Consts.DriverType.Controller, config=config)
 		cls.ctrl_client = ControllerClient()
+
 
 	@classmethod
 	def tearDownClass(cls):
 		cls.driver_server.stop()
+		cls.cluster1.stop()
 
 	@CatchRequestErrors
 	def test_create_and_delete_volume(self):
@@ -161,30 +171,46 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 
 class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 	driver_server = None
+	clusters = None
+	topology = None
+
 	def __init__(self, *args, **kwargs):
 		TestCaseWithServerRunning.__init__(self, *args, **kwargs)
 
 	@classmethod
 	def setUpClass(cls):
 		super(TestControllerServiceWithZoneTopology, cls).setUpClass()
+
+		cls.clusters = create_clusters(num_of_clusters=3, num_of_client_per_cluster=3, name_prefix='zone_')
+
+		for c in cls.clusters:
+			c.start()
+
+		for c in cls.clusters:
+			c.wait_until_is_alive()
+
+		cls.topology = get_config_topology_from_cluster_list(cls.clusters)
+
 		config = {
 			'MANAGEMENT_SERVERS': None,
 			'MANAGEMENT_PROTOCOL': None,
 			'MANAGEMENT_USERNAME': None,
 			'MANAGEMENT_PASSWORD': None,
 			'TOPOLOGY_TYPE': Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
-			'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY,
+			'TOPOLOGY': cls.topology,
 			'LOG_LEVEL': 'DEBUG',
 			'SDK_LOG_LEVEL': 'DEBUG'
 		}
 
 		ConfigLoaderMock(config).load()
 		print_config()
-		cls.driver_server = start_server(Consts.DriverType.Controller)
+		cls.driver_server = start_server(Consts.DriverType.Controller, config=config)
 		cls.ctrl_client = ControllerClient()
 
 	@classmethod
 	def tearDownClass(cls):
+		for c in cls.clusters:
+			c.stop()
 		cls.driver_server.stop()
 
 	@CatchRequestErrors
@@ -424,6 +450,25 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 		self.assertEqual(selection_sequence[2], selection_sequence[5])
 
 class TestRetryOnAnotherZone(TestCaseWithServerRunning):
+	cluster = None
+	active_mgmt_server = None
+
+	def __init__(self, *args, **kwargs):
+		TestCaseWithServerRunning.__init__(self, *args, **kwargs)
+
+	@classmethod
+	def setUpClass(cls):
+		super(TestRetryOnAnotherZone, cls).setUpClass()
+
+		cls.cluster = NVMeshCluster('nvmesh_1', clients=['client1','client2'])
+		cls.cluster.start()
+		cls.cluster.wait_until_is_alive()
+		cls.active_mgmt_server = cls.cluster.get_mgmt_server_string()
+
+	@classmethod
+	def tearDownClass(cls):
+		cls.cluster.stop()
+
 	'''
 	Need a whole class as we need to start the server each test so that it will load a specific topology every time
 	'''
@@ -431,38 +476,45 @@ class TestRetryOnAnotherZone(TestCaseWithServerRunning):
 	def test_retry_on_another_zone(self):
 		only_zone_c_active = {
 					"zones": {
-							"A": {
+							"zone_1": {
 								"management": {
 									"servers": "some-unavailable-server-1:4000"
 								}
 							},
-							"B": {
+							"zone_2": {
 								"management": {
 									"servers": "some-unavailable-server-2:4000"
 								}
 							},
-							"C": {
+							"zone_3": {
 								"management": {
-									"servers": ACTIVE_MANAGEMENT_SERVER
+									"servers": self.active_mgmt_server
 								}
 							},
-							"D": {
-							"management": {
-								"servers": "some-unavailable-server-4:4000"
-							}
-						},
+							"zone_4": {
+								"management": {
+									"servers": "some-unavailable-server-4:4000"
+								}
+							},
 						}
 					}
 
+		zones_1_to_4 = [
+				Topology(segments={Consts.TopologyKey.ZONE: 'zone_1'}),
+				Topology(segments={Consts.TopologyKey.ZONE: 'zone_2'}),
+				Topology(segments={Consts.TopologyKey.ZONE: 'zone_3'}),
+				Topology(segments={Consts.TopologyKey.ZONE: 'zone_4'})
+			]
+		volume_topology = TopologyRequirement(requisite=zones_1_to_4, preferred=zones_1_to_4)
 		config = {
 			'TOPOLOGY_TYPE': Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
 			'TOPOLOGY': only_zone_c_active,
-			'LOG_LEVEL':'INFO',
+			'LOG_LEVEL': 'INFO',
 			'SDK_LOG_LEVEL': 'INFO'
 		}
 
 		ConfigLoaderMock(config).load()
-		driver_server = start_server(Consts.DriverType.Controller)
+		driver_server = start_server(Consts.DriverType.Controller, config=config)
 
 		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
 		ctrl_client = ControllerClient()
@@ -470,24 +522,24 @@ class TestRetryOnAnotherZone(TestCaseWithServerRunning):
 				name=VOL_2_ID,
 				capacity_in_bytes=1 * GB,
 				parameters=parameters,
-				topology_requirements=TOPO_REQ_MULTIPLE_TOPOLOGIES)
+				topology_requirements=volume_topology)
 
 		driver_server.stop()
 
-		self.assertTrue(res.volume.volume_id.startswith('C:'))
+		self.assertTrue(res.volume.volume_id.startswith('zone_3:'))
 
 
 	@CatchRequestErrors
 	def test_fail_to_create_all_mgmts_not_available(self):
 		all_inactive = {
 			"zones": {
-				"A": {
+				"zone_1": {
 					"management": {"servers": "some-unavailable-server-1:4000"}
 				},
-				"B": {
+				"zone_2": {
 					"management": {"servers": "some-unavailable-server-2:4000"}
 				},
-				"C": {
+				"zone_3": {
 					"management": {"servers": "some-unavailable-server-3:4000"}
 				}
 			}
@@ -501,7 +553,7 @@ class TestRetryOnAnotherZone(TestCaseWithServerRunning):
 		}
 
 		ConfigLoaderMock(config).load()
-		driver_server = start_server(Consts.DriverType.Controller)
+		driver_server = start_server(Consts.DriverType.Controller, config=config)
 
 		self.addCleanup(lambda: driver_server.stop())
 
@@ -522,7 +574,7 @@ class TestRetryOnAnotherZone(TestCaseWithServerRunning):
 					"management": {"servers": "some-unavailable-server-1:4000"}
 				},
 				"B": {
-					"management": {"servers": ACTIVE_MANAGEMENT_SERVER}
+					"management": {"servers": TestRetryOnAnotherZone.active_mgmt_server}
 				},
 				"C": {
 					"management": {"servers": "some-unavailable-server-3:4000"}
@@ -548,7 +600,7 @@ class TestRetryOnAnotherZone(TestCaseWithServerRunning):
 		}
 
 		ConfigLoaderMock(config).load()
-		driver_server = start_server(Consts.DriverType.Controller)
+		driver_server = start_server(Consts.DriverType.Controller, config=config)
 
 		self.addCleanup(lambda: driver_server.stop())
 
@@ -582,7 +634,7 @@ class TestRetryOnAnotherZone(TestCaseWithServerRunning):
 		}
 
 		ConfigLoaderMock(config).load()
-		driver_server = start_server(Consts.DriverType.Controller)
+		driver_server = start_server(Consts.DriverType.Controller, config=config)
 
 		self.addCleanup(lambda: driver_server.stop())
 
@@ -637,7 +689,7 @@ class TestRetryOnAnotherZone(TestCaseWithServerRunning):
 		}
 
 		ConfigLoaderMock(config).load()
-		driver_server = start_server(Consts.DriverType.Controller)
+		driver_server = start_server(Consts.DriverType.Controller, config=config)
 
 		self.addCleanup(lambda: driver_server.stop())
 
@@ -661,12 +713,16 @@ class TestRetryOnAnotherZone(TestCaseWithServerRunning):
 		assert_fail_to_create_volume(VOL_2_ID)
 
 
-
 class TestServerShutdown(TestCaseWithServerRunning):
 	'''
-	These are test cases to check that while the server terminates all running requests are able to finish successfully
+	This test checks that while the server terminates all running requests are able to finish successfully
 	'''
 	def test_abort_during_request(self):
+		cluster = NVMeshCluster('cluster1', options={'volumeCreationDelayMS': 5000})
+		cluster.start()
+
+		self.addCleanup(lambda: cluster.stop())
+
 		config = {
 			'MANAGEMENT_SERVERS': SanityTestConfig.ManagementServers[0],
 			'MANAGEMENT_PROTOCOL': 'https',
@@ -678,7 +734,7 @@ class TestServerShutdown(TestCaseWithServerRunning):
 
 		ConfigLoaderMock(config).load()
 
-		driver_server = start_server(Consts.DriverType.Controller)
+		driver_server = start_server(Consts.DriverType.Controller, config=config)
 		response_bucket = []
 
 		def create_volume(response_bucket):
@@ -696,10 +752,25 @@ class TestServerShutdown(TestCaseWithServerRunning):
 		t = threading.Thread(target=create_volume, args=(response_bucket,))
 		t.start()
 		time.sleep(2)
+		print('shutting the server down')
 		driver_server.stop()
 
 		# if volume_id is None that means the thread pre-maturely terminated
 		self.assertTrue(response_bucket[0])
+
+	def test_simple_termination(self):
+		config = {
+			'MANAGEMENT_SERVERS': SanityTestConfig.ManagementServers[0],
+			'MANAGEMENT_PROTOCOL': 'https',
+			'MANAGEMENT_USERNAME': 'admin@excelero.com',
+			'MANAGEMENT_PASSWORD': 'admin',
+			'TOPOLOGY_TYPE': Consts.TopologyType.SINGLE_ZONE_CLUSTER,
+			'TOPOLOGY': None
+		}
+
+		driver_server = start_server(Consts.DriverType.Controller, config=config)
+		time.sleep(3)
+		driver_server.stop()
 
 if __name__ == '__main__':
 	unittest.main()

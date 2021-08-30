@@ -11,5 +11,7 @@ __pycache__/
 # helm charts packages
 build_tools/*.tgz
 
+**/node_modules
+
 # include this file
 !/.gitignore

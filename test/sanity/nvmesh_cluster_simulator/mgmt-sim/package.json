@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "express": "^4.17.1",
+    "node-uuid": "^1.4.8",
+    "websocket": "^1.0.34",
+    "yargs": "^17.1.1"
+  }
+}
