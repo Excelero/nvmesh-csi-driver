@@ -8,19 +8,18 @@ class ConfigurationVersionAPI(object):
 
 	def __init__(self, managementServersUrls, logger=None):
 		try:
-			self.managementConnection = ConnectionManager.getInstance(managementServers=managementServersUrls, dbUUID='no-uuid', logger=logger)
+			self.managementConnection = ConnectionManager.getInstance(managementServers=managementServersUrls, dbUUID=None, logger=logger)
 		except ConnectionManagerError as e:
 			raise e
 
 	def getDBUUID(self):
 		routes = ['dbUUID']
 
-		err, dbUUID = self.makeGet(routes)
+		err, response = self.makeGet(routes)
 
-		ConnectionManager.removeInstance(id='no-uuid')
-
-		if dbUUID is not None:
-			return None, dbUUID
+		if response is not None:
+			ConnectionManager.addInstance(response['dbUUID'], self.managementConnection)
+			return None, response
 		else:
 			return err, None
 

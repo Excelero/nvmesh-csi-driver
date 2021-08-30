@@ -1,4 +1,6 @@
 import json
+import logging
+import threading
 import requests
 import urllib3
 import urlparse
@@ -41,6 +43,7 @@ class ManagementHTTPError(ConnectionManagerError):
         self.status_code = res.status_code
         self.message = "Reason:{0} Content:{1}".format(res.reason, res.content)
 
+conn_mgr_logger = logging.getLogger('NVMeshSDK')
 
 class ConnectionManager:
     DEFAULT_USERNAME = "app@excelero.com"
@@ -49,18 +52,35 @@ class ConnectionManager:
     __instances = {}
 
     @staticmethod
+    def debug_getInstances():
+        return ConnectionManager.__instances
+
+    @staticmethod
     def getInstance(dbUUID, managementServers, user=DEFAULT_USERNAME, password=DEFAULT_PASSWORD, configFile=DEFAULT_NVMESH_CONFIG_FILE, logger=None):
-        if dbUUID in ConnectionManager.__instances:
+        if not dbUUID:
+            connection = Connection(managementServers=managementServers, user=user, password=password, configFile=configFile, logger=logger)
+        elif dbUUID in ConnectionManager.__instances:
             connection = ConnectionManager.__instances[dbUUID]
+            conn_mgr_logger.debug('multi-threading::got connection for dbUUID %s with servers %s and requested managementServers=%s' % (dbUUID, connection.managementServers, managementServers))
         else:
+            conn_mgr_logger.debug('multi-threading::dbUUID=%s NOT in __instances' % dbUUID)
             connection = Connection(managementServers=managementServers, user=user, password=password, configFile=configFile, logger=logger)
             ConnectionManager.__instances[dbUUID] = connection
+            conn_mgr_logger.debug('multi-threading::got connection for dbUUID %s with servers %s and requested managementServers=%s' % (dbUUID, connection.managementServers, managementServers))
         return connection
 
     @classmethod
     def removeInstance(cls, id):
         if id in cls.__instances:
             del cls.__instances[id]
+
+    @classmethod
+    def addInstance(cls, dbUUID, connection):
+        if not dbUUID:
+            raise ValueError('empty dbUUID')
+
+        conn_mgr_logger.debug('multi-threading::adding connection for dbUUID %s with servers %s' % (dbUUID, connection.managementServers))
+        ConnectionManager.__instances[dbUUID] = connection
 
 
 class Connection(object):
@@ -206,8 +226,8 @@ class Connection(object):
                 if success:
                     return self.request(method, route, payload, postTimeout)
 
-            if not isAliveRoute and method == 'post':
-                self.logger.debug('route {0} got response: {1}'.format(route, res.content))
+            if not isAliveRoute:
+                self.logger.debug('url {0} got response: {1}'.format(url, res.content))
 
             err, jsonObj = self.handleResponse(res)
             return err, jsonObj
