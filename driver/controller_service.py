@@ -477,3 +477,10 @@ class NVMeshControllerService(ControllerServicer):
 	def start_topology_service_thread(self):
 		self.topology_service_thread = Thread(name='topology-service-thread', target=self.topology_service.run)
 		self.topology_service_thread.start()
+
+	def stop(self):
+		self.stop_event.set()
+		self.topology_service.stop_event.set()
+		self.logger.info('Waiting for Topology Service to terminate..')
+		if self.topology_service_thread:
+			self.topology_service_thread.join()

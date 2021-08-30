@@ -6,7 +6,8 @@ import signal
 
 import sys, os
 from concurrent import futures
-from config import Config, config_loader
+import config as config_module
+from config import Config
 from common import ServerLoggingInterceptor, FeatureSupportChecks, LoggerUtils
 import consts as Consts
 from controller_service import NVMeshControllerService
@@ -27,14 +28,14 @@ class NVMeshCSIDriverServer(object):
 		self.stop_event = threading.Event()
 
 		LoggerUtils.init_sdk_logger()
-		config_loader.load()
+		config_module.config_loader.load()
 
 		self.logger.info("NVMesh CSI Driver Type: {} Version: {}".format(self.driver_type, Config.DRIVER_VERSION))
 
 		self.identity_service = NVMeshIdentityService(self.logger)
 
 		if self.driver_type == Consts.DriverType.Controller:
-			self.controller_service = NVMeshControllerService(self.logger,stop_event=self.stop_event)
+			self.controller_service = NVMeshControllerService(self.logger, stop_event=self.stop_event)
 		else:
 			FeatureSupportChecks.calculate_all_feature_support()
 			self.node_service = NVMeshNodeService(self.logger, stop_event=self.stop_event)
@@ -42,15 +43,17 @@ class NVMeshCSIDriverServer(object):
 		self.server = None
 		self.shouldContinue = True
 
-		def sigterm_handler(signum, frame):
-			print('>>>>>>>>>>>>>>>>>>>> in sigterm_handler')
+		def shutdown(signum, frame):
+			log('Received signal {}. Stoping the server'.format(signum))
 			self.stop()
 
-		signal.signal(signal.SIGTERM, sigterm_handler)
-		signal.signal(signal.SIGINT, sigterm_handler)
+		signal.signal(signal.SIGTERM, shutdown)
+		signal.signal(signal.SIGINT, shutdown)
 
 
 	def serve(self):
+		self.logger.info("Config Topology Type{}".format(Config.TOPOLOGY_TYPE))
+
 		logging_interceptor = ServerLoggingInterceptor(self.logger)
 		self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10), interceptors=(logging_interceptor,))
 		csi_pb2_grpc.add_IdentityServicer_to_server(self.identity_service, self.server)
@@ -68,7 +71,7 @@ class NVMeshCSIDriverServer(object):
 
 	def wait_forever(self):
 		try:
-			self.stop_event.wait()
+			signal.pause()
 			self.logger.info("Server Stopped")
 		except KeyboardInterrupt:
 			self.stop()
