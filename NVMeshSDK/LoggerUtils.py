@@ -12,7 +12,6 @@ class Logger(object):
 		self._mainLoggerName = mainLoggerName
 		self._mainLogger = logging.getLogger(mainLoggerName)
 		self._defaultFormat = '%(name)s[{}]: %(levelname)s: %(message)s'.format(os.getpid())
-		self._isLoggerInitialized = False
 		self._loggerOptions = {
 			'logToSysLog': False,
 			'logToStdout': True,
@@ -23,10 +22,12 @@ class Logger(object):
 			'sysLogAddress': Consts.SYSLOG_PATH
 		}
 
+	def _isLoggerInitialized(self):
+		return len(self._mainLogger.handlers) > 0
+
 	def getLogger(self, loggerName):
-		if not self._isLoggerInitialized:
+		if not self._isLoggerInitialized():
 			self._configLogger(**self._loggerOptions)
-			self._isLoggerInitialized = True
 
 		return self._mainLogger.getChild(loggerName)
 
