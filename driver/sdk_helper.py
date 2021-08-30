@@ -24,7 +24,7 @@ class NVMeshSDKHelper(object):
 		err, connected = api.managementConnection.get('/isAlive')
 
 		if err:
-			raise err
+			raise ValueError(err)
 
 		return api, connected
 

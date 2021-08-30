@@ -126,7 +126,7 @@ class NVMeshControllerService(ControllerServicer):
 
 		data = None
 		try:
-			volume_api = VolumeAPIPool.get_volume_api_for_zone(zone)
+			volume_api = VolumeAPIPool.get_volume_api_for_zone(zone, log)
 			err, data = volume_api.save([volume])
 			# this is only required for printing informative logs
 			mgmt_server = volume_api.managementConnection.managementServer
@@ -259,7 +259,7 @@ class NVMeshControllerService(ControllerServicer):
 		zone, nvmesh_vol_name = Utils.zone_and_vol_name_from_co_id(volume_id)
 		#secrets = request.secrets
 
-		volume_api = VolumeAPIPool.get_volume_api_for_zone(zone)
+		volume_api = VolumeAPIPool.get_volume_api_for_zone(zone, log)
 
 		err, out = volume_api.delete([NVMeshVolume(_id=nvmesh_vol_name)])
 		if err:
@@ -316,7 +316,7 @@ class NVMeshControllerService(ControllerServicer):
 
 		# TODO: we should probably iterate over all management servers and return all volumes while populating the volume.accessible_topology field
 		zone = ''
-		volume_api = VolumeAPIPool.get_volume_api_for_zone(zone)
+		volume_api = VolumeAPIPool.get_volume_api_for_zone(zone, self.logger)
 		err, nvmeshVolumes = volume_api.get(projection=projection, page=page, count=count)
 
 		if err:
@@ -379,7 +379,7 @@ class NVMeshControllerService(ControllerServicer):
 		zone, nvmesh_vol_name = Utils.zone_and_vol_name_from_co_id(request.volume_id)
 		log = logging.getLogger('ExpandVolume-%s' % nvmesh_vol_name)
 
-		volume_api = VolumeAPIPool.get_volume_api_for_zone(zone)
+		volume_api = VolumeAPIPool.get_volume_api_for_zone(zone, log)
 		volume = self.get_nvmesh_volume(volume_api, nvmesh_vol_name)
 
 		# Call Node Expansion Method to Expand a FileSystem
@@ -441,7 +441,7 @@ class NVMeshControllerService(ControllerServicer):
 			#raise DriverError(StatusCode.INVALID_ARGUMENT, "at least one of capacity_range.required_bytes, capacity_range.limit_bytes must be set")
 
 	def _get_nvmesh_volume_capacity(self, nvmesh_vol_name, log, zone=None):
-		volume_api = VolumeAPIPool.get_volume_api_for_zone(zone)
+		volume_api = VolumeAPIPool.get_volume_api_for_zone(zone, log)
 
 		filterObj = [MongoObj(field='_id', value=nvmesh_vol_name)]
 		projection = [MongoObj(field='_id', value=1), MongoObj(field='capacity', value=1)]
@@ -453,7 +453,7 @@ class NVMeshControllerService(ControllerServicer):
 		return out[0].capacity
 
 	def _get_volume_by_name(self, volume_id, zone, log):
-		volume_api = VolumeAPIPool.get_volume_api_for_zone(zone)
+		volume_api = VolumeAPIPool.get_volume_api_for_zone(zone, log)
 
 		filterObj = [MongoObj(field='_id', value=volume_id)]
 		err, data = volume_api.get(filter=filterObj)

@@ -27,9 +27,8 @@ class Topology(object):
 			listener()
 
 	def set_zone_config_without_lock(self, zone_name, zone_config):
-		with self.lock:
-			zone_config['nodes'] = set()
-			self.zones[zone_name] = zone_config
+		zone_config['nodes'] = set()
+		self.zones[zone_name] = zone_config
 
 	def add_nodes_for_zone(self, zone, node_ids):
 		with self.lock:

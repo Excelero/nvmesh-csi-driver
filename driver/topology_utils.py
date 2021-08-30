@@ -8,9 +8,11 @@ from grpc import StatusCode
 
 import consts
 from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
+from NVMeshSDK.ConnectionManager import ConnectionManager
 from common import DriverError
 from config import Config
 
+logger = logging.getLogger('topology-service')
 
 class NodeNotFoundInTopology(Exception):
 	pass
@@ -27,9 +29,13 @@ class TopologyUtils(object):
 
 	@staticmethod
 	def get_management_info_from_zone(zone):
+		logger.debug('get_management_info_from_zone for zone {}'.format(zone))
 		zone_info = TopologyUtils.get_zone_info(zone)
+		logger.debug('get_management_info_from_zone zone_info {}'.format(zone_info))
 
 		mgmt_info = zone_info.get('management')
+		logger.debug('get_management_info_from_zone mgmt_info {}'.format(mgmt_info))
+
 		if not mgmt_info:
 			raise ValueError('Zone {0} missing mgmt_info in Config.topology.zones.{0}'.format(zone))
 
@@ -110,6 +116,7 @@ class TopologyUtils(object):
 
 	@staticmethod
 	def get_api_params(zone):
+		logger.debug('get_api_params for zone {}'.format(zone))
 		if Config.TOPOLOGY_TYPE == consts.TopologyType.SINGLE_ZONE_CLUSTER:
 			return TopologyUtils.get_api_params_from_config()
 
@@ -148,15 +155,23 @@ class VolumeAPIPool(object):
 
 
 	@staticmethod
-	def get_volume_api_for_zone(zone):
+	def get_volume_api_for_zone(zone, log):
 		api_params = TopologyUtils.get_api_params(zone)
 		management_servers = api_params['managementServers']
 		with VolumeAPIPool.__lock:
+			log.debug('get_volume_api_for_zone: management_servers=%s' % management_servers)
 			if management_servers in VolumeAPIPool.__api_dict:
 				api = VolumeAPIPool.__api_dict[management_servers]
+				log.debug('get_volume_api_for_zone: got VolumeAPI object from pool with mgmts: %s' % api.managementConnection.managementServers)
 			else:
 				api = VolumeAPIPool._create_new_volume_api(api_params)
 				VolumeAPIPool.__api_dict[management_servers] = api
+				log.debug('get_volume_api_for_zone: created new VolumeAPI=%s from api_params %s' % (api.managementConnection.managementServers, api_params))
+				if api.managementConnection.managementServers[0] != 'https://' + api_params['managementServers']:
+					# This means we asked for a connection to management server A but got a connection to management server B
+					db_uuid_to_servers = ['db_uuid={} servers={}'.format(db_uuid, conn_mgr.managementServers) for db_uuid, conn_mgr in ConnectionManager.debug_getInstances().items()]
+					log.debug('SDK internals: {}'.format(db_uuid_to_servers))
+					raise ValueError('BUG! Got wrong API object! got Connection for {} but expected {}'.format(api.managementConnection.managementServers[0], 'https://' + api_params['managementServers']))
 
 		return api
 
