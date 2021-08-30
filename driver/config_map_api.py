@@ -16,11 +16,15 @@ def init():
 	if os.environ.get('DEVELOPMENT'):
 		config.load_kube_config()
 		namespace = 'nvmesh-csi-driver'
+		configuration = client.Configuration()
+		configuration.verify_ssl = False
+		configuration.debug = False
+		client.Configuration.set_default(configuration)
+		core_api = client.CoreV1Api()
 	else:
 		config.load_incluster_config()
 		namespace = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
-
-	core_api = client.CoreV1Api()
+		core_api = client.CoreV1Api()
 
 	kube_logger = logging.getLogger('kubernetes')
 	kube_logger.setLevel(logging.getLevelName(Config.KUBE_CLIENT_LOG_LEVEL or 'DEBUG'))
@@ -28,6 +32,8 @@ def init():
 class ConfigMapNotFound(Exception):
 	pass
 
+class ConfigMapAlreadyExists(Exception):
+	pass
 
 def load(config_map_name):
 	config_maps = core_api.list_namespaced_config_map(namespace, field_selector='metadata.name=%s' % config_map_name)
@@ -60,6 +66,15 @@ def create(config_map_name, data):
 
 	try:
 		api_response = core_api.create_namespaced_config_map(namespace, body)
+		return api_response
+	except ApiException as e:
+		if e.reason == 'AlreadyExists':
+			raise ConfigMapAlreadyExists(e.message)
+		raise
+
+def delete(config_map_name):
+	try:
+		api_response = core_api.delete_namespaced_config_map(config_map_name, namespace)
 		return api_response
 	except ApiException as e:
 		raise

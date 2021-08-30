@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import threading
 from threading import Thread
 
@@ -93,6 +94,8 @@ class TopologyService(object):
             logger.debug('ConfigMap %s event %s: %s' % (config.Config.CSI_CONFIG_MAP_NAME, event_type.lower(), event))
 
     def watch_topology_config_map(self):
+        if os.environ['DEVELOPMENT']:
+            return
         logger.info('Listening for changes on ConfigMap %s' % config.Config.CSI_CONFIG_MAP_NAME)
         backoff = BackoffDelayWithStopEvent(event=self.stop_event, initial_delay=5, factor=2, max_delay=60)
         while not self.stop_event.is_set():
@@ -163,8 +166,11 @@ class TopologyService(object):
 
         try:
             config_map = config_map_api.load(config.Config.TOPOLOGY_CONFIG_MAP_NAME)
-        except config_map_api.ConfigMapNotFound as ex:
-            config_map = config_map_api.create(config.Config.TOPOLOGY_CONFIG_MAP_NAME, {'zones': "{}"})
+        except config_map_api.ConfigMapNotFound:
+            try:
+                config_map = config_map_api.create(config.Config.TOPOLOGY_CONFIG_MAP_NAME, {'zones': "{}"})
+            except config_map_api.ConfigMapAlreadyExists:
+                config_map = config_map_api.load(config.Config.TOPOLOGY_CONFIG_MAP_NAME)
 
         data = config_map.data
         zones = json.loads(data.get('zones'))
