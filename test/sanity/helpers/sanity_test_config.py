@@ -28,7 +28,7 @@ def load_test_config_file():
 		with open(test_config_path) as fp:
 			test_config = yaml.safe_load(fp)
 	except Exception as ex:
-		print('Failed to load test config file at %s. Error: %s' % (test_config_path, ex))
+		print('Failed to load test config file at %s. CWD: %s Error: %s' % (test_config_path, os.getcwd(), ex))
 		raise
 
 	parse_config(test_config)
