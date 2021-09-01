@@ -20,6 +20,10 @@ SERVICE_ACCOUNT_NAME = 'csi-driver-test-account'
 
 config.load_kube_config()
 
+configuration = client.Configuration()
+configuration.verify_ssl = False
+configuration.debug = False
+client.Configuration.set_default(configuration)
 core_api = client.CoreV1Api()
 storage_api = client.StorageV1Api()
 apps_api = client.AppsV1Api()
