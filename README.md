@@ -3,7 +3,7 @@
 
 
 ## Versions And Compatibility
-Driver Version:     1.1.6
+Driver Version:     1.1.7
 
 NVMesh Version:     2.2.0 or higher
 

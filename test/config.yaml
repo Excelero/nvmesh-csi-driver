@@ -5,7 +5,7 @@ integration:
   #  - 10.0.1.117:4000
   numberOfVolumes: 3
   skipECVolumes: true
-  skipTopology: false
+  skipTopology: true
   topology:
     zones:
       zone115:

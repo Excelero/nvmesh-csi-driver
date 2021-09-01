@@ -31,4 +31,4 @@ COPY licenses/ /licenses/
 COPY driver/ /driver/
 COPY version /version
 
-CMD ["sudo", "--preserve-env", "python", "/driver/server.py"]
+CMD ["python", "/driver/server.py"]

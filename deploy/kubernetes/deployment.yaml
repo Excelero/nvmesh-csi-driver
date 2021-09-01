@@ -1,0 +1,772 @@
+---
+# Source: nvmesh-csi-driver/templates/psp.yaml
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: nvmesh-csi
+  labels:
+    helm.sh/chart: nvmesh-csi-driver-1.1.7
+    app.kubernetes.io/name: nvmesh-csi-driver
+    app.kubernetes.io/instance: nvmesh-csi-driver
+    app.kubernetes.io/version: "v1.1.7"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  privileged: true
+  allowPrivilegeEscalation: true
+  allowedHostPaths:
+  - pathPrefix: /var/lib/kubelet/
+  - pathPrefix: /dev
+  - pathPrefix: /bin
+  - pathPrefix: /var/opt/NVMesh
+  - pathPrefix: /opt/NVMesh
+
+  allowedCapabilities:
+  - 'SYS_ADMIN'
+  volumes:
+  - 'configMap'
+  - 'emptyDir'
+  - 'projected'
+  - 'secret'
+  - 'downwardAPI'
+  - 'hostPath'
+  hostNetwork: true
+  runAsUser:
+    rule: 'RunAsAny'
+  seLinux:
+    rule: 'RunAsAny'
+  supplementalGroups:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'
+---
+# Source: nvmesh-csi-driver/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nvmesh-csi
+  namespace: nvmesh-csi-driver
+  labels:
+    helm.sh/chart: nvmesh-csi-driver-1.1.7
+    app.kubernetes.io/name: nvmesh-csi-driver
+    app.kubernetes.io/instance: nvmesh-csi-driver
+    app.kubernetes.io/version: "v1.1.7"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: nvmesh-csi-driver/templates/credentials.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nvmesh-csi-credentials
+  namespace: nvmesh-csi-driver
+  labels:
+    helm.sh/chart: nvmesh-csi-driver-1.1.7
+    app.kubernetes.io/name: nvmesh-csi-driver
+    app.kubernetes.io/instance: nvmesh-csi-driver
+    app.kubernetes.io/version: "v1.1.7"
+    app.kubernetes.io/managed-by: Helm
+data:
+  username: YWRtaW5AZXhjZWxlcm8uY29t
+  password: YWRtaW4=
+---
+# Source: nvmesh-csi-driver/templates/configmaps.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nvmesh-csi-config
+  namespace: nvmesh-csi-driver
+  labels:
+    helm.sh/chart: nvmesh-csi-driver-1.1.7
+    app.kubernetes.io/name: nvmesh-csi-driver
+    app.kubernetes.io/instance: nvmesh-csi-driver
+    app.kubernetes.io/version: "v1.1.7"
+    app.kubernetes.io/managed-by: Helm
+data:
+  management.protocol: https
+  management.servers: n115:4000
+  attachIOEnabledTimeout: "30"
+  printStackTraces: "false"
+---
+# Source: nvmesh-csi-driver/templates/configmaps.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nvmesh-csi-topology
+  namespace: nvmesh-csi-driver
+  labels:
+    helm.sh/chart: nvmesh-csi-driver-1.1.7
+    app.kubernetes.io/name: nvmesh-csi-driver
+    app.kubernetes.io/instance: nvmesh-csi-driver
+    app.kubernetes.io/version: "v1.1.7"
+    app.kubernetes.io/managed-by: Helm
+data:
+  zones: "{}"
+---
+# Source: nvmesh-csi-driver/templates/storage-classes.yaml
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-concatenated
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_CONCATENATED_VPG
+---
+# Source: nvmesh-csi-driver/templates/storage-classes.yaml
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-raid0
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+# Immediate, WaitForFirstConsumer
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_RAID_0_VPG
+---
+# Source: nvmesh-csi-driver/templates/storage-classes.yaml
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-raid1
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_RAID_1_VPG
+---
+# Source: nvmesh-csi-driver/templates/storage-classes.yaml
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-raid10
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_RAID_10_VPG
+---
+# Source: nvmesh-csi-driver/templates/storage-classes.yaml
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-ec-dual-target-redundancy
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_EC_DUAL_TARGET_REDUNDANCY_VPG
+---
+# Source: nvmesh-csi-driver/templates/storage-classes.yaml
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-ec-single-target-redundancy
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_EC_SINGLE_TARGET_REDUNDANCY_VPG
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmesh-csi:external-provisioner-runner
+rules:
+  # The following rule should be uncommented for plugins that require secrets
+  # for provisioning.
+  # - apiGroups: [""]
+  #   resources: ["secrets"]
+  #   verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents"]
+    verbs: ["get", "list"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["csinodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+# Attacher must be able to work with PVs, nodes and VolumeAttachments
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmesh-csi:external-attacher-runner
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["csinodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments/status"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "watch", "list"]
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+# Resizer must be able to work with PVCs, PVs, SCs.
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmesh-csi:external-resizer-runner
+rules:
+  # The following rule should be uncommented for plugins that require secrets
+  # for provisioning.
+  # - apiGroups: [""]
+  #   resources: ["secrets"]
+  #   verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["update", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "watch", "list"]
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmesh-csi:topology-manager
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "watch", "list", "delete", "update", "patch", "create"]
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: psp:nvmesh-csi
+rules:
+  - apiGroups: ["policy"]
+    resourceNames: ["nvmesh-csi"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["use"]
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmesh-csi:csi-provisioner-role
+subjects:
+  - kind: ServiceAccount
+    name: nvmesh-csi
+    namespace: nvmesh-csi-driver
+roleRef:
+  kind: ClusterRole
+  name: nvmesh-csi:external-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmesh-csi:csi-attacher-role
+subjects:
+  - kind: ServiceAccount
+    name: nvmesh-csi
+    namespace: nvmesh-csi-driver
+roleRef:
+  kind: ClusterRole
+  name: nvmesh-csi:external-attacher-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmesh-csi:csi-resizer-role
+subjects:
+  - kind: ServiceAccount
+    name: nvmesh-csi
+    namespace: nvmesh-csi-driver
+roleRef:
+  kind: ClusterRole
+  name: nvmesh-csi:external-resizer-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmesh-csi:topology-manager
+subjects:
+  - kind: ServiceAccount
+    name: nvmesh-csi
+    namespace: nvmesh-csi-driver
+roleRef:
+  kind: ClusterRole
+  name: nvmesh-csi:topology-manager
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmesh-csi:use-psp
+subjects:
+  - kind: ServiceAccount
+    name: nvmesh-csi
+    namespace: nvmesh-csi-driver
+roleRef:
+  kind: ClusterRole
+  name: nvmesh-csi-driver-use-psp
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+# Provisioner must be able to work with endpoints in current namespace
+# if (and only if) leadership election is enabled
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: nvmesh-csi-driver
+  name: nvmesh-csi:external-provisioner-cfg
+rules:
+# Only one of the following rules for endpoints or leases is required based on
+# what is set for `--leader-election-type`. Endpoints are deprecated in favor of Leases.
+- apiGroups: [""]
+  resources: ["endpoints"]
+  verbs: ["get", "watch", "list", "delete", "update", "create"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "watch", "list", "delete", "update", "create"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["volumeattachments"]
+  verbs: ["get", "list", "watch"]
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+# Attacher must be able to work with configmaps or leases in the current namespace
+# if (and only if) leadership election is enabled
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: nvmesh-csi-driver
+  name: nvmesh-csi:external-attacher-cfg
+rules:
+# access to configmaps is only supported for backwards compatibility reasons
+# and can be removed once you are uses Leases (--leader-election-type=leases)
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "watch", "list", "delete", "update", "create"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "watch", "list", "delete", "update", "create"]
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+# Resizer must be able to work with end point in current namespace
+# if (and only if) leadership election is enabled
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: nvmesh-csi-driver
+  name: nvmesh-csi:external-resizer-cfg
+rules:
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "watch", "list", "delete", "update", "create"]
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmesh-csi:csi-provisioner-role-cfg
+  namespace: nvmesh-csi-driver
+subjects:
+  - kind: ServiceAccount
+    name: nvmesh-csi
+roleRef:
+  kind: Role
+  name: nvmesh-csi:external-provisioner-cfg
+  apiGroup: rbac.authorization.k8s.io
+
+
+#
+#  Permissions for attacher
+#
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmesh-csi:csi-attacher-role-cfg
+  namespace: nvmesh-csi-driver
+subjects:
+  - kind: ServiceAccount
+    name: nvmesh-csi
+roleRef:
+  kind: Role
+  name: nvmesh-csi:external-attacher-cfg
+  apiGroup: rbac.authorization.k8s.io
+
+#
+#  Permissions for resizer
+#
+# This YAML file contains all RBAC objects that are necessary to run external
+# CSI resizer.
+#
+# In production, each CSI driver deployment has to be customized:
+# - to avoid conflicts, use non-default namespace and different names
+#   for non-namespaced entities like the ClusterRole
+# - decide whether the deployment replicates the external CSI
+#   resizer, in which case leadership election must be enabled;
+#   this influences the RBAC setup, see below
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nvmesh-csi:csi-resizer-role-cfg
+  namespace: nvmesh-csi-driver
+subjects:
+  - kind: ServiceAccount
+    name: nvmesh-csi
+roleRef:
+  kind: Role
+  name: nvmesh-csi:external-resizer-cfg
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: nvmesh-csi-driver/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nvmesh-csi
+  namespace: nvmesh-csi-driver
+  labels:
+    helm.sh/chart: nvmesh-csi-driver-1.1.7
+    app.kubernetes.io/name: nvmesh-csi-driver
+    app.kubernetes.io/instance: nvmesh-csi-driver
+    app.kubernetes.io/version: "v1.1.7"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 12345
+      name: dummy
+  selector:
+    app.kubernetes.io/name: nvmesh-csi-driver
+    app.kubernetes.io/instance: nvmesh-csi-driver
+---
+# Source: nvmesh-csi-driver/templates/deployment.yaml
+#
+# NVMesh Node Driver DaemonSet (Per Node) Deployment
+#
+
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: nvmesh-csi-node-driver
+  namespace: nvmesh-csi-driver
+spec:
+  selector:
+    matchLabels:
+      
+      app.kubernetes.io/name: nvmesh-csi-driver
+      app.kubernetes.io/instance: nvmesh-csi-driver
+      app.kubernetes.io/component: node-driver
+  template:
+    metadata:
+      labels:
+        
+        helm.sh/chart: nvmesh-csi-driver-1.1.7
+        app.kubernetes.io/name: nvmesh-csi-driver
+        app.kubernetes.io/instance: nvmesh-csi-driver
+        app.kubernetes.io/version: "v1.1.7"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: node-driver
+    spec:
+      serviceAccount: nvmesh-csi
+      hostNetwork: true
+      tolerations:
+        
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+      containers:
+        # NVMesh Driver
+        - name: nvmesh-csi-driver
+          # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
+          image: "excelero/nvmesh-csi-driver:v1.1.7"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          env:
+            - name: DRIVER_TYPE
+              value: "Node"
+            - name: DRIVER_NAME
+              value: "nvmesh-csi.excelero.com"
+            - name: SOCKET_PATH
+              value: unix:///csi/csi.sock
+            - name: MANAGEMENT_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: nvmesh-csi-config
+                  key: management.servers
+            - name: MANAGEMENT_PROTOCOL
+              valueFrom:
+                configMapKeyRef:
+                  name: nvmesh-csi-config
+                  key: management.protocol
+            - name: MANAGEMENT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: nvmesh-csi-credentials
+                  key: username
+            - name: MANAGEMENT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nvmesh-csi-credentials
+                  key: password
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+            - name: topology-config-volume
+              mountPath: /topology
+            - name: plugin-socket-dir
+              mountPath: /csi
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet/
+              # needed so that any mounts setup inside this container are
+              # propagated back to the host machine.
+              mountPropagation: "Bidirectional"
+
+            - name: device-dir
+              mountPath: /dev
+            - name: host-bin
+              mountPath: /host/bin
+            - name: var-opt-nvmesh
+              mountPath: /var/opt/NVMesh
+            - name: opt-nvmesh
+              mountPath: /opt/NVMesh
+        # Registrar
+        - name: csi-driver-registrar
+          image: "quay.io/k8scsi/csi-node-driver-registrar:v2.1.0"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/nvmesh-csi.excelero.com/csi.sock"
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /registration/nvmesh-csi.excelero.com /registration/nvmesh-csi.excelero.com-reg.sock"]
+          volumeMounts:
+            - name: plugin-socket-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+      volumes:
+        - name: config-volume
+          configMap:
+            name: nvmesh-csi-config
+        - name: topology-config-volume
+          configMap:
+            name: nvmesh-csi-topology
+        - name: plugin-socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/nvmesh-csi.excelero.com/
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: Directory
+        - name: pods-mount-dir
+          hostPath:
+            path: /var/lib/kubelet/
+            type: Directory
+
+        - name: device-dir
+          hostPath:
+            path: /dev
+        - name: host-bin
+          hostPath:
+            path: /bin
+        - name: var-opt-nvmesh
+          hostPath:
+            path: /var/opt/NVMesh
+        - name: opt-nvmesh
+          hostPath:
+            path: /opt/NVMesh
+---
+# Source: nvmesh-csi-driver/templates/deployment.yaml
+#
+# NVMesh CSI Controller Driver StatefulSet Deployment
+#
+
+# let the customer decide on which namespace they want the driver installed
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: nvmesh-csi-controller
+  namespace: nvmesh-csi-driver
+spec:
+  serviceName: nvmesh-csi
+  selector:
+    matchLabels:
+      
+      app.kubernetes.io/name: nvmesh-csi-driver
+      app.kubernetes.io/instance: nvmesh-csi-driver
+      app.kubernetes.io/component: controller
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        
+        helm.sh/chart: nvmesh-csi-driver-1.1.7
+        app.kubernetes.io/name: nvmesh-csi-driver
+        app.kubernetes.io/instance: nvmesh-csi-driver
+        app.kubernetes.io/version: "v1.1.7"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: controller
+    spec:
+      hostNetwork: false
+      serviceAccount: nvmesh-csi
+      terminationGracePeriodSeconds: 70
+      containers:
+        # NVMesh Driver
+        - name: nvmesh-csi-driver
+          # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
+          image: "excelero/nvmesh-csi-driver:v1.1.7"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DRIVER_TYPE
+              value: "Controller"
+            - name: DRIVER_NAME
+              value: "nvmesh-csi.excelero.com"
+            - name: SOCKET_PATH
+              value: unix:///csi/ctrl-csi.sock
+            - name: MANAGEMENT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: nvmesh-csi-credentials
+                  key: username
+            - name: MANAGEMENT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nvmesh-csi-credentials
+                  key: password
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+            - name: plugin-socket-dir
+              mountPath: /csi
+        # Provisioner
+        - name: csi-provisioner
+          image: "quay.io/k8scsi/csi-provisioner:v2.1.0"
+          args:
+            - "--feature-gates=Topology=true"
+            - "--strict-topology"
+            - "--immediate-topology"
+            - "--extra-create-metadata"
+            - "--csi-address=/csi/ctrl-csi.sock"
+            - "--timeout=300s"
+            - "--v=5"
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: plugin-socket-dir
+              mountPath: /csi
+        # Attacher
+        - name: csi-attacher
+          image: "quay.io/k8scsi/csi-attacher:v3.1.0"
+          imagePullPolicy: "IfNotPresent"
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/ctrl-csi.sock"
+          volumeMounts:
+            - name: plugin-socket-dir
+              mountPath: /csi
+        # Resizer
+        - name: csi-resizer
+          image: "quay.io/k8scsi/csi-resizer:v1.1.0"
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/ctrl-csi.sock"
+            - "--leader-election"
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: plugin-socket-dir
+              mountPath: /csi
+      volumes:
+        - name: config-volume
+          configMap:
+            name: nvmesh-csi-config
+        - name: plugin-socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/nvmesh-csi.excelero.com/
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: Directory
+---
+# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
+# This YAML file contains all RBAC objects that are necessary to run external
+# CSI provisioner.
+#
+# In production, each CSI driver deployment has to be customized:
+# - to avoid conflicts, use non-default namespace and different names
+#   for non-namespaced entities like the ClusterRole
+# - decide whether the deployment replicates the external CSI
+#   provisioner, in which case leadership election must be enabled;
+#   this influences the RBAC setup, see below
+
+
+#
+#  Permissions for provisioner
+#
+---
+# Source: nvmesh-csi-driver/templates/csi-driver.yaml
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: nvmesh-csi.excelero.com
+  namespace: nvmesh-csi-driver
+  labels:
+    helm.sh/chart: nvmesh-csi-driver-1.1.7
+    app.kubernetes.io/name: nvmesh-csi-driver
+    app.kubernetes.io/instance: nvmesh-csi-driver
+    app.kubernetes.io/version: "v1.1.7"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  attachRequired: false
+  podInfoOnMount: true
