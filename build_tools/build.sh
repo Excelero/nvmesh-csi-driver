@@ -160,11 +160,7 @@ build_on_remote_machines() {
         exit 3
     fi
 
-    # deploy only on first node (kube-master) n
-    if [ $DEPLOY = true ]; then
-        echo "Deploying on first node"
-        ssh ${servers[0]} "cd $REPO_PATH/build_tools/ ; ./build.sh --deploy-only" &> >(sed 's/^/'${servers[0]}': /') &
-    fi
+    deploy
 }
 
 build_locally_nvmesh_cluster_sim() {
@@ -184,15 +180,8 @@ build_testsing_containers() {
 
 deploy() {
     echo "Deploying YAML files.."
-    cd $REPO_PATH/deploy/kubernetes/scripts
-
-    if kubectl get namespace nvmesh-csi &>/dev/null; then
-        ./remove_deployment.sh
-    fi
-
-    ./deploy.sh
-
-    cd $REPO_PATH
+    kubectl delete -f ../deploy/kubernetes/deployment.yaml
+    kubectl create -f ../deploy/kubernetes/deployment.yaml
 }
 
 ### MAIN ###
