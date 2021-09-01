@@ -6,6 +6,7 @@ DEFAULT_UDS_PATH = "unix:///tmp/csi.sock"
 SYSLOG_PATH = "/dev/log"
 SINGLE_CLUSTER_ZONE_NAME = 'single-zone-cluster'
 NODE_DRIVER_TOPOLOGY_PATH = '/topology/zones'
+DEFAULT_MOUNT_PERMISSIONS = 777
 
 class FSType(object):
 	XFS = 'xfs'

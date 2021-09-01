@@ -123,6 +123,9 @@ class NVMeshNodeService(NodeServicer):
 		volume_context = request.volume_context
 		podInfo = self._extract_pod_info_from_volume_context(volume_context)
 
+		# K8s Bug Workaround: readonly flag is not sent to CSI, so we try to also infer from the AccessMode
+		is_readonly = readonly or access_mode == Consts.AccessMode.MULTI_NODE_READER_ONLY
+
 		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_volume_name)
 
 		reqJson = MessageToJson(request)
@@ -132,10 +135,9 @@ class NVMeshNodeService(NodeServicer):
 		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
 			raise DriverError(StatusCode.NOT_FOUND, 'nvmesh volume {} was not found under /dev/nvmesh/'.format(nvmesh_volume_name))
 
-		mount_permissions, mount_options = self._parse_mount_options(volume_capability.mount)
+		requested_mount_permissions, mount_options = self._parse_mount_options(volume_capability.mount)
 
-		# K8s Bug Workaround: readonly flag is not sent to CSI, so we try to also infer from the AccessMode
-		if readonly or access_mode == Consts.AccessMode.MULTI_NODE_READER_ONLY:
+		if is_readonly:
 			mount_options.append('ro')
 
 		if access_type == Consts.VolumeAccessType.BLOCK:
@@ -155,7 +157,9 @@ class NVMeshNodeService(NodeServicer):
 			self.logger.debug('NodePublishVolume trying to bind mount {} to {}'.format(staging_target_path, publish_path))
 			FileSystemManager.bind_mount(source=staging_target_path, target=publish_path, mount_options=mount_options)
 
-		FileSystemManager.chmod(mount_permissions, publish_path)
+		if not is_readonly:
+			FileSystemManager.chmod(requested_mount_permissions or Consts.DEFAULT_MOUNT_PERMISSIONS, publish_path)
+
 		return NodePublishVolumeResponse()
 
 	@CatchServerErrors
@@ -315,7 +319,7 @@ class NVMeshNodeService(NodeServicer):
 
 	def _parse_mount_options(self, mount_request):
 		mount_options = []
-		permissions = '777'
+		permissions = None
 
 		if mount_request.mount_flags:
 			for flag in mount_request.mount_flags:
