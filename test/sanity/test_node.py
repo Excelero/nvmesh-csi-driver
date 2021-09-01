@@ -6,8 +6,8 @@ from grpc import StatusCode
 import driver.consts as Consts
 from driver import consts
 
-from driver.csi.csi_pb2 import NodeServiceCapability
-from test.sanity.helpers.config_loader_mock import DEFAULT_CONFIG_TOPOLOGY, ConfigLoaderMock
+from driver.csi.csi_pb2 import NodeServiceCapability, Topology
+from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
 from test.sanity.helpers.setup_and_teardown import start_server
 from test.sanity.helpers.test_case_with_server import TestCaseWithServerRunning
 
@@ -16,7 +16,10 @@ from test.sanity.helpers.error_handlers import CatchRequestErrors
 
 GB = pow(1024, 3)
 VOL_ID = "vol_1"
-MOCK_NODE_ID = "nvme117.excelero.com"
+MOCK_NODE_ID = "node-1"
+TOPOLOGY_SINGLE_ZONE = {'zones': {'zone_1': {'management': {'servers': 'localhost:4000'}}}}
+TOPOLOGY_MULTIPLE_ZONES = Topology(segments={Consts.TopologyKey.ZONE: 'zone_1'})
+
 
 os.environ['DEVELOPMENT'] = 'TRUE'
 
@@ -44,11 +47,11 @@ class TestNodeService(TestCaseWithServerRunning):
 	def setUpClass(cls):
 		config = {
 			'TOPOLOGY_TYPE': consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
-			'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY
+			'TOPOLOGY': TOPOLOGY_SINGLE_ZONE
 		}
 		ConfigLoaderMock(config).load()
 		os.environ['DEVELOPMENT'] = 'TRUE'
-		cls.driver_server = start_server(Consts.DriverType.Node, MOCK_NODE_ID)
+		cls.driver_server = start_server(Consts.DriverType.Node, config, MOCK_NODE_ID)
 		cls._client = NodeClient()
 
 	@classmethod
@@ -85,7 +88,7 @@ class TestNodeService(TestCaseWithServerRunning):
 		TestNodeService.restart_server_with_topology(topology)
 
 		def restore_default_server():
-			TestNodeService.restart_server_with_topology(DEFAULT_CONFIG_TOPOLOGY)
+			TestNodeService.restart_server_with_topology(TOPOLOGY_SINGLE_ZONE)
 
 		self.addCleanup(restore_default_server)
 
@@ -126,7 +129,7 @@ class TestNodeServiceGracefulShutdown(TestCaseWithServerRunning):
 	def test_node_graceful_shutdown(self):
 		config = {
 			'TOPOLOGY_TYPE': consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
-			'TOPOLOGY': DEFAULT_CONFIG_TOPOLOGY,
+			'TOPOLOGY': TOPOLOGY_SINGLE_ZONE,
 			'LOG_LEVEL': 'DEBUG',
 		}
 		ConfigLoaderMock(config).load()

@@ -1,6 +1,5 @@
 # all hidden directories and files in the project root
 /.*
-test/
 protos/
 docs/
 developer_tools/

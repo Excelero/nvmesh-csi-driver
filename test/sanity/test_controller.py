@@ -52,7 +52,7 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 
 	@classmethod
 	def setUpClass(cls):
-		cls.cluster1 = NVMeshCluster('cluster1')
+		cls.cluster1 = NVMeshCluster('cluster_' + cls.__name__)
 		cls.cluster1.start()
 
 		config = {
@@ -73,7 +73,8 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 
 	@classmethod
 	def tearDownClass(cls):
-		cls.driver_server.stop()
+		if cls.driver_server:
+			cls.driver_server.stop()
 		cls.cluster1.stop()
 
 	@CatchRequestErrors
