@@ -186,6 +186,14 @@ class Utils(object):
 		exit_code, stdout, stderr = Utils.run_command('python {}/nvmesh_detach_volumes --json {}'.format(Config.NVMESH_BIN_PATH, nvmesh_volume_name))
 		if exit_code != 0:
 			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_detach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
+		else:
+			response = json.loads(stdout or stderr)
+			if response["status"] != "success":
+				raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_detach_volumes failed. Got status {}. full response: {}".format(response["status"], response))
+
+			volume_status = response["volumes"][nvmesh_volume_name]["status"]
+			if volume_status != "Detached":
+				raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_detach_volumes failed. Volume status is {}. full response: {}".format(volume_status,  response))
 
 	@staticmethod
 	def wait_for_volume_io_enabled(nvmesh_volume_name):
