@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-VERSION_FILE_PATH=../version
-DRIVER_VERSION=$(cat $VERSION_FILE_PATH)
 REPO_PATH=~/nvmesh-csi-driver
 servers=()
 DEPLOY=false
@@ -9,8 +7,17 @@ DOCKER_OR_PODMAN=docker
 ONLY_MANIFESTS=false
 BUILD_CLUSTER_SIM=false
 
+get_version() {
+    VERSION=$(git describe | cut -f1 -d '-')
+    BUILD=$(git describe | cut -f2 -d '-')
+    COMMIT=$(git describe | cut -f3 -d '-')
+
+    DRIVER_VERSION="${VERSION}-${BUILD}"
+}
+
+get_version
 if [ -z "$DRIVER_VERSION" ]; then
-    echo "Could not find version in $VERSION_FILE_PATH"
+    echo "Could not get version from git describe output: $(git describe)"
     exit 1
 fi
 
@@ -90,6 +97,7 @@ build_locally() {
     $DOCKER_OR_PODMAN pull registry.access.redhat.com/ubi8:latest
 
     echo "Building $DOCKER_OR_PODMAN image locally"
+    echo "Building Version $DRIVER_VERSION commit: $COMMIT"
 
     cd ../
     # using the -f flag allows us to include files from a directory out of the 'context'
@@ -186,6 +194,9 @@ deploy() {
 
 ### MAIN ###
 parse_args $@
+
+echo "Version $DRIVER_VERSION commit: $COMMIT"
+
 
 if [ "$BUILD_CLUSTER_SIM" == "true" ];then
     build_locally_nvmesh_cluster_sim

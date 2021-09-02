@@ -1,17 +1,5 @@
 FROM registry.access.redhat.com/ubi8:latest
 
-ARG VERSION
-ARG RELEASE
-
-### Labels required by RedHat OpenShift
-LABEL name="NVMesh CSI Driver" \
-      maintainer="support@excelero.com" \
-      vendor="Excelero" \
-      version="$VERSION" \
-      release="$RELEASE" \
-      summary="CSI Driver for NVMesh Storage Solution" \
-      description="NVMesh CSI Driver allows Provisioning, Managing and Consuming NVMesh Volumes in Kubernetes"
-
 COPY extras.repo /etc/yum.repos.d/extras.repo
 
 RUN yum install -y python27 parted-3.2 xfsprogs-5.0.0 e2fsprogs-1.45.6
@@ -27,8 +15,20 @@ RUN yum install -y sudo \
 
 RUN cp /usr/bin/python2 /usr/bin/python
 
+ARG VERSION
+ARG RELEASE
+
+### Labels required by RedHat OpenShift
+LABEL name="NVMesh CSI Driver" \
+      maintainer="support@excelero.com" \
+      vendor="Excelero" \
+      version="$VERSION" \
+      release="$RELEASE" \
+      summary="CSI Driver for NVMesh Storage Solution" \
+      description="NVMesh CSI Driver allows Provisioning, Managing and Consuming NVMesh Volumes in Kubernetes"
+
 COPY licenses/ /licenses/
 COPY driver/ /driver/
-COPY version /version
+RUN echo "$VERSION" > /version
 
 CMD ["python", "/driver/server.py"]
