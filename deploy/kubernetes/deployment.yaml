@@ -498,14 +498,14 @@ metadata:
 spec:
   selector:
     matchLabels:
-      
+
       app.kubernetes.io/name: nvmesh-csi-driver
       app.kubernetes.io/instance: nvmesh-csi-driver
       app.kubernetes.io/component: node-driver
   template:
     metadata:
       labels:
-        
+
         helm.sh/chart: nvmesh-csi-driver-1.1.7
         app.kubernetes.io/name: nvmesh-csi-driver
         app.kubernetes.io/instance: nvmesh-csi-driver
@@ -516,7 +516,7 @@ spec:
       serviceAccount: nvmesh-csi
       hostNetwork: true
       tolerations:
-        
+
         - effect: NoSchedule
           key: node-role.kubernetes.io/master
           operator: Exists
@@ -643,7 +643,7 @@ spec:
   serviceName: nvmesh-csi
   selector:
     matchLabels:
-      
+
       app.kubernetes.io/name: nvmesh-csi-driver
       app.kubernetes.io/instance: nvmesh-csi-driver
       app.kubernetes.io/component: controller
@@ -651,7 +651,7 @@ spec:
   template:
     metadata:
       labels:
-        
+
         helm.sh/chart: nvmesh-csi-driver-1.1.7
         app.kubernetes.io/name: nvmesh-csi-driver
         app.kubernetes.io/instance: nvmesh-csi-driver
@@ -756,7 +756,7 @@ spec:
 #
 ---
 # Source: nvmesh-csi-driver/templates/csi-driver.yaml
-apiVersion: storage.k8s.io/v1beta1
+apiVersion: storage.k8s.io/v1
 kind: CSIDriver
 metadata:
   name: nvmesh-csi.excelero.com
