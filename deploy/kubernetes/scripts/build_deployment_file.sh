@@ -7,4 +7,5 @@ build_deployment_file() {
 
 build_deployment_file
 
+./post_process_deployment.py
 
