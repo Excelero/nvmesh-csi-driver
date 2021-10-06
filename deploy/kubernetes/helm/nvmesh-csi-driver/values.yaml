@@ -4,7 +4,7 @@
 appName: nvmesh-csi-driver
 driverName: nvmesh-csi.excelero.com
 
-namespaceOverride: nvmesh-csi-driver
+#namespaceOverride: nvmesh-csi-driver
 multipleCsiDrivers: false
 
 features:
