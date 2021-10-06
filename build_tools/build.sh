@@ -216,16 +216,16 @@ fi
 build_k8s_deployment_file
 rc=$?
 
-if [ "$ONLY_MANIFESTS" == "true" ]; then
-    exit $rc
-fi
-
 if [ "$BUILD_HELM_PKG" == "true" ]; then
     echo "Building Helm Package"
     last_dir=$(pwd)
     cd ../deploy/kubernetes/helm
     helm package nvmesh-csi-driver --destination $last_dir
     cd $last_dir
+fi
+
+if [ "$ONLY_MANIFESTS" == "true" ]; then
+    exit $rc
 fi
 
 if [ ${#servers[@]} -eq 0 ];then
