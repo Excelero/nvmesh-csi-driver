@@ -301,6 +301,6 @@ subjects:
     namespace: {{ template "nvmesh-csi-driver.namespace" . }}
 roleRef:
   kind: ClusterRole
-  name: {{ template "nvmesh-csi-driver.namespace" . }}-use-psp
+  name: psp:{{ template "nvmesh-csi-driver.fullname" . }}
   apiGroup: rbac.authorization.k8s.io
 {{ end }}
