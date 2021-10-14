@@ -18,7 +18,10 @@ from driver import consts
 
 SERVICE_ACCOUNT_NAME = 'csi-driver-test-account'
 
-config.load_kube_config()
+try:
+	config.load_incluster_config()
+except:
+	config.load_kube_config()
 
 configuration = client.Configuration()
 configuration.verify_ssl = False
