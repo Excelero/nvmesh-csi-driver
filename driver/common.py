@@ -160,21 +160,22 @@ class Utils(object):
 				# volumes_results is an object with volume_name as keys. we only need to handle one volume
 				volume_res = volumes_results[nvmesh_volume_name]
 				volume_status = volume_res['status']
-				if volume_status in ['Attached IO Enabled', 'Attached']:
+				attach_error = volume_res.get('error', None)
+				debug_info = "nvmesh_attach_volumes returned volume status: {} error: {} cmd: {}".format(volume_status, volume_res.get('error', None), cmd)
+				if attach_error in ['Reservation Mode Denied.', 'Access Mode Denied.'] or volume_status in ['Reservation Mode Denied', 'Access Mode Denied']:
+					raise DriverError(grpc.StatusCode.FAILED_PRECONDITION, "Attach Failed - Access Mode Denied - {}".format(debug_info))
+				elif volume_status in ['Attached IO Enabled', 'Attached']:
 					# Success
 					Utils.logger.debug('Volume {} attached with reservation mode {}'.format(nvmesh_volume_name, nvmesh_access_mode))
 				elif volume_status == 'Already Attached':
 					if 'error' in volume_res:
-						raise DriverError(grpc.StatusCode.FAILED_PRECONDITION,
-									  "nvmesh_attach_volumes failed: {} error: {} cmd: {}".format(volume_status, volume_res.get('error', None), cmd))
+						raise DriverError(grpc.StatusCode.FAILED_PRECONDITION, "Attach Failed - Already Attached - {}".format(debug_info))
 					else:
 						Utils.logger.debug('Volume {} is already attached with the requested access mode. output: {}'.format(nvmesh_volume_name, stdout))
-				elif volume_status == 'Reservation Mode Denied':
-					raise DriverError(grpc.StatusCode.FAILED_PRECONDITION,
-									  "nvmesh_attach_volumes failed: {} error: {} cmd: {}".format(volume_status, volume_res.get('error', None), cmd))
 				else:
-					raise DriverError(grpc.StatusCode.INTERNAL,
-									  "nvmesh_attach_volumes failed: {} error: {} cmd: {}".format(volume_status, volume_res.get('error', None), cmd))
+					raise DriverError(grpc.StatusCode.INTERNAL, "Attach Failed - {}".format(debug_info))
+			else:
+				raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: Volume {} not found in results. cmd: {} output: {}".format(nvmesh_volume_name, cmd, results))
 
 	@staticmethod
 	def nvmesh_attach_volume(nvmesh_volume_name, requested_nvmesh_access_mode):
@@ -211,7 +212,7 @@ class Utils(object):
 						Utils.logger.debug(msg.format(nvmesh_volume_name, volume_status.get("status"), volume_status.get("dbg")))
 				except IOError as ex:
 					# The volume status.json proc file is not ready.
-					Utils.logger.debug("Waiting for volume {} to have IO Enabled. Error: ".format(nvmesh_volume_name, ex))
+					Utils.logger.debug("Waiting for volume {} to have IO Enabled. Error: {}".format(nvmesh_volume_name, ex))
 					pass
 
 				time.sleep(1)
