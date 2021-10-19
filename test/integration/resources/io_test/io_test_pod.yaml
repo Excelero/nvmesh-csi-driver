@@ -4,6 +4,7 @@ metadata:
   name: block-device-io-test
   labels:
     app: block-device-io-test
+    nvmesh-csi-testing: ""
 spec:
   containers:
     - name: block-deivce-io-test

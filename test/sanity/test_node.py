@@ -51,13 +51,13 @@ class TestNodeService(TestCaseWithServerRunning):
 		}
 		ConfigLoaderMock(config).load()
 		os.environ['DEVELOPMENT'] = 'TRUE'
-		cls.driver_server = start_server(Consts.DriverType.Node, config, MOCK_NODE_ID)
+		#cls.driver_server = start_server(Consts.DriverType.Node, config, MOCK_NODE_ID)
 		cls._client = NodeClient()
 
 	@classmethod
 	def tearDownClass(cls):
 		print('stopping server')
-		cls.driver_server.stop()
+		# cls.driver_server.stop()
 		print('server stopped')
 
 	@CatchRequestErrors

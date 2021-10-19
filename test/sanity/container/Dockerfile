@@ -21,9 +21,11 @@ RUN yum install -y docker-ce-cli
 #RUN sed -i '/#mount_program/s/^#//g' /etc/containers/storage.conf
 
 COPY driver/ /driver/
-COPY version /version
 COPY test /test
+
+ARG VERSION
+RUN echo "$VERSION" > /version
 
 ENV TEST_CONFIG_PATH=/test/config.yaml
 
-ENTRYPOINT ["python", "-m"]
+ENTRYPOINT ["python", "-m" , "unittest"]

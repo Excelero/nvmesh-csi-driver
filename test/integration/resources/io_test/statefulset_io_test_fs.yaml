@@ -13,6 +13,8 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: fs-io-test
+  labels:
+    nvmesh-csi-testing: ""
 spec:
   serviceName: test-io-svc
   selector:

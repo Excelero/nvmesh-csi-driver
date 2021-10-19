@@ -16,9 +16,9 @@ class TestFileSystemVolume(unittest.TestCase):
 		KubeUtils.create_storage_class(sc_name, sc_params)
 		return sc_name
 
-	def _test_fs_type(self, fs_type):
+	def _test_fs_type(self, fs_type, **kwargs):
 		# Create Storage class for the specific File System Type
-		sc_name = self._create_storage_class_for_fs_type(fs_type)
+		sc_name = self._create_storage_class_for_fs_type(fs_type, **kwargs)
 
 		# create the PVC
 		pvc_name = 'test-{}'.format(fs_type)
@@ -37,8 +37,14 @@ class TestFileSystemVolume(unittest.TestCase):
 
 		KubeUtils.wait_for_pod_to_be_running(pod_name)
 
+	def test_ext4_concatenated(self):
+		self._test_fs_type('ext4', vpg='DEFAULT_CONCATENATED_VPG')
+
 	def test_ext4(self):
 		self._test_fs_type('ext4')
+
+	def test_xfs_concatenated(self):
+		self._test_fs_type('xfs', vpg='DEFAULT_CONCATENATED_VPG')
 
 	def test_xfs(self):
 		self._test_fs_type('xfs')
@@ -120,7 +126,7 @@ class TestFileSystemVolume(unittest.TestCase):
 		while attempts:
 			attempts = attempts - 1
 
-			stdout = KubeUtils.run_command_in_container(pod_name, 'df -h --output=size /mnt/vol')
+			stdout = KubeUtils.run_command_in_container(pod_name, ['df', '-h', '--output=size', '/mnt/vol'])
 			if stdout:
 				lines = stdout.strip().split('\n')
 				line = lines[-1]

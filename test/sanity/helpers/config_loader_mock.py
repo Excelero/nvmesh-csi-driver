@@ -10,7 +10,7 @@ DEFAULT_MOCK_CONFIG = {
 	'MANAGEMENT_PROTOCOL': "https",
 	'MANAGEMENT_USERNAME': "admin",
 	'MANAGEMENT_PASSWORD': "admin",
-	'SOCKET_PATH': 'unix:///tmp/csi-snaity-test.sock',
+	'SOCKET_PATH': 'unix:///tmp/csi/csi.sock',
 	'DRIVER_NAME': "sanity.driver.test",
 	'ATTACH_IO_ENABLED_TIMEOUT': 5,
 	'PRINT_STACK_TRACES': True,
