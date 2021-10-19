@@ -80,6 +80,7 @@ class NVMeshNodeService(NodeServicer):
 		else:
 			self.logger.Info('Unknown AccessType {}'.format(access_type))
 
+		self.logger.debug('NodeStageVolume finished successfully for request: {}'.format(reqJson))
 		return NodeStageVolumeResponse()
 
 	@CatchServerErrors
@@ -106,6 +107,7 @@ class NVMeshNodeService(NodeServicer):
 
 		Utils.nvmesh_detach_volume(nvmesh_volume_name)
 
+		self.logger.debug('NodeUnstageVolume finished successfully for request: {}'.format(reqJson))
 		return NodeUnstageVolumeResponse()
 
 	@CatchServerErrors
@@ -160,6 +162,7 @@ class NVMeshNodeService(NodeServicer):
 		if not is_readonly:
 			FileSystemManager.chmod(requested_mount_permissions or Consts.DEFAULT_MOUNT_PERMISSIONS, publish_path)
 
+		self.logger.debug('NodePublishVolume finished successfully for request: {}'.format(reqJson))
 		return NodePublishVolumeResponse()
 
 	@CatchServerErrors
@@ -195,6 +198,7 @@ class NVMeshNodeService(NodeServicer):
 			self.logger.debug('NodeUnpublishVolume removing publish file: {}'.format(target_path))
 			os.remove(target_path)
 
+		self.logger.debug('NodeUnpublishVolume finished successfully for request: {}'.format(reqJson))
 		return NodeUnpublishVolumeResponse()
 
 	@CatchServerErrors
