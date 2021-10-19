@@ -82,6 +82,7 @@ class NVMeshNodeService(NodeServicer):
 		else:
 			self.logger.Info('Unknown AccessType {}'.format(access_type))
 
+		self.logger.debug('NodeStageVolume finished successfully for request: {}'.format(reqJson))
 		return NodeStageVolumeResponse()
 
 	@CatchServerErrors
@@ -108,6 +109,7 @@ class NVMeshNodeService(NodeServicer):
 
 		Utils.nvmesh_detach_volume(nvmesh_volume_name)
 
+		self.logger.debug('NodeUnstageVolume finished successfully for request: {}'.format(reqJson))
 		return NodeUnstageVolumeResponse()
 
 	@CatchServerErrors
@@ -161,6 +163,7 @@ class NVMeshNodeService(NodeServicer):
 			self.logger.debug('NodePublishVolume trying to bind mount {} to {}'.format(staging_target_path, publish_path))
 			FileSystemManager.bind_mount(source=staging_target_path, target=publish_path, mount_options=mount_options)
 
+		self.logger.debug('NodePublishVolume finished successfully for request: {}'.format(reqJson))
 		return NodePublishVolumeResponse()
 
 	@CatchServerErrors
@@ -193,6 +196,7 @@ class NVMeshNodeService(NodeServicer):
 			if os.path.isdir(target_path):
 				raise DriverError(StatusCode.INTERNAL, 'node-driver unable to delete publish directory')
 
+		self.logger.debug('NodeUnpublishVolume finished successfully for request: {}'.format(reqJson))
 		return NodeUnpublishVolumeResponse()
 
 	@CatchServerErrors
