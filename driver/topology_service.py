@@ -94,7 +94,7 @@ class TopologyService(object):
             logger.debug('ConfigMap %s event %s: %s' % (config.Config.CSI_CONFIG_MAP_NAME, event_type.lower(), event))
 
     def watch_topology_config_map(self):
-        if os.environ['DEVELOPMENT']:
+        if os.environ.get('DEVELOPMENT'):
             return
         logger.info('Listening for changes on ConfigMap %s' % config.Config.CSI_CONFIG_MAP_NAME)
         backoff = BackoffDelayWithStopEvent(event=self.stop_event, initial_delay=5, factor=2, max_delay=60)
