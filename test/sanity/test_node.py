@@ -1,4 +1,6 @@
+import json
 import os
+import time
 import unittest
 from threading import Thread
 
@@ -8,15 +10,15 @@ from driver import consts
 
 from driver.csi.csi_pb2 import NodeServiceCapability, Topology
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
-from test.sanity.helpers.setup_and_teardown import start_server
+from test.sanity.helpers.setup_and_teardown import start_server, start_containerized_server
 from test.sanity.helpers.test_case_with_server import TestCaseWithServerRunning
 
-from test.sanity.clients.node_client import NodeClient
-from test.sanity.helpers.error_handlers import CatchRequestErrors
+from test.sanity.clients.node_client import NodeClient, STAGING_PATH_TEMPLATE
+from test.sanity.helpers.error_handlers import CatchRequestErrors, CatchNodeDriverErrors
 
 GB = pow(1024, 3)
 VOL_ID = "vol_1"
-MOCK_NODE_ID = "node-1"
+NODE_ID_1 = "node-1"
 TOPOLOGY_SINGLE_ZONE = {'zones': {'zone_1': {'management': {'servers': 'localhost:4000'}}}}
 TOPOLOGY_MULTIPLE_ZONES = Topology(segments={Consts.TopologyKey.ZONE: 'zone_1'})
 
@@ -31,44 +33,52 @@ class TestNodeService(TestCaseWithServerRunning):
 		self.driver_server = None
 
 	@staticmethod
-	def restart_server_with_topology(topology):
+	def restart_server(new_config=None):
 		TestNodeService.driver_server.stop()
 
-		config = {
-			'TOPOLOGY_TYPE': consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
-			'TOPOLOGY': topology
-		}
-
+		config = new_config or TestNodeService.driver_server.config
 		ConfigLoaderMock(config).load()
-
-		TestNodeService.driver_server = start_server(Consts.DriverType.Node, MOCK_NODE_ID)
+		TestNodeService.driver_server = start_containerized_server(Consts.DriverType.Node, config=config, hostname='node-1')
 
 	@classmethod
 	def setUpClass(cls):
-		config = {
-			'TOPOLOGY_TYPE': consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
-			'TOPOLOGY': TOPOLOGY_SINGLE_ZONE
-		}
+		topology = {
+				'type': consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
+				'zones': TOPOLOGY_SINGLE_ZONE['zones']
+			}
+		config = {'topology': json.dumps(topology)}
+		cls.driver_server = start_containerized_server(Consts.DriverType.Node, config=config, hostname='node-1')
+		config['SOCKET_PATH'] = 'unix://%s' % cls.driver_server.csi_socket_path
 		ConfigLoaderMock(config).load()
-		os.environ['DEVELOPMENT'] = 'TRUE'
-		#cls.driver_server = start_server(Consts.DriverType.Node, config, MOCK_NODE_ID)
 		cls._client = NodeClient()
+
+		# To keep the container running after a test un-comment the following line:
+		#TestNodeService.driver_server.keep_container_on_finish()
 
 	@classmethod
 	def tearDownClass(cls):
 		print('stopping server')
-		# cls.driver_server.stop()
+		cls.driver_server.stop()
 		print('server stopped')
 
 	@CatchRequestErrors
 	def test_get_info_basic_test(self):
 		res = self._client.NodeGetInfo()
-		self.assertEquals(res.node_id, MOCK_NODE_ID)
+		self.assertEquals(res.node_id, NODE_ID_1)
 
-	@CatchRequestErrors
+	@CatchNodeDriverErrors(NODE_ID_1)
 	def test_get_info_with_topology(self):
+		self.restart_server(TestNodeService.driver_server.config)
+
+		zones_dict = {
+			'A': {'nodes': ['node-2', NODE_ID_1, 'node-3']},
+			'B': {'nodes': ['node-4', 'node-5']}
+		}
+
+		TestNodeService.driver_server.set_topology_config_map(json.dumps(zones_dict))
+
 		res = self._client.NodeGetInfo()
-		self.assertEquals(res.node_id, MOCK_NODE_ID)
+		self.assertEquals(res.node_id, NODE_ID_1)
 
 		topology_info = res.accessible_topology.segments
 		print(topology_info)
@@ -77,46 +87,91 @@ class TestNodeService(TestCaseWithServerRunning):
 
 	@CatchRequestErrors
 	def test_get_info_node_not_found_in_any_mgmt(self):
-		topology = {
-				'zones': {
-					"A": {"management": {"servers": 'unreachable-server-1'}},
-					"B": {"management": {"servers": 'unreachable-server-1'}},
-					"C": {"management": {"servers": 'unreachable-server-1'}},
-				}
-			}
+		self.restart_server()
+		TestNodeService.driver_server.set_topology_config_map(json.dumps({}))
 
-		TestNodeService.restart_server_with_topology(topology)
+		result_bucket = {}
+		def do_request(result_bucket):
+			res = self._client.NodeGetInfo()
+			result_bucket['res'] = res
 
-		def restore_default_server():
-			TestNodeService.restart_server_with_topology(TOPOLOGY_SINGLE_ZONE)
+		time.sleep(2)
 
-		self.addCleanup(restore_default_server)
+		t = Thread(target=do_request, args=(result_bucket,))
+		t.start()
 
-		def do_request():
-			return self._client.NodeGetInfo()
+		# Make sure the response does not return
+		attempts = 5
+		while attempts:
+			t.join(timeout=1)
+			self.assertTrue(t.isAlive())
+			attempts = attempts - 1
 
-		self.assertReturnsGrpcError(do_request, StatusCode.INTERNAL, "Could not find node")
-
+		zones_dict = {'zoneA': {'nodes': [NODE_ID_1]}}
+		TestNodeService.driver_server.set_topology_config_map(json.dumps(zones_dict))
+		t.join(timeout=8)
+		result = result_bucket.get('res')
+		self.assertTrue(result)
+		self.assertEquals(result.node_id, NODE_ID_1)
 
 	@CatchRequestErrors
 	def test_get_capabilities(self):
 		res = self._client.NodeGetCapabilities()
 		expected = [NodeServiceCapability.RPC.STAGE_UNSTAGE_VOLUME, NodeServiceCapability.RPC.EXPAND_VOLUME]
-		self.assertListEqual(expected, [ item.rpc.type for item in list(res.capabilities) ])
+		self.assertListEqual(expected, [item.rpc.type for item in list(res.capabilities)])
+
+	@CatchRequestErrors
+	def test_node_stage_volume(self):
+		TestNodeService.driver_server.set_nvmesh_attach_volumes_content("""
+import sys
+import json
+import os
+
+MB = 1024 * 1024
+GB = MB * 1024
+vol_id = sys.argv[-1]
+
+device_path = "/dev/nvmesh/%s" % vol_id 
+with open(device_path, "wb") as f:
+	f.truncate(MB * 100)
+
+proc_dir = '/simulated/proc/nvmeibc/volumes/%s'  % vol_id
+proc_status_file = "%s/status.json" % proc_dir
+
+try:
+	os.makedirs(proc_dir)
+except:
+	pass
+with open(proc_status_file, "w") as f:
+	f.write(json.dumps({'dbg':'0x200'}))
+print('{ "status": "success", "volumes": { "%s": { "status": "Attached IO Enabled" } } }' % vol_id)
+		""")
+		try:
+			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
+		except:
+			pass
+
+		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
+		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+		r = self._client.NodeStageVolume(volume_id=VOL_ID)
+		print(r)
+		print("NodeStageVolume Finished")
 
 	@CatchRequestErrors
 	def test_node_publish_volume(self):
-		def do_request():
-			return self._client.NodePublishVolume(volume_id=VOL_ID)
-
-		self.assertReturnsGrpcError(do_request, StatusCode.NOT_FOUND, "was not found")
+		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
+		target_path = '/var/lib/kubelet/pods/fake-pod/volumes/kubernetes.io~csi/vol_1/'
+		TestNodeService.driver_server.add_nvmesh_device(VOL_ID)
+		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+		TestNodeService.driver_server.make_dir_in_env_dir(target_path)
+		r = self._client.NodePublishVolume(volume_id=VOL_ID)
+		print(r)
 
 	@CatchRequestErrors
 	def test_node_unpublish_volume(self):
-		def do_request():
-			return self._client.NodeUnpublishVolume(volume_id=VOL_ID)
-
-		self.assertReturnsGrpcError(do_request, StatusCode.NOT_FOUND, "mount path")
+		r = self._client.NodeUnpublishVolume(volume_id=VOL_ID)
+		print(r)
 
 	@CatchRequestErrors
 	def test_node_expand_volume(self):
@@ -127,15 +182,14 @@ class TestNodeService(TestCaseWithServerRunning):
 
 class TestNodeServiceGracefulShutdown(TestCaseWithServerRunning):
 	def test_node_graceful_shutdown(self):
-		config = {
-			'TOPOLOGY_TYPE': consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
-			'TOPOLOGY': TOPOLOGY_SINGLE_ZONE,
-			'LOG_LEVEL': 'DEBUG',
+		topology = {
+			'type': consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
+			'zones': TOPOLOGY_SINGLE_ZONE['zones']
 		}
+		config = {'topology': json.dumps(topology)}
+		driver_server = start_containerized_server(Consts.DriverType.Node, config=config, hostname='node-1')
+		config['SOCKET_PATH'] = 'unix://%s' % driver_server.csi_socket_path
 		ConfigLoaderMock(config).load()
-		os.environ['DEVELOPMENT'] = 'TRUE'
-
-		driver_server = start_server(Consts.DriverType.Node, MOCK_NODE_ID)
 		client = NodeClient()
 
 		results = []

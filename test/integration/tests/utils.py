@@ -1,4 +1,5 @@
 import logging
+import os
 import subprocess
 import sys
 import time
@@ -57,7 +58,7 @@ def parse_config_from_file(test_config):
 		raise
 
 def load_test_config_file():
-	test_config_path = environ.get('TEST_CONFIG_PATH') or '../../config.yaml'
+	test_config_path = environ.get('TEST_CONFIG_PATH') or os.path.join(os.getcwd(), '../config.yaml')
 	try:
 		with open(test_config_path, 'r') as fp:
 			test_config = yaml.safe_load(fp)
@@ -491,7 +492,7 @@ class KubeUtils(object):
 		return KubeUtils.wait_for_pod_status(pod_name, 'Succeeded', attempts)
 
 	@staticmethod
-	def wait_for_pod_status(pod_name, expected_status, attempts=60):
+	def wait_for_pod_status(pod_name, expected_status, attempts=90):
 		status = None
 		pod = None
 		while attempts > 0:
@@ -825,7 +826,7 @@ class KubeUtils(object):
 		KubeUtils.wait_for_pv_status(pv_name, expected_status='Released')
 
 	@staticmethod
-	def wait_for_pv_status(pv_name, expected_status, attempts=30):
+	def wait_for_pv_status(pv_name, expected_status, attempts=60):
 		status = None
 		pv = None
 		while attempts > 0:
@@ -842,7 +843,7 @@ class KubeUtils(object):
 		raise TestError('Timed out waiting for pv {} to be {}, current status: {}, reason: {}'.format(pv_name, expected_status, status, pv.status.reason))
 
 	@staticmethod
-	def wait_for_pv_to_delete(pv_name, attempts=30):
+	def wait_for_pv_to_delete(pv_name, attempts=60):
 		while attempts > 0:
 			try:
 				pv = KubeUtils.get_pv_by_name(pv_name)

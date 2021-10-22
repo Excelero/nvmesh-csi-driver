@@ -71,7 +71,7 @@ class NVMeshNodeService(NodeServicer):
 				self.logger.warning('path {} is already mounted'.format(staging_target_path))
 
 			FileSystemManager.mount(source=block_device_path, target=staging_target_path, mount_options=mount_options)
-			FileSystemManager.chmod(mount_permissions, staging_target_path)
+			FileSystemManager.chmod(mount_permissions or Consts.DEFAULT_MOUNT_PERMISSIONS, staging_target_path)
 		elif access_type == Consts.VolumeAccessType.BLOCK:
 			self.logger.info('Requested Block Volume')
 			# We do not mount here, NodePublishVolume will mount directly from the block device to the publish_path

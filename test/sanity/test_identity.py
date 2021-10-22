@@ -1,4 +1,5 @@
 import os
+import time
 import unittest
 
 from google.protobuf.json_format import MessageToJson, MessageToDict
@@ -6,7 +7,7 @@ from google.protobuf.json_format import MessageToJson, MessageToDict
 import driver.consts as Consts
 from driver.config import Config
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
-from test.sanity.helpers.setup_and_teardown import start_server
+from test.sanity.helpers.setup_and_teardown import start_server, start_containerized_server
 
 from test.sanity.helpers.test_case_with_server import TestCaseWithServerRunning
 from test.sanity.clients.identity_client import IdentityClient
@@ -20,8 +21,9 @@ class TestIdentityService(TestCaseWithServerRunning):
 	@classmethod
 	def setUpClass(cls):
 		config={}
+		cls.driver_server = start_containerized_server(Consts.DriverType.Node, config=config, hostname='node-1')
+		config['SOCKET_PATH'] = 'unix://%s' % cls.driver_server.csi_socket_path
 		ConfigLoaderMock(config).load()
-		cls.driver_server = start_server(Consts.DriverType.Node, config=config, mock_node_id='nvme117.excelero.com')
 		cls.identityClient = IdentityClient()
 
 	@classmethod

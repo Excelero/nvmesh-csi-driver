@@ -231,6 +231,8 @@ class Utils(object):
 	@staticmethod
 	def get_volume_status(nvmesh_volume_name):
 		volume_status_proc = '/proc/nvmeibc/volumes/{}/status.json'.format(nvmesh_volume_name)
+		if 'SIMULATED_PROC' in os.environ:
+			volume_status_proc = os.path.join('/simulated{}'.format(volume_status_proc))
 
 		try:
 			with open(volume_status_proc) as fp:

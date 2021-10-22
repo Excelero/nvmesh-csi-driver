@@ -29,6 +29,6 @@ LABEL name="NVMesh CSI Driver" \
 
 COPY licenses/ /licenses/
 COPY driver/ /driver/
-RUN echo "$VERSION" > /version
+RUN printf "$VERSION" > /version
 
 CMD ["python", "/driver/server.py"]

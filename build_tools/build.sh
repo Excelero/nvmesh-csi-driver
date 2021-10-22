@@ -7,23 +7,8 @@ DOCKER_OR_PODMAN=docker
 ONLY_MANIFESTS=false
 BUILD_CLUSTER_SIM=false
 
-get_version() {
-    DESCRIBE=$(git describe --long)
-    VERSION=$(echo "$DESCRIBE" | cut -f1 -d '-')
-    BUILD=$(echo "$DESCRIBE" | cut -f2 -d '-')
-    COMMIT=$(echo "$DESCRIBE" | cut -f3 -d '-')
+source ../get_version_info.sh
 
-    if [ "$DESCRIBE" != "$(git describe)" ];then
-        # git describe == git describe --long - this means we are building a commit that has a version tag
-        DRIVER_VERSION="${VERSION}"
-    else
-        DRIVER_VERSION="${VERSION}-${BUILD}"
-    fi
-
-    echo "DRIVER_VERSION=$DRIVER_VERSION  DESCRIBE=$DESCRIBE"
-}
-
-get_version
 if [ -z "$DRIVER_VERSION" ]; then
     echo "Could not get version from git describe output: $(git describe)"
     exit 1

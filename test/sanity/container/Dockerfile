@@ -24,7 +24,7 @@ COPY driver/ /driver/
 COPY test /test
 
 ARG VERSION
-RUN echo "$VERSION" > /version
+RUN printf "$VERSION" > /version
 
 ENV TEST_CONFIG_PATH=/test/config.yaml
 

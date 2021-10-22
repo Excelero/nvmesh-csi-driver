@@ -4,6 +4,7 @@ import time
 from driver import config
 from test.sanity.helpers import config_loader_mock
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
+from test.sanity.helpers.container_server_manager import ContainerServerManager
 
 config.config_loader = config_loader_mock.ConfigLoaderMock()
 
@@ -18,8 +19,6 @@ def is_server_running():
 	except Exception as ex:
 		return False
 
-def set_environment():
-	config.Config.NVMESH_BIN_PATH = '/tmp/'
 
 def wait_for_grpc_server_to_be_up():
 	attempts = 15
@@ -37,3 +36,10 @@ def start_server(driverType, config, mock_node_id=None):
 	wait_for_grpc_server_to_be_up()
 	return driver_server
 
+
+def start_containerized_server(driver_type, config, hostname=None):
+	ConfigLoaderMock(config).load()
+	driver_server = ContainerServerManager(driver_type, config, node_id=hostname)
+	driver_server.start()
+	driver_server.wait_for_socket()
+	return driver_server
