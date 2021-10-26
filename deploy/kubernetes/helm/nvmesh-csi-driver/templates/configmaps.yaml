@@ -21,9 +21,13 @@ data:
 {{- end }}
   csiConfigMapName: {{ template "nvmesh-csi-driver.fullname" . }}-config
   topologyConfigMapName: {{ template "nvmesh-csi-driver.fullname" . }}-topology
-{{- if .Values.config.topologyJsonFilePath }}
+{{- if or .Values.config.topology .Values.config.topologyJsonFilePath }}
   topology: |-
+{{- if .Values.config.topology }}
+{{ .Values.config.topology | toPrettyJson | indent 4 }}
+{{- else if .Values.config.topologyJsonFilePath }}
 {{ printf .Values.config.topologyJsonFilePath | .Files.Get | indent 4 }}
+{{- end }}
 {{- end }}
 ---
 kind: ConfigMap
