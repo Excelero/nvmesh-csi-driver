@@ -6,8 +6,10 @@ metadata:
   labels:
     {{- include "nvmesh-csi-driver.labels" . | nindent 4 }}
 data:
+{{- if and (not .Values.config.topology) (not .Values.config.topologyJsonFilePath) }}
   management.protocol: {{ .Values.config.protocol }}
   management.servers: {{ .Values.config.servers }}
+{{- end }}
   attachIOEnabledTimeout: "{{ .Values.config.attachIOEnabledTimeout }}"
   printStackTraces: "{{ .Values.config.printStackTraces }}"
 {{- if .Values.config.logLevel }}
