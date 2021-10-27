@@ -48,7 +48,8 @@ class TopologyService(object):
         self.stop_event.set()
         try:
             logger.debug('stop(): Stop watching ConfigMap changes')
-            self.config_map_event_watcher.stop()
+            if self.config_map_event_watcher:
+                self.config_map_event_watcher.stop()
         except Exception as ex:
             logger.exception(ex)
 
