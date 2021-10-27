@@ -435,7 +435,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: nvmesh-csi-use-psp
+  name: psp:nvmesh-csi
 subjects:
 - kind: ServiceAccount
   name: nvmesh-csi
