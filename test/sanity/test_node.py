@@ -5,6 +5,8 @@ import unittest
 from threading import Thread
 
 from grpc import StatusCode
+from grpc._channel import _Rendezvous
+
 import driver.consts as Consts
 from driver import consts
 
@@ -121,7 +123,7 @@ class TestNodeService(TestCaseWithServerRunning):
 		self.assertListEqual(expected, [item.rpc.type for item in list(res.capabilities)])
 
 	@CatchRequestErrors
-	def test_node_stage_volume(self):
+	def test_node_stage_volume_successful(self):
 		TestNodeService.driver_server.set_nvmesh_attach_volumes_content("""
 import sys
 import json
@@ -157,6 +159,73 @@ print('{ "status": "success", "volumes": { "%s": { "status": "Attached IO Enable
 		r = self._client.NodeStageVolume(volume_id=VOL_ID)
 		print(r)
 		print("NodeStageVolume Finished")
+
+	def _test_nvmesh_attach_volume_response(self, status_and_error, expected_code, expected_string_in_details):
+		TestNodeService.driver_server.set_nvmesh_attach_volumes_content("""
+import sys
+vol_id = sys.argv[-1]
+print('{{ "status": "success", "volumes": {{ "%s": {status_and_error} }} }}' % vol_id)
+""".format(status_and_error=status_and_error))
+		try:
+			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
+		except:
+			pass
+
+		try:
+			r = self._client.NodeStageVolume(volume_id=VOL_ID)
+			self.assertTrue(False)
+		except _Rendezvous as grpcError:
+			self.assertEquals(expected_code, grpcError._state.code)
+			self.assertIn(expected_string_in_details, grpcError._state.details)
+
+	@CatchRequestErrors
+	def test_stage_volume_failed_access_mode_denied_workaround(self):
+		self._test_nvmesh_attach_volume_response(
+			status_and_error='{"status": "Attached IO Enabled", "error": "Access Mode Denied."}',
+			expected_code=StatusCode.FAILED_PRECONDITION,
+			expected_string_in_details='Access Mode Denied'
+		)
+
+
+	@CatchRequestErrors
+	def test_stage_volume_failed_reservation_mode_denied(self):
+		self._test_nvmesh_attach_volume_response(
+			status_and_error='{"status": "Attached IO Enabled", "error": "Reservation Mode Denied."}',
+			expected_code=StatusCode.FAILED_PRECONDITION,
+			expected_string_in_details='Access Mode Denied'
+		)
+
+	@CatchRequestErrors
+	def test_stage_volume_failed_reservation_mode_denied(self):
+		self._test_nvmesh_attach_volume_response(
+			status_and_error='{"status": "Access Mode Denied"}',
+			expected_code=StatusCode.FAILED_PRECONDITION,
+			expected_string_in_details='Access Mode Denied'
+		)
+
+	@CatchRequestErrors
+	def test_stage_volume_failed_access_version_outdated(self):
+		self._test_nvmesh_attach_volume_response(
+			status_and_error='{"status": "Access Version Outdated"}',
+			expected_code=StatusCode.INTERNAL,
+			expected_string_in_details='Access Version Outdated'
+		)
+
+	@CatchRequestErrors
+	def test_stage_volume_failed_access_version_outdated(self):
+		self._test_nvmesh_attach_volume_response(
+			status_and_error='{"status": "Attach Failed"}',
+			expected_code=StatusCode.INTERNAL,
+			expected_string_in_details='Attach Failed'
+		)
+
+	@CatchRequestErrors
+	def test_stage_volume_failed_access_version_outdated(self):
+		self._test_nvmesh_attach_volume_response(
+			status_and_error='{"status": "Update Failed", "error": "Volume attach request failed. Failed to update volume. ErrorID: 1047, review system logs for more information."}',
+			expected_code=StatusCode.INTERNAL,
+			expected_string_in_details='Attach Failed'
+		)
 
 	@CatchRequestErrors
 	def test_node_publish_volume(self):

@@ -20,7 +20,7 @@ class TestIdentityService(TestCaseWithServerRunning):
 
 	@classmethod
 	def setUpClass(cls):
-		config={}
+		config={'topology':'{}'}
 		cls.driver_server = start_containerized_server(Consts.DriverType.Node, config=config, hostname='node-1')
 		config['SOCKET_PATH'] = 'unix://%s' % cls.driver_server.csi_socket_path
 		ConfigLoaderMock(config).load()
