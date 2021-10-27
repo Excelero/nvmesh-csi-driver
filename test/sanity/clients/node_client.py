@@ -5,6 +5,7 @@ from driver.csi.csi_pb2_grpc import NodeStub
 from test.sanity.clients.base_client import BaseClient
 
 STAGING_PATH_TEMPLATE = '/var/lib/kubelet/plugins/kubernetes.io/csi/pv/{volume_id}/globalmount'
+TARGET_PATH_PARENT_DIR_TEMPLATE = '/var/lib/kubelet/pods/{pod_id}/volumes/kubernetes.io~csi/{volume_id}'
 TARGET_PATH_TEMPLATE = '/var/lib/kubelet/pods/{pod_id}/volumes/kubernetes.io~csi/{volume_id}/mount'
 
 class NodeClient(BaseClient):
@@ -40,10 +41,8 @@ class NodeClient(BaseClient):
 		req = NodeUnstageVolumeRequest(volume_id=volume_id, staging_target_path=staging_target_path)
 		return self.client.NodeUnstageVolume(req)
 
-	def NodePublishVolume(self, volume_id, readonly=False, access_type=Consts.VolumeAccessType.MOUNT, access_mode=VolumeCapability.AccessMode.MULTI_NODE_MULTI_WRITER):
+	def NodePublishVolume(self, volume_id, target_path, readonly=False, access_type=Consts.VolumeAccessType.MOUNT, access_mode=VolumeCapability.AccessMode.MULTI_NODE_MULTI_WRITER):
 		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=volume_id)
-
-		target_path = TARGET_PATH_TEMPLATE.format(pod_id='fake-pod', volume_id=volume_id)
 		volume_capability = self._build_capability(access_type, access_mode, fs_type='ext4')
 
 		req = NodePublishVolumeRequest(
@@ -55,8 +54,7 @@ class NodeClient(BaseClient):
 		)
 		return self.client.NodePublishVolume(req)
 
-	def NodeUnpublishVolume(self, volume_id):
-		target_path = TARGET_PATH_TEMPLATE.format(pod_id='fake-pod', volume_id=volume_id)
+	def NodeUnpublishVolume(self, volume_id, target_path):
 		req = NodeUnpublishVolumeRequest(volume_id=volume_id, target_path=target_path)
 		return self.client.NodeUnpublishVolume(req)
 

@@ -200,8 +200,9 @@ class ContainerServerManager(object):
 		device_file = os.path.join(dev_nvmesh, volume_id)
 
 		self._make_sure_dir_exists(dev_nvmesh)
-		with open(device_file, 'w') as fp:
-			fp.write('')
+		if not os.path.isfile(device_file):
+			with open(device_file, 'w') as fp:
+				fp.write('')
 
 	def remove_nvmesh_device(self, volume_id):
 		dev_nvmesh = os.path.join(self.env_dir, 'dev/nvmesh')

@@ -10,20 +10,21 @@ from grpc._channel import _Rendezvous
 import driver.consts as Consts
 from driver import consts
 
-from driver.csi.csi_pb2 import NodeServiceCapability, Topology
+from driver.csi.csi_pb2 import NodeServiceCapability, Topology, VolumeCapability
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
 from test.sanity.helpers.setup_and_teardown import start_server, start_containerized_server
 from test.sanity.helpers.test_case_with_server import TestCaseWithServerRunning
 
-from test.sanity.clients.node_client import NodeClient, STAGING_PATH_TEMPLATE
+from test.sanity.clients.node_client import NodeClient, STAGING_PATH_TEMPLATE, TARGET_PATH_TEMPLATE, TARGET_PATH_PARENT_DIR_TEMPLATE
 from test.sanity.helpers.error_handlers import CatchRequestErrors, CatchNodeDriverErrors
+
 
 GB = pow(1024, 3)
 VOL_ID = "vol_1"
 NODE_ID_1 = "node-1"
+DEFAULT_POD_ID = "pod-ab12"
 TOPOLOGY_SINGLE_ZONE = {'zones': {'zone_1': {'management': {'servers': 'localhost:4000'}}}}
 TOPOLOGY_MULTIPLE_ZONES = Topology(segments={Consts.TopologyKey.ZONE: 'zone_1'})
-
 
 os.environ['DEVELOPMENT'] = 'TRUE'
 
@@ -228,19 +229,87 @@ print('{{ "status": "success", "volumes": {{ "%s": {status_and_error} }} }}' % v
 		)
 
 	@CatchRequestErrors
-	def test_node_publish_volume(self):
+	def test_node_publish_volume_fs(self):
 		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
-		target_path = '/var/lib/kubelet/pods/fake-pod/volumes/kubernetes.io~csi/vol_1/'
+		target_parent_dir = TARGET_PATH_PARENT_DIR_TEMPLATE.format(volume_id=VOL_ID, pod_id=DEFAULT_POD_ID)
+		target_path = target_parent_dir + '/mount'
+
 		TestNodeService.driver_server.add_nvmesh_device(VOL_ID)
 		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
-		TestNodeService.driver_server.make_dir_in_env_dir(target_path)
-		r = self._client.NodePublishVolume(volume_id=VOL_ID)
-		print(r)
+		TestNodeService.driver_server.make_dir_in_env_dir(target_parent_dir)
+		self._client.NodePublishVolume(
+			volume_id=VOL_ID,
+			target_path=target_parent_dir + '/mount',
+			access_type=Consts.VolumeAccessType.MOUNT,
+			access_mode=VolumeCapability.AccessMode.SINGLE_NODE_WRITER)
+		self.addCleanup(lambda: self._client.NodeUnpublishVolume(VOL_ID, target_path))
+
+		# Verify /mount publish dir exists
+		env_dir = TestNodeService.driver_server.env_dir
+		target_path_in_env_dir = os.path.join(env_dir, target_parent_dir[1:], 'mount')
+		self.assertTrue(os.path.isdir(target_path_in_env_dir))
 
 	@CatchRequestErrors
-	def test_node_unpublish_volume(self):
-		r = self._client.NodeUnpublishVolume(volume_id=VOL_ID)
-		print(r)
+	def test_node_publish_volume_block(self):
+		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
+		target_parent_dir = TARGET_PATH_PARENT_DIR_TEMPLATE.format(volume_id=VOL_ID, pod_id=DEFAULT_POD_ID)
+		target_path = target_parent_dir + '/mount'
+		TestNodeService.driver_server.add_nvmesh_device(VOL_ID)
+		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+		TestNodeService.driver_server.make_dir_in_env_dir(target_parent_dir)
+		self._client.NodePublishVolume(
+			volume_id=VOL_ID,
+			target_path=target_path,
+			access_type=Consts.VolumeAccessType.BLOCK,
+			access_mode=VolumeCapability.AccessMode.SINGLE_NODE_WRITER)
+		self.addCleanup(lambda: self._client.NodeUnpublishVolume(VOL_ID, target_path))
+
+		env_dir = TestNodeService.driver_server.env_dir
+		block_device_file_in_env_dir = os.path.join(env_dir, target_parent_dir[1:], 'mount')
+		is_file = os.path.isfile(block_device_file_in_env_dir)
+		self.assertTrue(is_file)
+
+	@CatchRequestErrors
+	def test_node_unpublish_volume_fs(self):
+		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
+		target_parent_dir = TARGET_PATH_PARENT_DIR_TEMPLATE.format(volume_id=VOL_ID, pod_id=DEFAULT_POD_ID)
+		target_path = target_parent_dir + '/mount'
+
+		TestNodeService.driver_server.add_nvmesh_device(VOL_ID)
+		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+		TestNodeService.driver_server.make_dir_in_env_dir(target_parent_dir)
+		self._client.NodePublishVolume(
+			volume_id=VOL_ID,
+			target_path=target_path,
+			access_type=Consts.VolumeAccessType.MOUNT,
+			access_mode=VolumeCapability.AccessMode.SINGLE_NODE_WRITER)
+
+		self._client.NodeUnpublishVolume(volume_id=VOL_ID, target_path=target_path)
+		env_dir = TestNodeService.driver_server.env_dir
+		block_device_file_in_env_dir = os.path.join(env_dir, target_parent_dir[1:], 'mount')
+		publish_path_exists = os.path.exists(block_device_file_in_env_dir)
+		self.assertFalse(publish_path_exists)
+
+	@CatchRequestErrors
+	def test_node_unpublish_volume_block(self):
+		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
+		target_parent_dir = TARGET_PATH_PARENT_DIR_TEMPLATE.format(volume_id=VOL_ID, pod_id=DEFAULT_POD_ID)
+		target_path = target_parent_dir + '/mount'
+
+		TestNodeService.driver_server.add_nvmesh_device(VOL_ID)
+		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+		TestNodeService.driver_server.make_dir_in_env_dir(target_parent_dir)
+		self._client.NodePublishVolume(
+			volume_id=VOL_ID,
+			target_path=target_path,
+			access_type=Consts.VolumeAccessType.BLOCK,
+			access_mode=VolumeCapability.AccessMode.SINGLE_NODE_WRITER)
+
+		self._client.NodeUnpublishVolume(volume_id=VOL_ID, target_path=target_path)
+		env_dir = TestNodeService.driver_server.env_dir
+		block_device_file_in_env_dir = os.path.join(env_dir, target_parent_dir[1:], 'mount')
+		publish_path_exists = os.path.exists(block_device_file_in_env_dir)
+		self.assertFalse(publish_path_exists)
 
 	@CatchRequestErrors
 	def test_node_expand_volume(self):
