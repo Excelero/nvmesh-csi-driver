@@ -34,7 +34,7 @@ core_api = client.CoreV1Api()
 storage_api = client.StorageV1Api()
 apps_api = client.AppsV1Api()
 
-IO_TEST_IMAGE_NAME = 'excelero/io-tools:1.0.0'
+TEST_IMAGE_NAME = 'centos:7'
 
 class TestConfig(object):
 	TestNamespace = 'test-csi-driver-integration'
@@ -58,7 +58,7 @@ def parse_config_from_file(test_config):
 		raise
 
 def load_test_config_file():
-	test_config_path = environ.get('TEST_CONFIG_PATH') or os.path.join(os.getcwd(), '../config.yaml')
+	test_config_path = environ.get('TEST_CONFIG_PATH') or os.path.join(os.getcwd(), '../../config.yaml')
 	try:
 		with open(test_config_path, 'r') as fp:
 			test_config = yaml.safe_load(fp)
@@ -575,17 +575,8 @@ class KubeUtils(object):
 			'containers': [
 				{
 					'name': 'fs-consumer',
-					'image': IO_TEST_IMAGE_NAME,
-					'env': [
-						{
-							'name': 'VOLUME_TYPE',
-							'value': 'Filesystem'
-						},
-						{
-							'name': 'VOLUME_PATH',
-							'value': '/mnt/vol'
-						}
-					],
+					'image': TEST_IMAGE_NAME,
+					'command': ['/bin/sh', '-c', 'while true; do ls -l /mnt/vol; sleep 1 ; done'],
 					'volumeMounts': [
 						{
 							'name': 'fs-volume',
@@ -614,7 +605,7 @@ class KubeUtils(object):
 			'containers': [
 				{
 					'name': 'container-{}'.format(pod_name),
-					'image': 'alpine',
+					'image': 'alpine:3',
 					'command': ["/bin/sh"],
 					'args': ["-c", cmd],
 					'volumeMounts': [
@@ -653,17 +644,8 @@ class KubeUtils(object):
 			'containers': [
 				{
 					'name': 'block-volume-consumer',
-					'image': IO_TEST_IMAGE_NAME,
-					'env': [
-						{
-							'name': 'VOLUME_TYPE',
-							'value': 'Block'
-						},
-						{
-							'name': 'VOLUME_PATH',
-							'value': '/dev/my_block_dev'
-						}
-					],
+					'image': TEST_IMAGE_NAME,
+					'command': ['/bin/sh', '-c', 'while true; do ls -l /dev/my_block_dev; sleep 1 ; done'],
 					'volumeDevices': [
 						{
 							'name': 'block-volume',
