@@ -191,7 +191,8 @@ class NVMeshNodeService(NodeServicer):
 			FileSystemManager.remove_dir(target_path)
 			if os.path.isdir(target_path):
 				raise DriverError(StatusCode.INTERNAL, 'node-driver unable to delete publish directory')
-		elif os.path.isfile(block_device_publish_path):
+		elif os.path.isfile(target_path):
+			self.logger.debug('NodeUnpublishVolume removing publish file: {}'.format(target_path))
 			os.remove(target_path)
 
 		return NodeUnpublishVolumeResponse()
