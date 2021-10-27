@@ -126,13 +126,19 @@ class NVMeshControllerService(ControllerServicer):
 
 		data = None
 		try:
+			log.debug('Getting volume API for zone {}'.format(zone))
 			volume_api = VolumeAPIPool.get_volume_api_for_zone(zone, log)
+			log.debug('Saving volume {} to volume API'.format(volume))
 			err, data = volume_api.save([volume])
 			# this is only required for printing informative logs
+			log.debug('Setting mgmt_server from volume API')
 			mgmt_server = volume_api.managementConnection.managementServer
 		except ManagementTimeout as ex:
+			log.debug('ManagementTimeout occurred')
 			err = ex
+			log.debug('Getting api_params for zone {}'.format(zone))
 			api_params = TopologyUtils.get_api_params(zone)
+			log.debug('Setting mgmt_server from api_params')
 			mgmt_server = api_params['managementServers']
 
 		time2 = datetime.datetime.now()

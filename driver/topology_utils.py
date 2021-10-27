@@ -167,7 +167,9 @@ class VolumeAPIPool(object):
 				api = VolumeAPIPool._create_new_volume_api(api_params)
 				VolumeAPIPool.__api_dict[management_servers] = api
 				log.debug('get_volume_api_for_zone: created new VolumeAPI=%s from api_params %s' % (api.managementConnection.managementServers, api_params))
-				if api.managementConnection.managementServers[0] != 'https://' + api_params['managementServers']:
+				first_mgmt_server_from_api_params = 'https://' + api_params['managementServers'].split(',')[0]
+				log.debug('first_mgmt_server_from_api_params: {}'.format(first_mgmt_server_from_api_params))
+				if api.managementConnection.managementServers[0] != first_mgmt_server_from_api_params:
 					# This means we asked for a connection to management server A but got a connection to management server B
 					db_uuid_to_servers = ['db_uuid={} servers={}'.format(db_uuid, conn_mgr.managementServers) for db_uuid, conn_mgr in ConnectionManager.debug_getInstances().items()]
 					log.debug('SDK internals: {}'.format(db_uuid_to_servers))
