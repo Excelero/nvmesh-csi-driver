@@ -24,11 +24,13 @@ SERVER_STOP_GRACE_SECONDS = 60
 class NVMeshCSIDriverServer(object):
 	def __init__(self, driver_type):
 		self.driver_type = driver_type
+
+		config_module.config_loader.load()
+
 		self.logger = LoggerUtils.init_root_logger()
 		self.stop_event = threading.Event()
 
 		LoggerUtils.init_sdk_logger()
-		config_module.config_loader.load()
 
 		self.logger.info("NVMesh CSI Driver Type: {} Version: {}".format(self.driver_type, Config.DRIVER_VERSION))
 
