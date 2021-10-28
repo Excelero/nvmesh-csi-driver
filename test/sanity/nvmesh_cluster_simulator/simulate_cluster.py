@@ -24,6 +24,7 @@ class NVMeshCluster(object):
 		self.should_continue = True
 		self.sub_process = None
 		self.do_on_cluster_ended_func = do_on_cluster_ended_func
+		self.stopped = False
 
 	def get_logger(self, log_level):
 		logger = logging.getLogger('Cluster {}'.format(self.name))
@@ -52,6 +53,7 @@ class NVMeshCluster(object):
 					self.do_on_cluster_ended_func(self.sub_process.returncode)
 
 			logger.info('Cluster stopped')
+			self.stopped = True
 
 
 		t = Thread(name='{}_stream_logs'.format(self.name), target=stream_logs, args=(p.stdout, self.logger))
@@ -81,10 +83,12 @@ class NVMeshCluster(object):
 		self.logger.info('Waiting for cluster to be alive')
 		while True:
 			try:
+				if self.stopped:
+					raise Exception('Cluster stopped while waiting for it to be alive')
 				if self.is_alive():
 					break
 			except ConnectionError as ex:
-				pass
+				time.sleep(1)
 		self.logger.info('Cluster is alive')
 
 	def is_alive(self):
