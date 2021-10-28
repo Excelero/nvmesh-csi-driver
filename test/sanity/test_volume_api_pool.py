@@ -29,6 +29,7 @@ class TestVolumeAPIPool(unittest.TestCase):
 
 	@classmethod
 	def setUpClass(cls):
+		super(TestVolumeAPIPool, cls).setUpClass()
 		cls.cluster1 = NVMeshCluster('cluster1')
 		cls.cluster1.start()
 		cls.cluster1.wait_until_is_alive()

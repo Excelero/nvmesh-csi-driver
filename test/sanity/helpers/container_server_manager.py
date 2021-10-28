@@ -2,16 +2,15 @@ import errno
 import json
 import logging
 import os
-import shutil
 import subprocess
-import sys
 
 import time
 
-log = logging.getLogger('ContainerServerManager')
-log.setLevel(logging.DEBUG)
-handler = logging.StreamHandler(sys.stdout)
-log.addHandler(handler)
+from test.sanity.clients.identity_client import IdentityClient
+from test.sanity.helpers.config_loader_mock import get_version_info
+
+sanity_logger = logging.getLogger('SanityTests')
+log = sanity_logger.getChild('ContainerdDriver')
 
 DEFAULT_CONFIG = {
 	'management.protocol': 'https',
@@ -25,58 +24,73 @@ class ContainerServerManager(object):
 		self.driver_type = driver_type
 		self.node_id = node_id
 		self.container_name = node_id
+		self.logger = log.getChild(self.container_name)
 		self.config = self._get_config_or_default(config)
 		self.env_dir = '/tmp/csi_sanity/{}'.format(self.container_name)
 		self.csi_socket_path = os.path.join(self.env_dir, 'csi/csi.sock')
-		self.version_info = self._get_version_info()
+		self.version_info = get_version_info()
 		self.stop_container_on_finish = True
 		self._setup_env_dir()
 		self._stopped = False
-
+		self.image_name_with_tag = None
 
 	def keep_container_on_finish(self):
 		self.stop_container_on_finish = False
 
 	def _remove_last_container(self):
 		try:
-			subprocess.check_call(['docker', 'rm', self.container_name])
+			subprocess.check_call(['docker', 'stop', self.container_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		except:
+			pass
+
+		try:
+			subprocess.check_call(['docker', 'rm', self.container_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		except:
 			pass
 
 	def start(self):
-		log.info('Starting ContainerServerManager {}'.format(self.container_name))
+		self.logger.info('Starting ContainerServerManager {}'.format(self.container_name))
 		self._remove_last_container()
 
+		self.image_name_with_tag = 'excelero/nvmesh-csi-driver:{}'.format(self.version_info['DRIVER_VERSION'])
+
 		cmd = [
-				'docker', 'run', '-d', '--privileged',
-				'--cap-add=sys_admin',
-				'--name', self.container_name,
-				'-h', self.node_id,
-				'-v', '{}/topology:/topology'.format(self.env_dir),
-				'-v', '{}/config:/config'.format(self.env_dir),
-				'-v', '{}/csi:/csi'.format(self.env_dir),
-				'-v', '{}/var/lib/kubelet:/var/lib/kubelet'.format(self.env_dir),
-				'-v', '{}/dev/nvmesh:/dev/nvmesh'.format(self.env_dir),
-				'-v', '{}/host/bin/:/host/bin'.format(self.env_dir),
-				'-v', '{}/var/opt/NVMesh:/var/opt/NVMesh'.format(self.env_dir),
-				'-v', '{}/opt/NVMesh:/opt/NVMesh'.format(self.env_dir),
-				'-v', '{}/proc/nvmeibc:/simulated/proc/nvmeibc'.format(self.env_dir),
-				'-e', 'DRIVER_TYPE={}'.format(self.driver_type),
-				'-e', 'DRIVER_NAME={}'.format('nvmesh-csi.excelero.com'),
-				'-e', 'SOCKET_PATH={}'.format('unix:///csi/csi.sock'),
-				'-e', 'MANAGEMENT_SERVERS=a.b:4000',
-				'-e', 'SIMULATED_PROC=True',
-			'excelero/nvmesh-csi-driver:{}'.format(self.version_info['DRIVER_VERSION'])
+			'docker', 'run', '-d', '--privileged',
+			'--cap-add=sys_admin',
+			'--name', self.container_name,
+			'-h', self.node_id,
+			'-v', '{}/topology:/topology'.format(self.env_dir),
+			'-v', '{}/config:/config'.format(self.env_dir),
+			'-v', '{}/csi:/csi'.format(self.env_dir),
+			'-v', '{}/var/lib/kubelet:/var/lib/kubelet'.format(self.env_dir),
+			'-v', '{}/dev/nvmesh:/dev/nvmesh'.format(self.env_dir),
+			'-v', '{}/host/bin/:/host/bin'.format(self.env_dir),
+			'-v', '{}/var/opt/NVMesh:/var/opt/NVMesh'.format(self.env_dir),
+			'-v', '{}/opt/NVMesh:/opt/NVMesh'.format(self.env_dir),
+			'-v', '{}/proc/nvmeibc:/simulated/proc/nvmeibc'.format(self.env_dir),
+			'-e', 'DRIVER_TYPE={}'.format(self.driver_type),
+			'-e', 'DRIVER_NAME={}'.format('nvmesh-csi.excelero.com'),
+			'-e', 'SOCKET_PATH={}'.format('unix:///csi/csi.sock'),
+			'-e', 'MANAGEMENT_SERVERS=a.b:4000',
+			'-e', 'SIMULATED_PROC=True',
+			self.image_name_with_tag
 		]
 
-		p = subprocess.Popen(cmd)
+		p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		stdout, stderr = p.communicate()
-		if p.returncode != 0:
-			raise ValueError('Error running docker container exit code: {} stdout: {} stderr: {}'.format(p.returncode, stdout, stderr))
 
-		log.info('ContainerServerManager {} Started'.format(self.container_name))
+		if p.returncode != 0:
+			self.handle_docker_errors(cmd, p.returncode, stdout, stderr)
+
+		self.logger.info('ContainerServerManager {} Started'.format(self.container_name))
 		self._chown_path(self.env_dir)
 		return self
+
+	def handle_docker_errors(self, command, exit_code, stdout, stderr):
+		if 'Unable to find image' in stderr:
+			raise ValueError('Image {} not found. please run `make build` in the project root to build the image locally'.format(self.image_name_with_tag))
+		else:
+			raise ValueError('Error running docker container  command: {} exit code: {} stdout: {} stderr: {}'.format(' '.join(command), exit_code, stdout, stderr))
 
 	def stream_logs(self):
 		# TODO: Implement
@@ -86,36 +100,43 @@ class ContainerServerManager(object):
 	def stop(self):
 		if self.stop_container_on_finish:
 			if not self._stopped:
-				log.info('Stopping ContainerServerManager {}'.format(self.container_name))
-				subprocess.check_call(['docker', 'stop', self.container_name])
-				log.info('ContainerServerManager for {} stopped successfully'.format(self.container_name))
+				self.logger.info('Stopping')
+				try:
+					subprocess.check_call(['docker', 'stop', self.container_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+				except subprocess.CalledProcessError as ex:
+					self.logger.warning('docker stop command failed')
+
+				self.logger.info('stopped successfully')
 				self._stopped = True
 		else:
-			log.info("Keeping container %s running" % self.container_name)
+			self.logger.info("Keeping container running")
 
 	def __del__(self):
-		self.stop()
+		if not self._stopped:
+			self.stop()
 
 	def wait_for_socket(self):
-		log.info('Waiting for socket at {}'.format(self.csi_socket_path))
+		self.logger.info('Waiting for socket at {}'.format(self.csi_socket_path))
 		while not os.path.exists(self.csi_socket_path):
-			time.sleep(1)
+			time.sleep(0.5)
 
-		log.debug('socket ready at {}'.format(self.csi_socket_path))
+		self.logger.debug('socket ready at {}'.format(self.csi_socket_path))
 		self._chown_path(self.csi_socket_path)
-		log.debug('socket chowned at {}'.format(self.csi_socket_path))
+		self.logger.debug('socket chowned at {}'.format(self.csi_socket_path))
+
+	def wait_for_grpc_server_to_be_alive(self):
+		self.wait_for_socket()
+
+		grpc_ready = False
+		client = IdentityClient(socket_path='unix://' + self.csi_socket_path)
+
+		while not grpc_ready:
+			try:
+				client.GetPluginInfo()
+				grpc_ready = True
+			except Exception as ex:
+				time.sleep(0.5)
 		return self
-
-	def _get_version_info(self):
-		version_info_output = subprocess.check_output(['/bin/bash', '-c', '../../get_version_info.sh'])
-		version_info = {}
-		for line in version_info_output.split('\n'):
-			if not line:
-				continue
-			key_value = line.split('=')
-			version_info[key_value[0]] = key_value[1]
-
-		return version_info
 
 	def _get_config_or_default(self, config):
 		config_copy = DEFAULT_CONFIG.copy()
@@ -156,7 +177,7 @@ class ContainerServerManager(object):
 		zones_file = os.path.join(topology_config_map_dir, 'zones')
 
 		with open(zones_file, 'w') as fp:
-				fp.write(zones_json)
+			fp.write(zones_json)
 
 	def _make_sure_dir_exists(self, dir):
 		try:
@@ -174,7 +195,7 @@ class ContainerServerManager(object):
 	def _chown_path(self, path):
 		import getpass
 		user = getpass.getuser()
-		return subprocess.check_call(['sudo', 'chown', '-R', '%s:sudo' % user, path])
+		return subprocess.check_call(['sudo', 'chown', '-R', '%s' % user, path])
 
 	def _rmdir(self, path):
 		return subprocess.check_call(['sudo', 'rm', '-rf', path])

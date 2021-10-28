@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import time
 import unittest
@@ -27,6 +28,7 @@ TOPOLOGY_SINGLE_ZONE = {'zones': {'zone_1': {'management': {'servers': 'localhos
 TOPOLOGY_MULTIPLE_ZONES = Topology(segments={Consts.TopologyKey.ZONE: 'zone_1'})
 
 os.environ['DEVELOPMENT'] = 'TRUE'
+log = logging.getLogger('SanityTests')
 
 class TestNodeService(TestCaseWithServerRunning):
 	driver_server = None
@@ -45,6 +47,7 @@ class TestNodeService(TestCaseWithServerRunning):
 
 	@classmethod
 	def setUpClass(cls):
+		super(TestNodeService, cls).setUpClass()
 		topology = {
 				'type': consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
 				'zones': TOPOLOGY_SINGLE_ZONE['zones']
@@ -60,9 +63,9 @@ class TestNodeService(TestCaseWithServerRunning):
 
 	@classmethod
 	def tearDownClass(cls):
-		print('stopping server')
+		log.debug('stopping server')
 		cls.driver_server.stop()
-		print('server stopped')
+		log.debug('server stopped')
 
 	@CatchRequestErrors
 	def test_get_info_basic_test(self):
@@ -71,7 +74,7 @@ class TestNodeService(TestCaseWithServerRunning):
 
 	@CatchNodeDriverErrors(NODE_ID_1)
 	def test_get_info_with_topology(self):
-		self.restart_server(TestNodeService.driver_server.config)
+		self.restart_server()
 
 		zones_dict = {
 			'A': {'nodes': ['node-2', NODE_ID_1, 'node-3']},
@@ -84,7 +87,7 @@ class TestNodeService(TestCaseWithServerRunning):
 		self.assertEquals(res.node_id, NODE_ID_1)
 
 		topology_info = res.accessible_topology.segments
-		print(topology_info)
+		log.debug(topology_info)
 		# This is configured in ConfigLoaderMock.TOPOLOGY
 		self.assertEquals(topology_info.get(Consts.TopologyKey.ZONE), 'A')
 
@@ -134,7 +137,7 @@ MB = 1024 * 1024
 GB = MB * 1024
 vol_id = sys.argv[-1]
 
-device_path = "/dev/nvmesh/%s" % vol_id 
+device_path = "/dev/nvmesh/%s" % vol_id
 with open(device_path, "wb") as f:
 	f.truncate(MB * 100)
 
@@ -158,8 +161,7 @@ print('{ "status": "success", "volumes": { "%s": { "status": "Attached IO Enable
 		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
 		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
 		r = self._client.NodeStageVolume(volume_id=VOL_ID)
-		print(r)
-		print("NodeStageVolume Finished")
+		log.debug("NodeStageVolume Finished")
 
 	def _test_nvmesh_attach_volume_response(self, status_and_error, expected_code, expected_string_in_details):
 		TestNodeService.driver_server.set_nvmesh_attach_volumes_content("""
@@ -332,14 +334,14 @@ class TestNodeServiceGracefulShutdown(TestCaseWithServerRunning):
 
 		results = []
 		def run_get_info(results):
-			print('Calling GetInfo')
+			log.debug('Calling GetInfo')
 			res = client.NodeGetInfo()
 			results.append(res.node_id)
 
 		thread = Thread(target=run_get_info, args=(results,))
 		thread.start()
 
-		print('Stopping the gRPC server')
+		log.debug('Stopping the gRPC server')
 		driver_server.stop()
 
 		thread.join()

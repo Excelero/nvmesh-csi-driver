@@ -88,6 +88,7 @@ router.post('/volumes/delete', function(req,res) {
 
 router.get('/clients/all/0/0', function(req,res) {
     var clients = app.get('sim-data').clients;
+    console.log(`request to /clients/all/0/0 returning: ${JSON.stringify(clients)}`);
     res.json(clients);
 });
 

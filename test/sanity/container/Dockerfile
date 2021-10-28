@@ -24,8 +24,10 @@ COPY driver/ /driver/
 COPY test /test
 
 ARG VERSION
-RUN printf "$VERSION" > /version
-
+RUN printf "echo DRIVER_VERSION=${VERSION}" > /get_version_info.sh && chmod +x /get_version_info.sh
 ENV TEST_CONFIG_PATH=/test/config.yaml
+ENV PROJECT_ROOT=/
 
 ENTRYPOINT ["python", "-m" , "unittest"]
+CMD ["discover", "/test/sanity"]
+

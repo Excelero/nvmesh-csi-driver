@@ -5,17 +5,12 @@ from os import environ
 
 
 class SanityTestConfig(object):
-	ManagementServers = ['localhost:4000']
-	Nodes = []
-	Protocol = None
+	LogLevel = 1
 
 def parse_config(test_config):
 	try:
 		conf = test_config['sanity']
-		SanityTestConfig.ManagementServers = conf.get('managementServers', SanityTestConfig.ManagementServers)
-		SanityTestConfig.Nodes = conf.get('nodes', [])
-		SanityTestConfig.Protocol = conf.get('protocol', 'https')
-
+		SanityTestConfig.LogLevel = conf.get('logLevel', 1)
 	except Exception as ex:
 		print('Failed to parse test config. Error: %s' % ex)
 		raise

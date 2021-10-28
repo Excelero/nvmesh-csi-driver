@@ -4,6 +4,7 @@ import os
 import time
 
 from driver.zone_topology_fetcher import ZoneTopologyFetcherThread
+from test.sanity.helpers import config_map_api_mock
 from test.sanity.nvmesh_cluster_simulator.simulate_cluster import create_clusters
 
 os.environ['DEVELOPMENT'] = 'TRUE'
@@ -25,6 +26,7 @@ class TestTopologyFetcherThread(TestCaseWithServerRunning):
 
 	@classmethod
 	def setUpClass(cls):
+		super(TestTopologyFetcherThread, cls).setUpClass()
 		cls.clusters = create_clusters(num_of_clusters=2, num_of_client_per_cluster=3)
 
 		for cluster in cls.clusters:
@@ -75,9 +77,7 @@ class TestTopologyFetcherThread(TestCaseWithServerRunning):
 		topology_service.run()
 		self.addCleanup(lambda: topology_service.stop())
 
-		time.sleep(15)
-		nodes_topology = topology_service.topology.nodes
-
+		# calc expected topology
 		expected_topology = {}
 
 		for client in clusters[0].clients:
@@ -86,7 +86,18 @@ class TestTopologyFetcherThread(TestCaseWithServerRunning):
 		for client in clusters[1].clients:
 			expected_topology[client] = 'B'
 
-		self.assertEqual(json.dumps(expected_topology, sort_keys=True), json.dumps(nodes_topology, sort_keys=True))
+		success = False
+		max_waiting_time_seconds = 15
+		for i in range(max_waiting_time_seconds):
+			nodes_topology = topology_service.topology.nodes
+			all_topology_discovered = json.dumps(expected_topology, sort_keys=True) == json.dumps(nodes_topology, sort_keys=True)
+			if all_topology_discovered:
+				success = True
+				break
+
+			time.sleep(1)
+
+		self.assertTrue(success, "Timed-out waiting for all topology to be discovered")
 
 	def test_listen_on_client_changes_fail_to_login(self):
 		clusters = TestTopologyFetcherThread.clusters

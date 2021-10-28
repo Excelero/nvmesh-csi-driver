@@ -13,6 +13,9 @@ def init():
 	global core_api
 	global namespace
 
+	if core_api:
+		return
+
 	if os.environ.get('DEVELOPMENT'):
 		config.load_kube_config()
 		namespace = 'nvmesh-csi-driver'

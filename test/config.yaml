@@ -20,4 +20,5 @@ integration:
           servers: 'n127:4000'
         nodes: ['nvme127.excelero.com']
 
-sanity: {}
+sanity:
+  logLevel: 3

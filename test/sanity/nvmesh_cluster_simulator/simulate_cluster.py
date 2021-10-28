@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import sys
 import time
 from signal import SIGTERM
 
@@ -10,30 +9,23 @@ import subprocess
 from threading import Thread
 
 from requests import ConnectionError
-
+sanity_logger = logging.getLogger('SanityTests')
+cluster_sim_logger = sanity_logger.getChild('NVMeshClusterSim')
 
 class NVMeshCluster(object):
-	def __init__(self, name, http_port=4000, ws_port=4001, clients=None, options=None, log_level=logging.DEBUG, do_on_cluster_ended_func=None):
+	def __init__(self, name, http_port=4000, ws_port=4001, clients=None, options=None, do_on_cluster_ended_func=None):
 		self.name = name
 		self.http_port = http_port
 		self.ws_port = ws_port
 		self.clients = clients
 		self.options = options
 		self.logs_thread = None
-		self.logger = self.get_logger(log_level)
+		self.logger = cluster_sim_logger.getChild(self.name)
 		self.should_continue = True
 		self.sub_process = None
 		self.do_on_cluster_ended_func = do_on_cluster_ended_func
 		self.stopped = False
-
-	def get_logger(self, log_level):
-		logger = logging.getLogger('Cluster {}'.format(self.name))
-		handler = logging.StreamHandler()
-		formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-		handler.setFormatter(formatter)
-		logger.addHandler(handler)
-		logger.setLevel(log_level)
-		return logger
+		self.stdout = []
 
 	def run_cmd_in_sub_process(self, command_string):
 		self.logger.debug('running cmd: %s' % ' '.join(command_string))
@@ -44,11 +36,15 @@ class NVMeshCluster(object):
 		def stream_logs(pipe, logger):
 			for line in iter(pipe.readline, b''):
 				logger.info(line)
+				self.stdout.append(line)
 			logger.info('finished reading output')
 			self.sub_process.wait()
 			logger.debug('Cluster ended with exit code: {}'.format(self.sub_process.returncode))
 			if self.sub_process.returncode != 0:
-				logger.error('Cluster ended with an error. exiting..')
+				if self.sub_process.returncode == -15:
+					logger.info('Server was stopped')
+				else:
+					logger.error('Cluster ended with an error (exit code %d). exiting..' % self.sub_process.returncode)
 				if self.do_on_cluster_ended_func:
 					self.do_on_cluster_ended_func(self.sub_process.returncode)
 
@@ -68,10 +64,12 @@ class NVMeshCluster(object):
 
 		cmd_parts = cmd.split(' ')
 		if self.clients:
-			cmd_parts.append(' --clients {}'.format(' '.join(self.clients)))
+			cmd_parts.append('--clients')
+			cmd_parts = cmd_parts + self.clients
 
 		if self.options:
-			cmd_parts.append(' --options \'{}\''.format(json.dumps(self.options)))
+			cmd_parts.append('--options')
+			cmd_parts.append(json.dumps(self.options))
 
 		docker_run_cmd += cmd_parts
 		self.sub_process = self.run_cmd_in_sub_process(docker_run_cmd)
@@ -117,7 +115,7 @@ class NVMeshCluster(object):
 		return 'localhost:{}'.format(self.http_port)
 
 def create_clusters(num_of_clusters, num_of_client_per_cluster, name_prefix='nvmesh'):
-	print('Creating {} NVMesh Clusters with {} clients each'.format(num_of_clusters, num_of_client_per_cluster))
+	cluster_sim_logger.info('Creating {} NVMesh Clusters with {} clients each'.format(num_of_clusters, num_of_client_per_cluster))
 
 	clusters = []
 	http_port = 4000
@@ -177,7 +175,7 @@ def example_2_create_multiple_clusters(num_of_clusters, wait_in_seconds=10, name
 		cluster.wait_until_is_alive()
 
 	for i in range(wait_in_seconds):
-		print('waiting.. %d' % i)
+		cluster_sim_logger.info('waiting.. %d' % i)
 		time.sleep(1)
 
 	for cluster in clusters:

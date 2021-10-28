@@ -1,11 +1,9 @@
 import json
 import logging
 import os
-import time
 
 from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from driver import config_map_api
-from driver.common import LoggerUtils
 
 from driver.csi.csi_pb2 import TopologyRequirement, Topology
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
@@ -36,8 +34,7 @@ TOPO_REQ_MULTIPLE_TOPOLOGIES = TopologyRequirement(
 
 os.environ['DEVELOPMENT'] = 'TRUE'
 
-log = logging.getLogger('TestMultiZoneAtScale')
-LoggerUtils.add_stdout_handler(log)
+log = logging.getLogger('SanityTests').getChild('TestMultiZoneAtScale')
 
 class TestMultiZoneAtScale(TestCaseWithServerRunning):
 
@@ -87,7 +84,6 @@ class TestMultiZoneAtScale(TestCaseWithServerRunning):
 		import driver.config as Config
 		Config.config_loader = ConfigLoaderMock(config)
 		Config.config_loader.load()
-		Config.print_config()
 
 		self._start_csi_controller(config)
 
