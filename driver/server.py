@@ -24,7 +24,7 @@ SERVER_STOP_GRACE_SECONDS = 60
 class NVMeshCSIDriverServer(object):
 	def __init__(self, driver_type):
 		self.driver_type = driver_type
-		self.logger = LoggerUtils.init_root_logger()
+		self.logger = LoggerUtils.init_root_logger().getChild('CSIDriver')
 		self.stop_event = threading.Event()
 
 		LoggerUtils.init_sdk_logger()
@@ -44,7 +44,7 @@ class NVMeshCSIDriverServer(object):
 		self.shouldContinue = True
 
 		def shutdown(signum, frame):
-			log('Received signal {}. Stoping the server'.format(signum))
+			self.logger.info('Received signal {}. Stopping the server'.format(signum))
 			self.stop()
 
 		signal.signal(signal.SIGTERM, shutdown)
