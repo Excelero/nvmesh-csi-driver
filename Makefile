@@ -3,12 +3,12 @@
 # ----------------
 
 # builds the driver container and all testing components
-all: build-driver-container build-tests
+all: build build-tests
 
-build-driver-container:
+build:
 	cd ./build_tools && ./build.sh
 
-build-tests: build-driver-container build-sanity-tests build-integration-tests
+build-tests: build build-sanity-tests build-integration-tests
 	echo "build tests"
 
 build-nvmesh-cluster-sim:
@@ -41,22 +41,16 @@ test-sanity:
 
 # This will create a kubernetes Job resource using local kubectl tool
 test-integration:
-	kubectl apply -f integration/container/test_job.yaml
+	kubectl delete -f test/integration/container/test_job.yaml ; kubectl apply -f test/integration/container/
 	kubectl wait --for=condition=ready pod --selector=job-name=csi-integration-test
 	kubectl logs --selector=job-name=csi-integration-test --follow
-
-# Deletes the Kubernetes Job using local kubectl
-delete-integration-job:
-	kubectl delete -f integration/container/test_job.yaml
 
 # ----------------
 # Deploy
 # ----------------
-
 manifests:
 	cd deploy/kubernetes/scripts && ./build_deployment_file.sh
 
-deploy: build-driver-container manifests
+deploy: manifests
 	echo "Deploying YAML files.."
-	kubectl delete -f deploy/kubernetes/deployment.yaml
-	kubectl create -f deploy/kubernetes/deployment.yaml
+	kubectl delete -f deploy/kubernetes/deployment.yaml ; kubectl create -f deploy/kubernetes/deployment.yaml
