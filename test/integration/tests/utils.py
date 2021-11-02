@@ -1,4 +1,5 @@
 import logging
+import os
 import subprocess
 import sys
 import time
@@ -10,6 +11,7 @@ import kubernetes
 from kubernetes.client.rest import ApiException
 
 from kubernetes import client, config
+from kubernetes.stream import stream
 
 from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from NVMeshSDK.Consts import RAIDLevels
@@ -17,8 +19,12 @@ from NVMeshSDK.MongoObj import MongoObj
 from driver import consts
 
 SERVICE_ACCOUNT_NAME = 'csi-driver-test-account'
+TEST_LABEL_KEY = 'nvmesh-csi-testing'
 
-config.load_kube_config()
+try:
+	config.load_incluster_config()
+except:
+	config.load_kube_config()
 
 configuration = client.Configuration()
 configuration.verify_ssl = False
@@ -28,7 +34,7 @@ core_api = client.CoreV1Api()
 storage_api = client.StorageV1Api()
 apps_api = client.AppsV1Api()
 
-IO_TEST_IMAGE_NAME = 'excelero/io-tools:1.0.0'
+TEST_IMAGE_NAME = 'centos:7'
 
 class TestConfig(object):
 	TestNamespace = 'test-csi-driver-integration'
@@ -52,10 +58,12 @@ def parse_config_from_file(test_config):
 		raise
 
 def load_test_config_file():
-	test_config_path = environ.get('TEST_CONFIG_PATH') or '../../config.yaml'
+	test_config_path = environ.get('TEST_CONFIG_PATH') or os.path.join(os.getcwd(), '../../config.yaml')
 	try:
-		with open(test_config_path) as fp:
+		with open(test_config_path, 'r') as fp:
 			test_config = yaml.safe_load(fp)
+			if not test_config:
+				raise ValueError('Empty Config File')
 	except Exception as ex:
 		print('Failed to load test config file at %s. Error: %s' % (test_config_path, ex))
 		raise
@@ -90,11 +98,13 @@ print_test_config()
 
 def create_logger():
 	logger_instance = logging.getLogger('test')
-	logger_instance.setLevel(logging.DEBUG)
 
 	handler = logging.StreamHandler(sys.stdout)
-	handler.setLevel(logging.DEBUG)
-
+	stdout_log_level = environ.get('TEST_STDOUT_LOG_LEVEL', None)
+	handler.setLevel(stdout_log_level or logging.DEBUG)
+	logger_instance.setLevel(stdout_log_level or logging.DEBUG)
+	sdk_logger = logging.getLogger('NVMeshSDK')
+	sdk_logger.setLevel(stdout_log_level or logging.DEBUG)
 	formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', "%H:%M:%S")
 
 	handler.setFormatter(formatter)
@@ -135,7 +145,7 @@ class TestUtils(object):
 
 	@staticmethod
 	def run_unittest():
-		unittest.main(testRunner=unittest.TextTestRunner(resultclass=CollectCsiLogsTestResult))
+		unittest.main(verbosity=2, testRunner=unittest.TextTestRunner(resultclass=CollectCsiLogsTestResult))
 
 	@staticmethod
 	def clear_environment():
@@ -220,12 +230,11 @@ class KubeUtils(object):
 
 	@staticmethod
 	def delete_all_non_default_storage_classes():
-		sc_list = storage_api.list_storage_class()
+		sc_list = storage_api.list_storage_class(label_selector=TEST_LABEL_KEY)
 		for storage_class in sc_list.items:
 			name = storage_class.metadata.name
-			if not name.startswith('nvmesh-'):
-				logger.debug('Deleting StorageClass {}'.format(name))
-				storage_api.delete_storage_class(name)
+			logger.debug('Deleting StorageClass {}'.format(name))
+			storage_api.delete_storage_class(name)
 
 	@staticmethod
 	def create_namespace(ns):
@@ -262,7 +271,8 @@ class KubeUtils(object):
 			'kind': 'StorageClass',
 			'metadata': {
 			  'name': name,
-			  'namespace': TestConfig.TestNamespace
+			  'namespace': TestConfig.TestNamespace,
+			  'labels': KubeUtils.get_test_labels()
 			},
 			'provisioner': 'nvmesh-csi.excelero.com',
 			'allowVolumeExpansion': True,
@@ -386,7 +396,7 @@ class KubeUtils(object):
 
 	@staticmethod
 	def delete_all_pvcs():
-		pvcs_res= core_api.list_namespaced_persistent_volume_claim(TestConfig.TestNamespace)
+		pvcs_res= core_api.list_namespaced_persistent_volume_claim(TestConfig.TestNamespace, label_selector=TEST_LABEL_KEY)
 
 		for pvc in pvcs_res.items:
 			core_api.delete_namespaced_persistent_volume_claim(pvc.metadata.name, namespace=TestConfig.TestNamespace)
@@ -401,7 +411,8 @@ class KubeUtils(object):
 			'kind': 'PersistentVolumeClaim',
 			'metadata': {
 				'name': pvc_name,
-				'namespace': TestUtils.get_test_namespace()
+				'namespace': TestUtils.get_test_namespace(),
+				'labels': KubeUtils.get_test_labels()
 			},
 			'spec': {
 				'accessModes': access_modes or ['ReadWriteOnce'],
@@ -425,15 +436,18 @@ class KubeUtils(object):
 
 	@staticmethod
 	def get_pod_template(pod_name, spec, app_label=None):
+		labels = KubeUtils.get_test_labels()
+		labels.update({
+			'app': app_label or pod_name
+		})
+
 		pod = {
 			'apiVersion': 'v1',
 			'kind': 'Pod',
 			'metadata': {
 				'name': pod_name,
 				'namespace': TestConfig.TestNamespace,
-				'labels': {
-					'app': app_label or pod_name
-				}
+				'labels': labels
 			},
 			'spec': spec
 		}
@@ -478,7 +492,7 @@ class KubeUtils(object):
 		return KubeUtils.wait_for_pod_status(pod_name, 'Succeeded', attempts)
 
 	@staticmethod
-	def wait_for_pod_status(pod_name, expected_status, attempts=60):
+	def wait_for_pod_status(pod_name, expected_status, attempts=90):
 		status = None
 		pod = None
 		while attempts > 0:
@@ -523,7 +537,7 @@ class KubeUtils(object):
 
 	@staticmethod
 	def delete_all_pods():
-		pods = core_api.list_namespaced_pod(TestConfig.TestNamespace)
+		pods = core_api.list_namespaced_pod(TestConfig.TestNamespace, label_selector=TEST_LABEL_KEY)
 
 		for pod in pods.items:
 			KubeUtils.delete_pod(pod.metadata.name)
@@ -533,7 +547,7 @@ class KubeUtils(object):
 
 	@staticmethod
 	def delete_all_deployments():
-		deps = apps_api.list_namespaced_deployment(TestConfig.TestNamespace)
+		deps = apps_api.list_namespaced_deployment(TestConfig.TestNamespace, label_selector=TEST_LABEL_KEY)
 
 		for deployment in deps.items:
 			name = deployment.metadata.name
@@ -545,11 +559,15 @@ class KubeUtils(object):
 		core_api.patch_namespaced_persistent_volume_claim(pvc_name, TestConfig.TestNamespace, pvc_patch)
 
 	@staticmethod
-	def run_command_in_container(pod_name, command):
-		cmd = 'kubectl exec -n {ns} {pod} -- {cmd}'.format(ns=TestConfig.TestNamespace, pod=pod_name, cmd=command)
-		p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		stdout, stderr = p.communicate()
-		return stdout
+	def run_command_in_container(pod_name, command_as_arr):
+		response = stream(core_api.connect_get_namespaced_pod_exec,
+					pod_name,
+					TestConfig.TestNamespace,
+					command=command_as_arr,
+					stderr=True, stdin=False,
+					stdout=True, tty=False)
+		logger.debug("run_command_in_container response: %s" % response)
+		return response
 
 	@staticmethod
 	def get_fs_consumer_pod_template(pod_name, pvc_name):
@@ -557,17 +575,8 @@ class KubeUtils(object):
 			'containers': [
 				{
 					'name': 'fs-consumer',
-					'image': IO_TEST_IMAGE_NAME,
-					'env': [
-						{
-							'name': 'VOLUME_TYPE',
-							'value': 'Filesystem'
-						},
-						{
-							'name': 'VOLUME_PATH',
-							'value': '/mnt/vol'
-						}
-					],
+					'image': TEST_IMAGE_NAME,
+					'command': ['/bin/sh', '-c', 'while true; do ls -l /mnt/vol; sleep 1 ; done'],
 					'volumeMounts': [
 						{
 							'name': 'fs-volume',
@@ -596,7 +605,7 @@ class KubeUtils(object):
 			'containers': [
 				{
 					'name': 'container-{}'.format(pod_name),
-					'image': 'alpine',
+					'image': 'alpine:3',
 					'command': ["/bin/sh"],
 					'args': ["-c", cmd],
 					'volumeMounts': [
@@ -635,17 +644,8 @@ class KubeUtils(object):
 			'containers': [
 				{
 					'name': 'block-volume-consumer',
-					'image': IO_TEST_IMAGE_NAME,
-					'env': [
-						{
-							'name': 'VOLUME_TYPE',
-							'value': 'Block'
-						},
-						{
-							'name': 'VOLUME_PATH',
-							'value': '/dev/my_block_dev'
-						}
-					],
+					'image': TEST_IMAGE_NAME,
+					'command': ['/bin/sh', '-c', 'while true; do ls -l /dev/my_block_dev; sleep 1 ; done'],
 					'volumeDevices': [
 						{
 							'name': 'block-volume',
@@ -676,7 +676,8 @@ class KubeUtils(object):
 				"name": name,
 				"namespace": TestConfig.TestNamespace,
 				"labels": {
-					"app": "test-container-migration"
+					"app": "test-container-migration",
+					TEST_LABEL_KEY: ""
 				}
 			},
 			"spec": {
@@ -689,7 +690,8 @@ class KubeUtils(object):
 				"template": {
 					"metadata": {
 						"labels": {
-							"app": name
+							"app": name,
+							TEST_LABEL_KEY: ""
 						}
 					},
 					"spec": pod_spec
@@ -720,7 +722,7 @@ class KubeUtils(object):
 
 		def cleanup_volume():
 			KubeUtils.delete_pvc(pvc_name)
-			KubeUtils.wait_for_pvc_to_delete(pvc_name)
+			KubeUtils.wait_for_pvc_to_delete(pvc_name, attempts=60)
 
 		unittest_instance.addCleanup(cleanup_volume)
 
@@ -747,11 +749,12 @@ class KubeUtils(object):
 		while attempts:
 			attempts = attempts - 1
 			# check block device size in container
-			stdout = KubeUtils.run_command_in_container(pod_name, 'lsblk')
+			stdout = KubeUtils.run_command_in_container(pod_name, ['lsblk'])
 			if stdout:
 				lines = stdout.split('\n')
 				for line in lines:
 					if nvmesh_vol_name in line:
+						logger.debug('found nvmesh volume line = %s' % line)
 						columns = line.split()
 						size = columns[3]
 						break
@@ -761,7 +764,7 @@ class KubeUtils(object):
 				return
 			else:
 				logger.debug('Waiting for block device to extend to {} current size is {}'.format(new_size, size))
-
+				logger.debug('lsblk output = %s' % stdout)
 			time.sleep(1)
 
 		unittest_instance.assertEqual(size, new_size, 'Timed out waiting for Block Device to resize')
@@ -792,10 +795,9 @@ class KubeUtils(object):
 
 	@staticmethod
 	def delete_all_testing_pv():
-		pv_list = core_api.list_persistent_volume()
+		pv_list = core_api.list_persistent_volume(label_selector=TEST_LABEL_KEY)
 		for pv in pv_list.items:
-			if pv.metadata.name.startswith('csi-testing'):
-				KubeUtils.delete_pv(pv.metadata.name)
+			KubeUtils.delete_pv(pv.metadata.name)
 
 	@staticmethod
 	def delete_pv(pv_name):
@@ -806,7 +808,7 @@ class KubeUtils(object):
 		KubeUtils.wait_for_pv_status(pv_name, expected_status='Released')
 
 	@staticmethod
-	def wait_for_pv_status(pv_name, expected_status, attempts=30):
+	def wait_for_pv_status(pv_name, expected_status, attempts=60):
 		status = None
 		pv = None
 		while attempts > 0:
@@ -823,7 +825,7 @@ class KubeUtils(object):
 		raise TestError('Timed out waiting for pv {} to be {}, current status: {}, reason: {}'.format(pv_name, expected_status, status, pv.status.reason))
 
 	@staticmethod
-	def wait_for_pv_to_delete(pv_name, attempts=30):
+	def wait_for_pv_to_delete(pv_name, attempts=60):
 		while attempts > 0:
 			try:
 				pv = KubeUtils.get_pv_by_name(pv_name)
@@ -869,12 +871,21 @@ class KubeUtils(object):
 		all_nodes = KubeUtils.get_all_nodes()
 		zones = {}
 		for node in all_nodes:
-			zone = node.metadata.labels[consts.TopologyKey.ZONE]
+			zone = node.metadata.labels.get(consts.TopologyKey.ZONE, 'not-in-nvmesh-zone')
 			if not zone in zones:
 				zones[zone] = []
 
 			zones[zone].append(node.metadata.name)
 		return zones
+
+	@staticmethod
+	def get_test_labels():
+		labels = {
+			TEST_LABEL_KEY: '',
+		}
+
+		return labels
+
 
 class NVMeshUtils(object):
 	@staticmethod

@@ -9,13 +9,15 @@ from socket import error as socket_error
 
 sslopt = {"cert_reqs": ssl.CERT_NONE}
 
-logger = logging.getLogger('mgmt-ws-client')
-formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+logger_need_initialization = not 'mgmt-ws-client' in logging.Logger.manager.loggerDict
 
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger('mgmt-ws-client')
+if logger_need_initialization:
+	formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+	handler = logging.StreamHandler(sys.stdout)
+	handler.setFormatter(formatter)
+	logger.addHandler(handler)
+	logger.setLevel(logging.DEBUG)
 
 
 class EmptyResponseFromServer(Exception):

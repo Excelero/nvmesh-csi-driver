@@ -1,3 +1,5 @@
+import subprocess
+
 from grpc import StatusCode
 from grpc._channel import _Rendezvous
 
@@ -26,3 +28,21 @@ def CatchRequestErrors(func):
 			handleGRPCError(func.__name__, ex)
 
 	return func_wrapper
+
+def print_docker_logs(container_name):
+	try:
+		subprocess.check_output(['docker', 'logs', container_name])
+	except Exception as ex:
+		print(ex)
+
+def CatchNodeDriverErrors(container_name):
+	def decorator(func):
+		def func_wrapper(*args, **kwargs):
+			try:
+				func(*args, **kwargs)
+			except _Rendezvous as ex:
+				print_docker_logs(container_name)
+				handleGRPCError(func.__name__, ex)
+
+		return func_wrapper
+	return decorator

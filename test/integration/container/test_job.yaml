@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: csi-integration-test
+  labels:
+    nvmesh-csi-testing: ""
+spec:
+  template:
+    spec:
+      serviceAccountName: nvmesh-csi-tester
+      containers:
+      - name: test
+        image: registry.excelero.com/dev/nvmesh-csi-test-tool:0.0.8
+        imagePullPolicy: Always
+        args:
+          - --clean-up-before-start
+          - --log-level
+          - DEBUG
+          - --all
+          # - --tests
+          #- test_migration.TestMigration.test_migration
+          #- test_access_modes.TestAccessModes.test_read_write_once
+          #- test_block_volume.TestBlockVolume.test_block_volume_extend
+          # - test_file_system_volume
+          #- test_default_storage_classes.TestAllRAIDTypes
+          #- test_default_storage_classes.TestAllRAIDTypes.test_concatenated
+          #- test_default_storage_classes.TestAllRAIDTypes.test_raid0
+      restartPolicy: Never
+  backoffLimit: 0

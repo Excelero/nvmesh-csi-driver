@@ -2,6 +2,8 @@ kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
   name: nvmesh-with-topology
+  labels:
+    nvmesh-csi-testing: ""
 provisioner: nvmesh-csi.excelero.com
 allowVolumeExpansion: true
 volumeBindingMode: WaitForFirstConsumer

@@ -377,7 +377,7 @@ class NVMeshControllerService(ControllerServicer):
 	def ControllerExpandVolume(self, request, context):
 		capacity_in_bytes = request.capacity_range.required_bytes
 		zone, nvmesh_vol_name = Utils.zone_and_vol_name_from_co_id(request.volume_id)
-		log = logging.getLogger('ExpandVolume-%s' % nvmesh_vol_name)
+		log = self.logger.getChild('ExpandVolume-%s' % nvmesh_vol_name)
 
 		volume_api = VolumeAPIPool.get_volume_api_for_zone(zone, log)
 		volume = self.get_nvmesh_volume(volume_api, nvmesh_vol_name)

@@ -26,11 +26,10 @@ class NVMeshCSIDriverServer(object):
 		self.driver_type = driver_type
 
 		config_module.config_loader.load()
-
-		self.logger = LoggerUtils.init_root_logger()
-		self.stop_event = threading.Event()
-
+		self.logger = LoggerUtils.init_root_logger().getChild('CSIDriver')
 		LoggerUtils.init_sdk_logger()
+
+		self.stop_event = threading.Event()
 
 		self.logger.info("NVMesh CSI Driver Type: {} Version: {}".format(self.driver_type, Config.DRIVER_VERSION))
 
@@ -46,7 +45,7 @@ class NVMeshCSIDriverServer(object):
 		self.shouldContinue = True
 
 		def shutdown(signum, frame):
-			log('Received signal {}. Stoping the server'.format(signum))
+			self.logger.info('Received signal {}. Stopping the server'.format(signum))
 			self.stop()
 
 		signal.signal(signal.SIGTERM, shutdown)

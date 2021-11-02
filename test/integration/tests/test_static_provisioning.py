@@ -56,7 +56,7 @@ class TestStaticProvisioning(unittest.TestCase):
 
 		# Create Consumer pod
 		pod_name = 'pod-static-prov'
-		cmd = 'echo hello ; while true ; do wait 1; done'
+		cmd = 'echo hello ; while true ; do sleep 60; done'
 		pod = KubeUtils.get_shell_pod_template(pod_name, pvc_name, cmd, volume_mode_block=True)
 		KubeUtils.create_pod(pod)
 

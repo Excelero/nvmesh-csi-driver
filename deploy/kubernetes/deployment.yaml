@@ -349,7 +349,7 @@ subjects:
     namespace: nvmesh-csi
 roleRef:
   kind: ClusterRole
-  name: nvmesh-csi-use-psp
+  name: psp:nvmesh-csi
   apiGroup: rbac.authorization.k8s.io
 ---
 # Source: nvmesh-csi-driver/templates/rbac-permissions.yaml

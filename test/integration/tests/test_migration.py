@@ -37,12 +37,13 @@ class TestMigration(unittest.TestCase):
 		initial_pod_name = pod.metadata.name
 		# Set node as NoSchedule
 		initial_node = pod.spec.node_name
+		logger.debug("Tainting node %s with noSchedule" % initial_node)
 		KubeUtils.node_prevent_schedule(initial_node)
 		self.addCleanup(lambda: KubeUtils.node_allow_schedule(initial_node))
 
 		# Delete the pod (it is expected to be re-created on a different node
 		KubeUtils.delete_pod(initial_pod_name)
-		KubeUtils.wait_for_pod_to_delete(initial_pod_name)
+		KubeUtils.wait_for_pod_to_delete(initial_pod_name, attempts=120)
 
 		# Get the second Pod
 		pods = KubeUtils.get_pods_for_deployment(dep_name)

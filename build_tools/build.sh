@@ -7,15 +7,8 @@ DOCKER_OR_PODMAN=docker
 ONLY_MANIFESTS=false
 BUILD_CLUSTER_SIM=false
 
-get_version() {
-    VERSION=$(git describe | cut -f1 -d '-')
-    BUILD=$(git describe | cut -f2 -d '-')
-    COMMIT=$(git describe | cut -f3 -d '-')
+source ../get_version_info.sh
 
-    DRIVER_VERSION="${VERSION}-${BUILD}"
-}
-
-get_version
 if [ -z "$DRIVER_VERSION" ]; then
     echo "Could not get version from git describe output: $(git describe)"
     exit 1

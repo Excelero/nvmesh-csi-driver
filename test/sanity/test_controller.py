@@ -1,7 +1,5 @@
-import json
 import logging
 import os
-import signal
 import threading
 import time
 import unittest
@@ -10,7 +8,7 @@ from threading import Thread
 from grpc import StatusCode
 from grpc._channel import _Rendezvous
 
-from driver.config import Config, print_config
+from driver.config import Config
 from driver.csi.csi_pb2 import TopologyRequirement, Topology
 from driver.topology_utils import RoundRobinZonePicker
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
@@ -43,6 +41,8 @@ TOPO_REQ_MULTIPLE_TOPOLOGIES = TopologyRequirement(
 
 os.environ['DEVELOPMENT'] = 'TRUE'
 
+log = logging.getLogger('SanityTests')
+
 class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 	driver_server = None
 	cluster1 = None
@@ -52,6 +52,7 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 
 	@classmethod
 	def setUpClass(cls):
+		super(TestControllerServiceWithoutTopology, cls).setUpClass()
 		cls.cluster1 = NVMeshCluster('cluster_' + cls.__name__)
 		cls.cluster1.start()
 
@@ -66,7 +67,6 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 		}
 
 		ConfigLoaderMock(config).load()
-		print_config()
 		cls.driver_server = start_server(Consts.DriverType.Controller, config=config)
 		cls.ctrl_client = ControllerClient()
 
@@ -124,15 +124,15 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 	@CatchRequestErrors
 	def test_validate_volume_capabilities(self):
 		msg = self.ctrl_client.ValidateVolumeCapabilities(volume_id="vol_1")
-		print(msg)
+		log.debug(msg)
 
-	@CatchRequestErrors
-	@unittest.skip('ListVolumes need to be updated to use new NVMeshSDK')
-	def test_list_volumes(self):
-		msg = self.ctrl_client.ListVolumes(max_entries=2)
-		print(msg.entries)
-		msg = self.ctrl_client.ListVolumes(max_entries=2, starting_token=msg.next_token)
-		print(msg.entries)
+	# @CatchRequestErrors
+	# @unittest.skip('ListVolumes need to be updated to use new NVMeshSDK')
+	# def test_list_volumes(self):
+	# 	msg = self.ctrl_client.ListVolumes(max_entries=2)
+	# 	print(msg.entries)
+	# 	msg = self.ctrl_client.ListVolumes(max_entries=2, starting_token=msg.next_token)
+	# 	print(msg.entries)
 
 	@CatchRequestErrors
 	def test_controller_get_capabilities(self):
@@ -204,7 +204,6 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 		}
 
 		ConfigLoaderMock(config).load()
-		print_config()
 		cls.driver_server = start_server(Consts.DriverType.Controller, config=config)
 		cls.ctrl_client = ControllerClient()
 
@@ -278,7 +277,7 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 		for t in threads:
 			t.join()
 
-		print('All create threads finished')
+		log.info('All create threads finished')
 
 		threads = []
 		for volume_id in volume_ids:
@@ -305,7 +304,7 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 		self.addCleanup(lambda: self.ctrl_client.DeleteVolume(volume_id=volume_id))
 
 		accessible_topology = response.volume.accessible_topology
-		print('Got volume with accessible_topology=%s' % accessible_topology)
+		log.debug('Got volume with accessible_topology=%s' % accessible_topology)
 		got = accessible_topology[0].segments.get(Consts.TopologyKey.ZONE)
 		all_options = map(lambda x: x.segments.get(Consts.TopologyKey.ZONE), TOPO_REQ_MULTIPLE_TOPOLOGIES.preferred)
 		self.assertIn(got, all_options)
@@ -321,7 +320,7 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 			self.ctrl_client.CreateVolume(name=VOL_2_ID, capacity_in_bytes=1 * GB, parameters=parameters, topology_requirements=wrong_topology_req)
 			self.fail('Expected ValueError exception')
 		except _Rendezvous as ex:
-			print(ex)
+			log.debug(ex)
 			self.assertTrue("Zone wrong_zone missing from Config.topology" in ex.details())
 
 	@CatchRequestErrors
@@ -343,7 +342,7 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 	@CatchRequestErrors
 	def test_validate_volume_capabilities(self):
 		msg = self.ctrl_client.ValidateVolumeCapabilities(volume_id="vol_1")
-		print(msg)
+		log.debug(msg)
 
 	@CatchRequestErrors
 	def test_controller_get_capabilities(self):
@@ -366,10 +365,10 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 		original_size = 5*GB
 		new_size = 10*GB
 		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
-		print('TOPOLOGY_TYPE=%s' % Config.TOPOLOGY_TYPE)
+		log.debug('TOPOLOGY_TYPE=%s' % Config.TOPOLOGY_TYPE)
 		msg = self.ctrl_client.CreateVolume(name="vol_to_extend", capacity_in_bytes=original_size, parameters=parameters, topology_requirements=DEFAULT_TOPOLOGY_REQUIREMENTS)
 		volume_id = msg.volume.volume_id
-		print(volume_id)
+		log.debug(volume_id)
 		msg = self.ctrl_client.ControllerExpandVolume(volume_id=volume_id, new_capacity_in_bytes=new_size)
 		self.ctrl_client.DeleteVolume(volume_id=volume_id)
 
@@ -725,7 +724,7 @@ class TestServerShutdown(TestCaseWithServerRunning):
 		self.addCleanup(lambda: cluster.stop())
 
 		config = {
-			'MANAGEMENT_SERVERS': SanityTestConfig.ManagementServers[0],
+			'MANAGEMENT_SERVERS': 'localhost:4000',
 			'MANAGEMENT_PROTOCOL': 'https',
 			'MANAGEMENT_USERNAME': 'admin@excelero.com',
 			'MANAGEMENT_PASSWORD': 'admin',
@@ -747,13 +746,13 @@ class TestServerShutdown(TestCaseWithServerRunning):
 				parameters=parameters,
 				topology_requirements=TOPO_REQ_MULTIPLE_TOPOLOGIES)
 
-			print('create_volume returned %s' % res)
+			log.debug('create_volume returned %s' % res)
 			response_bucket.append(res.volume.volume_id)
 
 		t = threading.Thread(target=create_volume, args=(response_bucket,))
 		t.start()
 		time.sleep(2)
-		print('shutting the server down')
+		log.debug('shutting the server down')
 		driver_server.stop()
 
 		# if volume_id is None that means the thread pre-maturely terminated
@@ -761,7 +760,7 @@ class TestServerShutdown(TestCaseWithServerRunning):
 
 	def test_simple_termination(self):
 		config = {
-			'MANAGEMENT_SERVERS': SanityTestConfig.ManagementServers[0],
+			'MANAGEMENT_SERVERS': 'localhost:4000',
 			'MANAGEMENT_PROTOCOL': 'https',
 			'MANAGEMENT_USERNAME': 'admin@excelero.com',
 			'MANAGEMENT_PASSWORD': 'admin',
@@ -769,7 +768,7 @@ class TestServerShutdown(TestCaseWithServerRunning):
 			'TOPOLOGY': None
 		}
 
-		driver_server = start_server(Consts.DriverType.Controller, config=config)
+		driver_server = start_server(Consts.DriverType.Controller, config=config, wait_for_grpc=False)
 		time.sleep(3)
 		driver_server.stop()
 

@@ -39,8 +39,8 @@ metadata:
 spec:
       containers:
       - name: c-1
-        image: alpine
-        command: ["/bin/sh", "-c", "echo hello ; while true ; do wait 1; done"]
+        image: alpine:3
+        command: ["/bin/sh", "-c", "echo hello ; while true ; do sleep 1; done"]
         volumeDevices:
             - name: vol
               devicePath: /vol
