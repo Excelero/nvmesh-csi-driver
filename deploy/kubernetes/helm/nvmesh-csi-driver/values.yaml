@@ -13,6 +13,9 @@ features:
 config:
   protocol: https
   servers: n115:4000
+  # logLevel: DEBUG
+  # sdkLogLevel: DEBUG
+  # kubeClientLogLevel: INFO
   # use the format of <ip:port> or <hostname:port> pointing to your management server REST interface
   # To combine with nvmesh-management container in kubernetes, please use the following service reference for management.servers
   #management.servers: "nvmesh-management-svc.nvmesh.svc.cluster.local:4000"
