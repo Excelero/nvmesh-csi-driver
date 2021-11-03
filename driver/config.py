@@ -110,10 +110,10 @@ class ConfigLoader(object):
 		Config.USE_PREEMPT = _get_config_map_param('usePreempt', False)
 
 		if not Config.TOPOLOGY:
-		    Config.MANAGEMENT_SERVERS = _get_config_map_param('management.servers') or _get_env_var('MANAGEMENT_SERVERS')
-		    Config.MANAGEMENT_PROTOCOL = _get_config_map_param('management.protocol') or _get_env_var('MANAGEMENT_PROTOCOL', default='https')
-		    Config.MANAGEMENT_USERNAME = _get_env_var('MANAGEMENT_USERNAME', default='admin@excelero.com')
-		    Config.MANAGEMENT_PASSWORD = _get_env_var('MANAGEMENT_PASSWORD', default='admin')
+			Config.MANAGEMENT_SERVERS = _get_config_map_param('management.servers') or _get_env_var('MANAGEMENT_SERVERS')
+			Config.MANAGEMENT_PROTOCOL = _get_config_map_param('management.protocol') or _get_env_var('MANAGEMENT_PROTOCOL', default='https')
+			Config.MANAGEMENT_USERNAME = _get_env_var('MANAGEMENT_USERNAME', default='admin@excelero.com')
+			Config.MANAGEMENT_PASSWORD = _get_env_var('MANAGEMENT_PASSWORD', default='admin')
 
 		ConfigValidator().validate()
 		print("Loaded Config with SOCKET_PATH={}, MANAGEMENT_SERVERS={}, DRIVER_NAME={}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS, Config.DRIVER_NAME))
