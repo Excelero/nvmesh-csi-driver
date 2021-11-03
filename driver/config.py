@@ -90,10 +90,6 @@ def print_config():
 
 class ConfigLoader(object):
 	def load(self):
-		Config.MANAGEMENT_SERVERS = _get_config_map_param('management.servers') or _get_env_var('MANAGEMENT_SERVERS')
-		Config.MANAGEMENT_PROTOCOL = _get_config_map_param('management.protocol') or _get_env_var('MANAGEMENT_SERVERS', default='https')
-		Config.MANAGEMENT_USERNAME = _get_env_var('MANAGEMENT_USERNAME', default='admin@excelero.com')
-		Config.MANAGEMENT_PASSWORD = _get_env_var('MANAGEMENT_PASSWORD', default='admin')
 		Config.SOCKET_PATH = _get_env_var('SOCKET_PATH', default=Consts.DEFAULT_UDS_PATH)
 		Config.DRIVER_NAME = _get_env_var('DRIVER_NAME', default=Consts.DEFAULT_DRIVER_NAME)
 
@@ -110,6 +106,12 @@ class ConfigLoader(object):
 		Config.ZONE_MAX_DISABLED_TIME_IN_SECONDS = _get_config_map_param('zoneMaxDisabledTimeInSeconds', 120)
 		Config.TOPOLOGY_CONFIG_MAP_NAME = _get_config_map_param('topologyConfigMapName', 'nvmesh-csi-topology')
 		Config.CSI_CONFIG_MAP_NAME = _get_config_map_param('csiConfigMapName', 'nvmesh-csi-config')
+
+		if not Config.TOPOLOGY:
+		    Config.MANAGEMENT_SERVERS = _get_config_map_param('management.servers') or _get_env_var('MANAGEMENT_SERVERS')
+		    Config.MANAGEMENT_PROTOCOL = _get_config_map_param('management.protocol') or _get_env_var('MANAGEMENT_PROTOCOL', default='https')
+		    Config.MANAGEMENT_USERNAME = _get_env_var('MANAGEMENT_USERNAME', default='admin@excelero.com')
+		    Config.MANAGEMENT_PASSWORD = _get_env_var('MANAGEMENT_PASSWORD', default='admin')
 
 		ConfigValidator().validate()
 		print("Loaded Config with SOCKET_PATH={}, MANAGEMENT_SERVERS={}, DRIVER_NAME={}".format(Config.SOCKET_PATH, Config.MANAGEMENT_SERVERS, Config.DRIVER_NAME))

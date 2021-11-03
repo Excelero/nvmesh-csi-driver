@@ -53,6 +53,7 @@ spec:
               value: "{{ .Values.driverName }}"
             - name: SOCKET_PATH
               value: unix:///csi/ctrl-csi.sock
+{{- if and (not .Values.config.topology) (not .Values.config.topologyJsonFilePath) }}
             - name: MANAGEMENT_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -63,6 +64,7 @@ spec:
                 secretKeyRef:
                   name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: password
+{{- end }}
           volumeMounts:
             - name: config-volume
               mountPath: /config
@@ -169,6 +171,7 @@ spec:
               value: "{{ .Values.driverName }}"
             - name: SOCKET_PATH
               value: unix:///csi/csi.sock
+{{- if and (not .Values.config.topology) (not .Values.config.topologyJsonFilePath) }}
             - name: MANAGEMENT_SERVERS
               valueFrom:
                 configMapKeyRef:
@@ -189,6 +192,7 @@ spec:
                 secretKeyRef:
                   name: {{ template "nvmesh-csi-driver.fullname" . }}-credentials
                   key: password
+{{- end }}
           volumeMounts:
             - name: config-volume
               mountPath: /config

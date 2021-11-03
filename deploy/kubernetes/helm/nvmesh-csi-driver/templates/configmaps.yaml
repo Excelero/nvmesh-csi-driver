@@ -6,8 +6,10 @@ metadata:
   labels:
     {{- include "nvmesh-csi-driver.labels" . | nindent 4 }}
 data:
+{{- if and (not .Values.config.topology) (not .Values.config.topologyJsonFilePath) }}
   management.protocol: {{ .Values.config.protocol }}
   management.servers: {{ .Values.config.servers }}
+{{- end }}
   attachIOEnabledTimeout: "{{ .Values.config.attachIOEnabledTimeout }}"
   printStackTraces: "{{ .Values.config.printStackTraces }}"
 {{- if .Values.config.logLevel }}
@@ -19,9 +21,15 @@ data:
 {{- if .Values.config.kubeClientLogLevel }}
   kubeClientLogLevel: {{ .Values.config.kubeClientLogLevel }}
 {{- end }}
-{{- if .Values.config.topologyJsonFilePath }}
+  csiConfigMapName: {{ template "nvmesh-csi-driver.fullname" . }}-config
+  topologyConfigMapName: {{ template "nvmesh-csi-driver.fullname" . }}-topology
+{{- if or .Values.config.topology .Values.config.topologyJsonFilePath }}
   topology: |-
+{{- if .Values.config.topology }}
+{{ .Values.config.topology | toPrettyJson | indent 4 }}
+{{- else if .Values.config.topologyJsonFilePath }}
 {{ printf .Values.config.topologyJsonFilePath | .Files.Get | indent 4 }}
+{{- end }}
 {{- end }}
 ---
 kind: ConfigMap

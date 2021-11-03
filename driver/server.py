@@ -53,7 +53,7 @@ class NVMeshCSIDriverServer(object):
 
 
 	def serve(self):
-		self.logger.info("Config Topology Type{}".format(Config.TOPOLOGY_TYPE))
+		self.logger.info("Config Topology Type {}".format(Config.TOPOLOGY_TYPE))
 
 		logging_interceptor = ServerLoggingInterceptor(self.logger)
 		self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10), interceptors=(logging_interceptor,))
