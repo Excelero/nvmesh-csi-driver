@@ -30,6 +30,7 @@ class Config(object):
 	ZONE_MAX_DISABLED_TIME_IN_SECONDS = None
 	TOPOLOGY_CONFIG_MAP_NAME = None
 	CSI_CONFIG_MAP_NAME = None
+	USE_PREEMPT = None
 
 class Parsers(object):
 	@staticmethod
@@ -106,6 +107,7 @@ class ConfigLoader(object):
 		Config.ZONE_MAX_DISABLED_TIME_IN_SECONDS = _get_config_map_param('zoneMaxDisabledTimeInSeconds', 120)
 		Config.TOPOLOGY_CONFIG_MAP_NAME = _get_config_map_param('topologyConfigMapName', 'nvmesh-csi-topology')
 		Config.CSI_CONFIG_MAP_NAME = _get_config_map_param('csiConfigMapName', 'nvmesh-csi-config')
+		Config.USE_PREEMPT = _get_config_map_param('usePreempt', False)
 
 		if not Config.TOPOLOGY:
 		    Config.MANAGEMENT_SERVERS = _get_config_map_param('management.servers') or _get_env_var('MANAGEMENT_SERVERS')

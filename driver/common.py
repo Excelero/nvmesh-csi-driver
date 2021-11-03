@@ -135,8 +135,11 @@ class Utils(object):
 
 	@staticmethod
 	def _attach_volume_with_access_mode(nvmesh_volume_name, nvmesh_access_mode):
-		cmd_template = 'python {script_dir}/nvmesh_attach_volumes --wait_for_attach --json --access {access} {volume}'
-		cmd = cmd_template.format(script_dir=Config.NVMESH_BIN_PATH, access=nvmesh_access_mode, volume=nvmesh_volume_name)
+		preempt_flag = ''
+		if Config.USE_PREEMPT and nvmesh_access_mode == Consts.AccessMode.to_nvmesh(Consts.AccessMode.SINGLE_NODE_WRITER):
+			preempt_flag = '--preempt'
+		cmd_template = 'python {script_dir}/nvmesh_attach_volumes --wait_for_attach --json --access {access} {preempt} {volume}'
+		cmd = cmd_template.format(script_dir=Config.NVMESH_BIN_PATH, access=nvmesh_access_mode, preempt=preempt_flag, volume=nvmesh_volume_name)
 		exit_code, stdout, stderr = Utils.run_command(cmd)
 
 		try:
