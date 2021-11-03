@@ -735,7 +735,8 @@ class TestServerShutdown(TestCaseWithServerRunning):
 		ConfigLoaderMock(config).load()
 
 		driver_server = start_server(Consts.DriverType.Controller, config=config)
-		response_bucket = []
+		response_bucket = {}
+		response_bucket['volume_id'] = None
 
 		def create_volume(response_bucket):
 			ctrl_client = ControllerClient()
@@ -747,7 +748,7 @@ class TestServerShutdown(TestCaseWithServerRunning):
 				topology_requirements=TOPO_REQ_MULTIPLE_TOPOLOGIES)
 
 			log.debug('create_volume returned %s' % res)
-			response_bucket.append(res.volume.volume_id)
+			response_bucket['volume_id'] = res.volume.volume_id
 
 		t = threading.Thread(target=create_volume, args=(response_bucket,))
 		t.start()
@@ -756,7 +757,7 @@ class TestServerShutdown(TestCaseWithServerRunning):
 		driver_server.stop()
 
 		# if volume_id is None that means the thread pre-maturely terminated
-		self.assertTrue(response_bucket[0])
+		self.assertTrue(response_bucket['volume_id'])
 
 	def test_simple_termination(self):
 		config = {
