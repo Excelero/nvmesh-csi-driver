@@ -85,16 +85,6 @@ spec:
           volumeMounts:
             - name: plugin-socket-dir
               mountPath: /csi
-        # Attacher
-        - name: csi-attacher
-          image: "{{ .Values.csiExternalAttacher.repository }}:{{ .Values.csiExternalAttacher.tag }}"
-          imagePullPolicy: "{{ .Values.csiExternalAttacher.pullPolicy }}"
-          args:
-            - "--v=5"
-            - "--csi-address=/csi/ctrl-csi.sock"
-          volumeMounts:
-            - name: plugin-socket-dir
-              mountPath: /csi
         # Resizer
         - name: csi-resizer
           image: "{{ .Values.csiExternalResizer.repository }}:{{ .Values.csiExternalResizer.tag }}"
