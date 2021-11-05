@@ -47,6 +47,9 @@ def _read_file_contents(filename):
 	with open(filename) as fp:
 		return fp.read()
 
+def _get_boolean_config_map_param(param_name):
+	return _get_config_map_param(param_name, '').lower() == 'true'
+
 def _get_config_map_param(name, default=None):
 	value = None
 	try:
@@ -99,7 +102,7 @@ class ConfigLoader(object):
 		Config.NVMESH_VERSION_INFO = _read_bash_file(NVMESH_VERSION_FILE_PATH)
 
 		Config.ATTACH_IO_ENABLED_TIMEOUT = int(_get_config_map_param('attachIOEnabledTimeout', default=30))
-		Config.PRINT_STACK_TRACES = _get_config_map_param('printStackTraces', default=False)
+		Config.PRINT_STACK_TRACES = _get_boolean_config_map_param('printStackTraces')
 		Config.TOPOLOGY = _get_config_map_param('topology', default=None)
 		Config.LOG_LEVEL = _get_config_map_param('logLevel', default='DEBUG')
 		Config.SDK_LOG_LEVEL = _get_config_map_param('sdkLogLevel', default='DEBUG')
@@ -107,7 +110,7 @@ class ConfigLoader(object):
 		Config.ZONE_MAX_DISABLED_TIME_IN_SECONDS = _get_config_map_param('zoneMaxDisabledTimeInSeconds', 120)
 		Config.TOPOLOGY_CONFIG_MAP_NAME = _get_config_map_param('topologyConfigMapName', 'nvmesh-csi-topology')
 		Config.CSI_CONFIG_MAP_NAME = _get_config_map_param('csiConfigMapName', 'nvmesh-csi-config')
-		Config.USE_PREEMPT = _get_config_map_param('usePreempt', False)
+		Config.USE_PREEMPT = _get_boolean_config_map_param('usePreempt')
 
 		if not Config.TOPOLOGY:
 			Config.MANAGEMENT_SERVERS = _get_config_map_param('management.servers') or _get_env_var('MANAGEMENT_SERVERS')
