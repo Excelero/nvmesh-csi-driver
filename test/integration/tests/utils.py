@@ -864,14 +864,14 @@ class KubeUtils(object):
 
 	@staticmethod
 	def get_zone_from_node(node):
-		return node.metadata.labels['nvmesh-csi.excelero.com/zone']
+		return node.metadata.labels.get(consts.TopologyKey.ZONE, 'not-in-nvmesh-zone')
 
 	@staticmethod
 	def get_all_node_names_by_zone():
 		all_nodes = KubeUtils.get_all_nodes()
 		zones = {}
 		for node in all_nodes:
-			zone = node.metadata.labels.get(consts.TopologyKey.ZONE, 'not-in-nvmesh-zone')
+			zone = KubeUtils.get_zone_from_node(node)
 			if not zone in zones:
 				zones[zone] = []
 
