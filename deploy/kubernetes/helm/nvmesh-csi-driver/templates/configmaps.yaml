@@ -12,6 +12,7 @@ data:
 {{- end }}
   attachIOEnabledTimeout: "{{ .Values.config.attachIOEnabledTimeout }}"
   printStackTraces: "{{ .Values.config.printStackTraces }}"
+  usePreempt: "{{ .Values.config.usePreempt }}"
 {{- if .Values.config.logLevel }}
   logLevel: {{ .Values.config.logLevel }}
 {{- end }}
