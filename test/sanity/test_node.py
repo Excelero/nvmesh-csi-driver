@@ -163,6 +163,66 @@ print('{ "status": "success", "volumes": { "%s": { "status": "Attached IO Enable
 		r = self._client.NodeStageVolume(volume_id=VOL_ID)
 		log.debug("NodeStageVolume Finished")
 
+	@CatchRequestErrors
+	def test_cleanup_detach_after_timeout_waiting_for_io_enabled(self):
+		new_config = TestNodeService.driver_server.config.copy()
+		new_config['attachIOEnabledTimeout'] = '3'
+		self.restart_server(new_config=new_config)
+
+		TestNodeService.driver_server.set_nvmesh_detach_volumes_content("""
+import sys
+import os
+
+vol_id = sys.argv[-1]
+
+device_path = "/dev/nvmesh/%s" % vol_id
+os.remove(device_path)
+		""")
+
+		TestNodeService.driver_server.set_nvmesh_attach_volumes_content("""
+import sys
+import json
+import os
+
+MB = 1024 * 1024
+GB = MB * 1024
+vol_id = sys.argv[-1]
+
+device_path = "/dev/nvmesh/%s" % vol_id
+with open(device_path, "wb") as f:
+	f.truncate(MB * 100)
+
+proc_dir = '/simulated/proc/nvmeibc/volumes/%s'  % vol_id
+proc_status_file = "%s/status.json" % proc_dir
+
+try:
+	os.makedirs(proc_dir)
+except:
+	pass
+with open(proc_status_file, "w") as f:
+	f.write(json.dumps({'dbg':'0x300'}))
+print('{ "status": "success", "volumes": { "%s": { "status": "Attached IO Enabled" } } }' % vol_id)
+		""")
+		try:
+			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
+		except:
+			pass
+
+		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
+		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+		try:
+			r = self._client.NodeStageVolume(volume_id=VOL_ID)
+		except _Rendezvous as ex:
+			self.assertIn('Timed-out after waiting', str(ex))
+			self.assertIn('to have IO Enabled', str(ex))
+
+		attached_device_path = os.path.join(TestNodeService.driver_server.env_dir, 'dev/nvmesh/%s' % VOL_ID)
+		is_attached = os.path.exists(attached_device_path)
+		self.assertFalse(is_attached)
+
+		log.debug("NodeStageVolume Finished")
+
 	def _test_nvmesh_attach_volume_response(self, status_and_error, expected_code, expected_string_in_details):
 		TestNodeService.driver_server.set_nvmesh_attach_volumes_content("""
 import sys

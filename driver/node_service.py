@@ -56,29 +56,42 @@ class NVMeshNodeService(NodeServicer):
 			requested_nvmesh_access_mode = Consts.AccessMode.to_nvmesh(access_mode)
 			Utils.nvmesh_attach_volume(nvmesh_volume_name, requested_nvmesh_access_mode)
 
-		Utils.wait_for_volume_io_enabled(nvmesh_volume_name)
+		try:
+			Utils.wait_for_volume_io_enabled(nvmesh_volume_name)
 
-		if access_type == Consts.VolumeAccessType.MOUNT:
-			mount_request = volume_capability.mount
-			self.logger.info('Requested Mounted FileSystem Volume with fs_type={}'.format(mount_request.fs_type))
-			fs_type = mount_request.fs_type or Consts.FSType.EXT4
+			if access_type == Consts.VolumeAccessType.MOUNT:
+				mount_request = volume_capability.mount
+				self.logger.info('Requested Mounted FileSystem Volume with fs_type={}'.format(mount_request.fs_type))
+				fs_type = mount_request.fs_type or Consts.FSType.EXT4
 
-			mount_permissions, mount_options = self._parse_mount_options(mount_request)
+				mount_permissions, mount_options = self._parse_mount_options(mount_request)
 
-			FileSystemManager.format_block_device(block_device_path, fs_type)
+				FileSystemManager.format_block_device(block_device_path, fs_type)
 
-			if FileSystemManager.is_mounted(staging_target_path):
-				self.logger.warning('path {} is already mounted'.format(staging_target_path))
+				if FileSystemManager.is_mounted(staging_target_path):
+					self.logger.warning('path {} is already mounted'.format(staging_target_path))
 
-			FileSystemManager.mount(source=block_device_path, target=staging_target_path, mount_options=mount_options)
-			FileSystemManager.chmod(mount_permissions or Consts.DEFAULT_MOUNT_PERMISSIONS, staging_target_path)
-		elif access_type == Consts.VolumeAccessType.BLOCK:
-			self.logger.info('Requested Block Volume')
-			# We do not mount here, NodePublishVolume will mount directly from the block device to the publish_path
-			# This is because Kubernetes automatically creates a directory in the staging_path
+				FileSystemManager.mount(source=block_device_path, target=staging_target_path, mount_options=mount_options)
+				FileSystemManager.chmod(mount_permissions or Consts.DEFAULT_MOUNT_PERMISSIONS, staging_target_path)
+			elif access_type == Consts.VolumeAccessType.BLOCK:
+				self.logger.info('Requested Block Volume')
+				# We do not mount here, NodePublishVolume will mount directly from the block device to the publish_path
+				# This is because Kubernetes automatically creates a directory in the staging_path
 
-		else:
-			self.logger.Info('Unknown AccessType {}'.format(access_type))
+			else:
+				self.logger.info('Unknown AccessType {}'.format(access_type))
+		except Exception as staging_err:
+			# Cleanup - un-mount and detach the volume
+			try:
+				if FileSystemManager.is_mounted(staging_target_path):
+					FileSystemManager.umount(staging_target_path)
+
+				Utils.nvmesh_detach_volume(nvmesh_volume_name)
+			except Exception as cleanup_err:
+				self.logger.warning('Failed to cleanup and detach device after attached and staging failed. Error: %s' % cleanup_err)
+
+			# Re-raise the initial exception
+			raise staging_err
 
 		self.logger.debug('NodeStageVolume finished successfully for request: {}'.format(reqJson))
 		return NodeStageVolumeResponse()
