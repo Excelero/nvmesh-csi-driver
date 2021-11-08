@@ -91,7 +91,12 @@ class NVMeshControllerService(ControllerServicer):
 		volume_id_for_co = Utils.nvmesh_vol_name_to_co_id(nvmesh_vol_name, zone)
 		topology_key = TopologyUtils.get_topology_key()
 		volume_topology = Topology(segments={topology_key: zone})
-		csiVolume = Volume(volume_id=volume_id_for_co, capacity_bytes=capacity, accessible_topology=[volume_topology])
+
+		# Volume Context will be returned by the CO in NodeStageVolume and NodePublishVolume
+		volume_context = {}
+		# Add all fields from the StorageClass parameters
+		volume_context.update(reqDict['parameters'])
+		csiVolume = Volume(volume_id=volume_id_for_co, capacity_bytes=capacity, accessible_topology=[volume_topology], volume_context=volume_context)
 		return csiVolume
 
 	def create_volume_on_a_valid_zone(self, volume, zones, log):
