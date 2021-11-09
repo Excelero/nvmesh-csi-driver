@@ -11,8 +11,9 @@ from grpc._channel import _Rendezvous
 import driver.consts as Consts
 from driver import consts
 
-from driver.csi.csi_pb2 import NodeServiceCapability, Topology, VolumeCapability
+from driver.csi.csi_pb2 import NodeServiceCapability, Topology, VolumeCapability, NodePublishVolumeRequest
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
+from test.sanity.helpers.container_server_manager import NVMeshAttachScriptMockBuilder, NVMeshDetachScriptMockBuilder
 from test.sanity.helpers.setup_and_teardown import start_server, start_containerized_server
 from test.sanity.helpers.test_case_with_server import TestCaseWithServerRunning
 
@@ -128,30 +129,8 @@ class TestNodeService(TestCaseWithServerRunning):
 
 	@CatchRequestErrors
 	def test_node_stage_volume_successful(self):
-		TestNodeService.driver_server.set_nvmesh_attach_volumes_content("""
-import sys
-import json
-import os
-
-MB = 1024 * 1024
-GB = MB * 1024
-vol_id = sys.argv[-1]
-
-device_path = "/dev/nvmesh/%s" % vol_id
-with open(device_path, "wb") as f:
-	f.truncate(MB * 100)
-
-proc_dir = '/simulated/proc/nvmeibc/volumes/%s'  % vol_id
-proc_status_file = "%s/status.json" % proc_dir
-
-try:
-	os.makedirs(proc_dir)
-except:
-	pass
-with open(proc_status_file, "w") as f:
-	f.write(json.dumps({'dbg':'0x200'}))
-print('{ "status": "success", "volumes": { "%s": { "status": "Attached IO Enabled" } } }' % vol_id)
-		""")
+		nvmesh_attach_script_content = NVMeshAttachScriptMockBuilder().getDefaultSuccessBehavior()
+		TestNodeService.driver_server.set_nvmesh_attach_volumes_content(nvmesh_attach_script_content)
 		try:
 			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
 		except:
@@ -169,40 +148,12 @@ print('{ "status": "success", "volumes": { "%s": { "status": "Attached IO Enable
 		new_config['attachIOEnabledTimeout'] = '3'
 		self.restart_server(new_config=new_config)
 
-		TestNodeService.driver_server.set_nvmesh_detach_volumes_content("""
-import sys
-import os
+		nvmesh_detach_script_code = NVMeshDetachScriptMockBuilder().getDefaultSuccessBehavior()
+		TestNodeService.driver_server.set_nvmesh_detach_volumes_content(nvmesh_detach_script_code)
 
-vol_id = sys.argv[-1]
+		nvmesh_attach_script_content = NVMeshAttachScriptMockBuilder().setDbgValue('0x300').compile()
+		TestNodeService.driver_server.set_nvmesh_attach_volumes_content(nvmesh_attach_script_content)
 
-device_path = "/dev/nvmesh/%s" % vol_id
-os.remove(device_path)
-		""")
-
-		TestNodeService.driver_server.set_nvmesh_attach_volumes_content("""
-import sys
-import json
-import os
-
-MB = 1024 * 1024
-GB = MB * 1024
-vol_id = sys.argv[-1]
-
-device_path = "/dev/nvmesh/%s" % vol_id
-with open(device_path, "wb") as f:
-	f.truncate(MB * 100)
-
-proc_dir = '/simulated/proc/nvmeibc/volumes/%s'  % vol_id
-proc_status_file = "%s/status.json" % proc_dir
-
-try:
-	os.makedirs(proc_dir)
-except:
-	pass
-with open(proc_status_file, "w") as f:
-	f.write(json.dumps({'dbg':'0x300'}))
-print('{ "status": "success", "volumes": { "%s": { "status": "Attached IO Enabled" } } }' % vol_id)
-		""")
 		try:
 			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
 		except:
@@ -247,32 +198,8 @@ print('{{ "status": "success", "volumes": {{ "%s": {status_and_error} }} }}' % v
 		new_config['usePreempt'] = 'True'
 		self.restart_server(new_config=new_config)
 
-		TestNodeService.driver_server.set_nvmesh_attach_volumes_content("""
-import sys
-import json
-import os
-
-MB = 1024 * 1024
-GB = MB * 1024
-vol_id = sys.argv[-1]
-if '--preempt' not in sys.argv:
-	raise ValueError('Expected --preempt flag when AccessMode is Exclusive (ReadWriteOnce). argv=%s' % sys.argv)
-	
-device_path = "/dev/nvmesh/%s" % vol_id
-with open(device_path, "wb") as f:
-	f.truncate(MB * 100)
-
-proc_dir = '/simulated/proc/nvmeibc/volumes/%s'  % vol_id
-proc_status_file = "%s/status.json" % proc_dir
-
-try:
-	os.makedirs(proc_dir)
-except:
-	pass
-with open(proc_status_file, "w") as f:
-	f.write(json.dumps({'dbg':'0x200'}))
-print('{ "status": "success", "volumes": { "%s": { "status": "Attached IO Enabled" } } }' % vol_id)
-		""")
+		nvmesh_attach_script_content = NVMeshAttachScriptMockBuilder().makeSureArgumentExists('--preempt').compile()
+		TestNodeService.driver_server.set_nvmesh_attach_volumes_content(nvmesh_attach_script_content)
 		try:
 			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
 		except:
@@ -284,75 +211,27 @@ print('{ "status": "success", "volumes": { "%s": { "status": "Attached IO Enable
 		r = self._client.NodeStageVolume(volume_id=VOL_ID, access_type=Consts.VolumeAccessType.MOUNT, access_mode=VolumeCapability.AccessMode.SINGLE_NODE_WRITER)
 		log.debug("NodeStageVolume Finished")
 
-		@CatchRequestErrors
-		def test_attach_should_not_use_preempt_when_flag_is_set_but_mode_is_not_rwo(self):
-			TestNodeService.driver_server.set_nvmesh_attach_volumes_content("""
-	import sys
-	import json
-	import os
+	@CatchRequestErrors
+	def test_attach_should_not_use_preempt_when_flag_is_set_but_mode_is_not_rwo(self):
+		nvmesh_attach_script_content = NVMeshAttachScriptMockBuilder().makeSureArgumentDoesNotExist('--preempt').compile()
+		TestNodeService.driver_server.set_nvmesh_attach_volumes_content(nvmesh_attach_script_content)
+		try:
+			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
+		except:
+			pass
 
-	MB = 1024 * 1024
-	GB = MB * 1024
-	vol_id = sys.argv[-1]
-	if '--preempt' in sys.argv:
-		raise ValueError('Not expecting --preempt flag when the Config.preempt flag is set to false. argv=%s' % sys.argv)
-
-	device_path = "/dev/nvmesh/%s" % vol_id
-	with open(device_path, "wb") as f:
-		f.truncate(MB * 100)
-
-	proc_dir = '/simulated/proc/nvmeibc/volumes/%s'  % vol_id
-	proc_status_file = "%s/status.json" % proc_dir
-
-	try:
-		os.makedirs(proc_dir)
-	except:
-		pass
-	with open(proc_status_file, "w") as f:
-		f.write(json.dumps({'dbg':'0x200'}))
-	print('{ "status": "success", "volumes": { "%s": { "status": "Attached IO Enabled" } } }' % vol_id)
-			""")
-			try:
-				TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
-			except:
-				pass
-
-			staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
-			TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
-			TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
-			r = self._client.NodeStageVolume(volume_id=VOL_ID, access_type=Consts.VolumeAccessType.MOUNT,
-											 access_mode=VolumeCapability.AccessMode.MULTI_NODE_READER_ONLY)
-			log.debug("NodeStageVolume Finished")
+		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
+		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+		r = self._client.NodeStageVolume(volume_id=VOL_ID, access_type=Consts.VolumeAccessType.MOUNT,
+										 access_mode=VolumeCapability.AccessMode.MULTI_NODE_READER_ONLY)
+		log.debug("NodeStageVolume Finished")
 
 	@CatchRequestErrors
 	def test_attach_should_not_use_preempt_when_flag_is_not_set(self):
+		nvmesh_attach_script_content = NVMeshAttachScriptMockBuilder().makeSureArgumentDoesNotExist('--preempt').compile()
+		TestNodeService.driver_server.set_nvmesh_attach_volumes_content(nvmesh_attach_script_content)
 
-		TestNodeService.driver_server.set_nvmesh_attach_volumes_content("""
-import sys
-import json
-import os
-
-MB = 1024 * 1024
-GB = MB * 1024
-vol_id = sys.argv[-1]
-if '--preempt' in sys.argv:
-	raise ValueError('Not expecting --preempt flag when the Config.preempt flag is set to false. argv=%s' % sys.argv)
-
-device_path = "/dev/nvmesh/%s" % vol_id
-with open(device_path, "wb") as f:
-	f.truncate(MB * 100)
-
-proc_dir = '/simulated/proc/nvmeibc/volumes/%s'  % vol_id
-proc_status_file = "%s/status.json" % proc_dir
-
-try:
-	os.makedirs(proc_dir)
-except:
-	pass
-with open(proc_status_file, "w") as f:
-	f.write(json.dumps({'dbg':'0x200'}))
-print('{ "status": "success", "volumes": { "%s": { "status": "Attached IO Enabled" } } }' % vol_id)
-		""")
 		try:
 			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
 		except:
@@ -502,6 +381,44 @@ print('{ "status": "success", "volumes": { "%s": { "status": "Attached IO Enable
 			return self._client.NodeExpandVolume(volume_id=VOL_ID)
 
 		self.assertReturnsGrpcError(do_request, StatusCode.INVALID_ARGUMENT, "Device not formatted with FileSystem")
+
+	@CatchRequestErrors
+	def test_change_mount_permissions(self):
+		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
+		target_parent_dir = TARGET_PATH_PARENT_DIR_TEMPLATE.format(volume_id=VOL_ID, pod_id=DEFAULT_POD_ID)
+		target_path = target_parent_dir + '/mount'
+
+		TestNodeService.driver_server.add_nvmesh_device(VOL_ID)
+		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+		TestNodeService.driver_server.make_dir_in_env_dir(target_parent_dir)
+
+		expected_permission_mask = '600'
+
+		mount_flags = [
+			'nvmesh:chmod=%s' % (expected_permission_mask)
+		]
+
+		access_mode_obj = VolumeCapability.AccessMode(mode=VolumeCapability.AccessMode.SINGLE_NODE_WRITER)
+		mount_req = VolumeCapability.MountVolume(fs_type='xfs', mount_flags=mount_flags)
+		volume_capability = VolumeCapability(mount=mount_req, access_mode=access_mode_obj)
+
+		req = NodePublishVolumeRequest(
+			volume_id=VOL_ID,
+			staging_target_path=staging_target_path,
+			target_path=target_path,
+			volume_capability=volume_capability,
+			readonly=False
+		)
+
+		self._client.client.NodePublishVolume(req)
+
+		env_dir = TestNodeService.driver_server.env_dir
+		block_device_file_in_env_dir = os.path.join(env_dir, target_parent_dir[1:], 'mount')
+		publish_path_exists = os.path.exists(block_device_file_in_env_dir)
+		self.assertTrue(publish_path_exists)
+
+		permissions_found = TestNodeService.driver_server.run_command_in_container(['stat', '--format', '%a', target_path])
+		self.assertEquals(permissions_found.strip(), expected_permission_mask)
 
 class TestNodeServiceGracefulShutdown(TestCaseWithServerRunning):
 	def test_node_graceful_shutdown(self):

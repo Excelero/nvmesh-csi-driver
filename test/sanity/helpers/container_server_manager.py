@@ -97,6 +97,9 @@ class ContainerServerManager(object):
 		# we could just spawn a new process and call `docker logs container_name --follow`...
 		pass
 
+	def run_command_in_container(self, cmd, **kwargs):
+		return subprocess.check_output(['docker', 'exec', self.container_name] + cmd, **kwargs)
+
 	def stop(self):
 		if self.stop_container_on_finish:
 			if not self._stopped:
@@ -229,3 +232,129 @@ class ContainerServerManager(object):
 		dev_nvmesh = os.path.join(self.env_dir, 'dev/nvmesh')
 		device_file = os.path.join(dev_nvmesh, volume_id)
 		os.remove(device_file)
+
+
+class NVMeshAttachScriptMockBuilder(object):
+	"""
+	This class is a builder to create code for nvmesh_attach_volumes that will run inside the container
+	Which would simulate the script, the device file, and the proc file
+	"""
+	IO_ENABLED = '0x200'
+	ATTACHED_IO_ENABLED = "Attached IO Enabled"
+
+	def __init__(self):
+		self.create_proc_file = True
+		self.create_device_file = True
+		self.proc_dbg_value = NVMeshAttachScriptMockBuilder.IO_ENABLED
+		self.res_volume_status = NVMeshAttachScriptMockBuilder.ATTACHED_IO_ENABLED
+		self.expect_preempt = False
+
+		self.expected_argument = None
+		self.not_expected_argument = None
+
+	def getDefaultSuccessBehavior(self):
+		return self.compile()
+
+	def setDbgValue(self, dbg_value):
+		self.proc_dbg_value = dbg_value
+		return self
+
+	def noProcFile(self):
+		self.create_proc_file = False
+		return self
+
+	def noDeviceFile(self):
+		self.create_device_file = False
+		return self
+
+	def setVolumeStatus(self, volume_status):
+		self.res_volume_status = volume_status
+		return self
+
+	def makeSureArgumentExists(self, expected_argument):
+		self.expected_argument = expected_argument
+		return self
+
+	def makeSureArgumentDoesNotExist(self, not_expected_argument):
+		self.not_expected_argument = not_expected_argument
+		return self
+
+	def compile(self):
+		code = """
+import sys
+import json
+import os
+
+MB = 1024 * 1024
+GB = MB * 1024
+vol_id = sys.argv[-1]
+"""
+		if self.expected_argument:
+			code += """
+if '{expected_argument}' not in sys.argv:
+	raise ValueError('Expected {expected_argument} flag when AccessMode is Exclusive (ReadWriteOnce). argv=%s' % sys.argv)
+""".format(expected_argument=self.expected_argument)
+
+		if self.not_expected_argument:
+			code += """
+if '{not_expected_argument}' in sys.argv:
+	raise ValueError('Not expecting {not_expected_argument} flag when the Config.preempt flag is set to false. argv=%s' % sys.argv)
+""".format(not_expected_argument=self.not_expected_argument)
+
+		if self.create_device_file:
+			code += """
+device_path = "/dev/nvmesh/%s" % vol_id
+with open(device_path, "wb") as f:
+	f.truncate(MB * 100)
+"""
+
+		# Add code to simulate a /proc/nvmeibc
+		if self.create_proc_file:
+			code += """
+proc_dir = '/simulated/proc/nvmeibc/volumes/%s'  % vol_id
+proc_status_file = "%s/status.json" % proc_dir
+
+try:
+	os.makedirs(proc_dir)
+except:
+	pass
+with open(proc_status_file, "w") as f:
+	proc_content_dict = {{
+		'dbg':'{dbg_value}'
+	}}
+	f.write(json.dumps(proc_content_dict))
+""".format(dbg_value=self.proc_dbg_value)
+
+		# Add code to
+		code += """
+	print('{{ "status": "success", "volumes": {{ "%s": {{ "status": "{volume_status}" }} }} }}' % vol_id)
+""".format(volume_status=self.res_volume_status)
+
+		return code
+
+
+
+class NVMeshDetachScriptMockBuilder(object):
+	"""
+	This class is a builder to create code for nvmesh_detach_volumes that will run inside the container
+	Which would simulate the script, the device file, and the proc file
+	"""
+	DETACHED = "Detached"
+
+	def __init__(self):
+		pass
+
+	def getDefaultSuccessBehavior(self):
+		return self.compile()
+
+	def compile(self):
+		code = """
+import sys
+import os
+
+vol_id = sys.argv[-1]
+
+device_path = "/dev/nvmesh/%s" % vol_id
+os.remove(device_path)
+		"""
+		return code
