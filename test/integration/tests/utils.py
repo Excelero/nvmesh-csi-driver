@@ -44,6 +44,18 @@ class TestConfig(object):
 	SkipTopology = False
 	Topology = None
 
+class PodPhase(object):
+	#	The Pod has been accepted by the Kubernetes cluster, but one or more of the containers has not been set up and made ready to run. This includes time a Pod spends waiting to be scheduled as well as the time spent downloading container images over the network.
+	Pending = 'Pending'
+	# 	The Pod has been bound to a node, and all of the containers have been created. At least one container is still running, or is in the process of starting or restarting.
+	Running = 'Running'
+	#	All containers in the Pod have terminated in success, and will not be restarted.
+	Succeeded = 'Succeeded'
+	#	All containers in the Pod have terminated, and at least one container has terminated in failure. That is, the container either exited with non-zero status or was terminated by the system.
+	Failed = 'Failed'
+	#	For some reason the state of the Pod could not be obtained. This phase typically occurs due to an error in communicating with the node where the Pod should be running.
+	Unknown = 'Unknown'
+
 def parse_config_from_file(test_config):
 	try:
 		conf = test_config['integration']
@@ -270,9 +282,9 @@ class KubeUtils(object):
 			'apiVersion': 'storage.k8s.io/v1',
 			'kind': 'StorageClass',
 			'metadata': {
-			  'name': name,
-			  'namespace': TestConfig.TestNamespace,
-			  'labels': KubeUtils.get_test_labels()
+				'name': name,
+				'namespace': TestConfig.TestNamespace,
+				'labels': KubeUtils.get_test_labels()
 			},
 			'provisioner': 'nvmesh-csi.excelero.com',
 			'allowVolumeExpansion': True,
@@ -472,33 +484,54 @@ class KubeUtils(object):
 
 	@staticmethod
 	def wait_for_pod_to_be_running(pod_name, attempts=60):
-		return KubeUtils.wait_for_pod_status(pod_name, 'Running', attempts)
+		return KubeUtils.wait_for_pod_phase(pod_name, PodPhase.Running, fail_on_statuses=[], attempts=attempts)
 
 	@staticmethod
 	def wait_for_pod_to_fail(pod_name, attempts=10):
-		while attempts > 0:
-			pod = KubeUtils.get_pod_by_name(pod_name)
-			if pod:
-				status = pod.status.phase
-				if status == 'Running':
-					raise TestError('Expected pod {} to fail. but it is running'.format(pod_name))
+		return KubeUtils.wait_for_pod_phase(pod_name, PodPhase.Failed, fail_on_statuses=[PodPhase.Succeeded], attempts=attempts)
 
-			logger.debug('Waiting to make sure pod {} does not run'.format(pod_name))
+	@staticmethod
+	def wait_for_pod_event(pod_name, keyword='', attempts=10):
+		logger.info('Waiting for event for pod {} that includes "{}"'.format(pod_name, keyword))
+
+		while attempts > 0:
 			attempts = attempts - 1
-			time.sleep(1)
+			for e in KubeUtils.list_obj_events(obj_kind='Pod', obj_name=pod_name):
+				logger.debug('Found event {} e.type: {} e.reason: {} e.message: {}'.format(e, e.type, e.reason, e.message))
+
+				if keyword in e.message:
+					logger.info('Found {} in {}'.format(keyword, e.message))
+					return
+		raise TestError('Timed out waiting for {} in pod {} events'.format(keyword, pod_name))
+
+	@staticmethod
+	def list_obj_events(obj_kind, obj_name):
+		field_selector = 'involvedObject.kind={kind},involvedObject.name={name}'.format(kind=obj_kind, name=obj_name)
+		events = core_api.list_namespaced_event(TestConfig.TestNamespace, field_selector=field_selector)
+
+		for e in events.items:
+			yield e
+
+	@staticmethod
+	def make_sure_pod_not_scheduled(pod_name, attempts=30):
+		return KubeUtils.wait_for_pod_event(pod_name, PodPhase.Failed, fail_on_statuses=[PodPhase.Running, PodPhase.Succeeded], attempts=attempts)
 
 	@staticmethod
 	def wait_for_pod_to_complete(pod_name, attempts=60):
-		return KubeUtils.wait_for_pod_status(pod_name, 'Succeeded', attempts)
+		return KubeUtils.wait_for_pod_phase(pod_name, PodPhase.Succeeded, fail_on_statuses=[PodPhase.Failed], attempts=attempts)
 
 	@staticmethod
-	def wait_for_pod_status(pod_name, expected_status, attempts=90):
+	def wait_for_pod_phase(pod_name, expected_status, fail_on_statuses=None, attempts=90):
 		status = None
 		pod = None
+		fail_on_statuses = fail_on_statuses or []
 		while attempts > 0:
 			pod = KubeUtils.get_pod_by_name(pod_name)
 			if pod:
 				status = pod.status.phase
+				if status in fail_on_statuses:
+					raise TestError('Unexpected Pod status - Pod {} expected to be {} but reached {} which is in fail_on_statuses: {}, reason: {}'
+									.format(pod_name, expected_status, status, fail_on_statuses, pod.status.reason))
 				if status == expected_status:
 					logger.info('Pod {} is {}'.format(pod_name, expected_status))
 					return
@@ -561,11 +594,11 @@ class KubeUtils(object):
 	@staticmethod
 	def run_command_in_container(pod_name, command_as_arr):
 		response = stream(core_api.connect_get_namespaced_pod_exec,
-					pod_name,
-					TestConfig.TestNamespace,
-					command=command_as_arr,
-					stderr=True, stdin=False,
-					stdout=True, tty=False)
+						  pod_name,
+						  TestConfig.TestNamespace,
+						  command=command_as_arr,
+						  stderr=True, stdin=False,
+						  stdout=True, tty=False)
 		logger.debug("run_command_in_container response: %s" % response)
 		return response
 
@@ -772,26 +805,27 @@ class KubeUtils(object):
 	@staticmethod
 	def get_pv_for_static_provisioning(pv_name, nvmesh_volume_name, accessModes, sc_name, volume_size, volumeMode='Block'):
 		return \
-		{
-			'apiVersion': 'v1',
-			'kind': 'PersistentVolume',
-			'metadata': {
-				'name': pv_name
-			},
-			'spec': {
-				'accessModes': accessModes,
-				'persistentVolumeReclaimPolicy': 'Retain',
-				'capacity': {
-					'storage': volume_size
+			{
+				'apiVersion': 'v1',
+				'kind': 'PersistentVolume',
+				'metadata': {
+					'name': pv_name,
+					'labels': KubeUtils.get_test_labels()
 				},
-				'volumeMode': volumeMode,
-				'storageClassName': sc_name,
-				'csi': {
-					'driver': 'nvmesh-csi.excelero.com',
-					'volumeHandle': nvmesh_volume_name
+				'spec': {
+					'accessModes': accessModes,
+					'persistentVolumeReclaimPolicy': 'Retain',
+					'capacity': {
+						'storage': volume_size
+					},
+					'volumeMode': volumeMode,
+					'storageClassName': sc_name,
+					'csi': {
+						'driver': 'nvmesh-csi.excelero.com',
+						'volumeHandle': nvmesh_volume_name
+					}
 				}
 			}
-		}
 
 	@staticmethod
 	def delete_all_testing_pv():
@@ -804,25 +838,21 @@ class KubeUtils(object):
 		return core_api.delete_persistent_volume(pv_name)
 
 	@staticmethod
-	def wait_for_pv_to_be_released(pv_name):
-		KubeUtils.wait_for_pv_status(pv_name, expected_status='Released')
-
-	@staticmethod
-	def wait_for_pv_status(pv_name, expected_status, attempts=60):
+	def wait_for_pv_status(pv_name, expected_statuses, attempts=60):
 		status = None
 		pv = None
 		while attempts > 0:
 			pv = KubeUtils.get_pv_by_name(pv_name)
 			if pv:
 				status = pv.status.phase
-				if status == expected_status:
-					logger.info('PV {} is {}'.format(pv_name, expected_status))
-					return
-			logger.debug('Waiting for pv {} to be {}, current status: {}'.format(pv_name, expected_status, status))
+				if status in expected_statuses:
+					logger.info('PV {} is {}'.format(pv_name, expected_statuses))
+					return status
+			logger.debug('Waiting for pv {} to in status {}, current status: {}'.format(pv_name, expected_statuses, status))
 			attempts = attempts - 1
 			time.sleep(1)
 
-		raise TestError('Timed out waiting for pv {} to be {}, current status: {}, reason: {}'.format(pv_name, expected_status, status, pv.status.reason))
+		raise TestError('Timed out waiting for pv {} to be one of {}, current status: {}, reason: {}'.format(pv_name, expected_statuses, status, pv.status.reason))
 
 	@staticmethod
 	def wait_for_pv_to_delete(pv_name, attempts=60):
