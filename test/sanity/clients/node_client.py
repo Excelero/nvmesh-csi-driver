@@ -24,7 +24,7 @@ class NodeClient(BaseClient):
 
 		return volume_capability
 
-	def NodeStageVolume(self, volume_id, access_type=Consts.VolumeAccessType.MOUNT, access_mode=VolumeCapability.AccessMode.MULTI_NODE_MULTI_WRITER):
+	def NodeStageVolume(self, volume_id, access_type=Consts.VolumeAccessType.MOUNT, access_mode=VolumeCapability.AccessMode.MULTI_NODE_MULTI_WRITER, volume_context=None):
 		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=volume_id)
 
 		volume_capability = self._build_capability(access_type, access_mode, fs_type='ext4')
@@ -33,6 +33,7 @@ class NodeClient(BaseClient):
 			volume_id=volume_id,
 			staging_target_path=staging_target_path,
 			volume_capability=volume_capability,
+			volume_context=volume_context
 		)
 		return self.client.NodeStageVolume(req)
 

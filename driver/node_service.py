@@ -65,8 +65,8 @@ class NVMeshNodeService(NodeServicer):
 				fs_type = mount_request.fs_type or Consts.FSType.EXT4
 
 				mount_permissions, mount_options = self._parse_mount_options(mount_request)
-
-				FileSystemManager.format_block_device(block_device_path, fs_type)
+				mkfs_options = volume_context.get('mkfsOptions', '')
+				FileSystemManager.format_block_device(block_device_path, fs_type, mkfs_options)
 
 				if FileSystemManager.is_mounted(staging_target_path):
 					self.logger.warning('path {} is already mounted'.format(staging_target_path))

@@ -116,7 +116,7 @@ class FileSystemManager(object):
 		return shutil.rmtree(dir_path)
 
 	@staticmethod
-	def format_block_device(block_device_path, fs_type):
+	def format_block_device(block_device_path, fs_type, mkfs_options):
 		# check if already formatted, and if format meets request
 		current_fs_type = FileSystemManager.get_fs_type(block_device_path)
 		logger.debug('current_fs_type={}'.format(current_fs_type))
@@ -127,7 +127,7 @@ class FileSystemManager(object):
 		if current_fs_type != '':
 			raise DriverError(StatusCode.INVALID_ARGUMENT, '{} is formatted to {} but requested {}'.format(block_device_path, current_fs_type, fs_type))
 
-		FileSystemManager.mkfs(fs_type=fs_type, target_path=block_device_path, flags=[])
+		FileSystemManager.mkfs(fs_type=fs_type, target_path=block_device_path, flags=[mkfs_options])
 
 	@staticmethod
 	def expand_file_system(block_device_path, fs_type):

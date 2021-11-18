@@ -143,6 +143,25 @@ class TestNodeService(TestCaseWithServerRunning):
 		log.debug("NodeStageVolume Finished")
 
 	@CatchRequestErrors
+	def test_node_stage_mkfs_options(self):
+		nvmesh_attach_script_content = NVMeshAttachScriptMockBuilder().getDefaultSuccessBehavior()
+		TestNodeService.driver_server.set_nvmesh_attach_volumes_content(nvmesh_attach_script_content)
+		try:
+			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
+		except:
+			pass
+
+		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
+		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+		volume_context = {
+			'mkfsOptions': '-O encrypt'
+		}
+
+		r = self._client.NodeStageVolume(volume_id=VOL_ID, volume_context=volume_context)
+		log.debug("NodeStageVolume Finished")
+
+	@CatchRequestErrors
 	def test_cleanup_detach_after_timeout_waiting_for_io_enabled(self):
 		new_config = TestNodeService.driver_server.config.copy()
 		new_config['attachIOEnabledTimeout'] = '3'
