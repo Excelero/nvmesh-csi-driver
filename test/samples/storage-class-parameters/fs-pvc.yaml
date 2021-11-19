@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: fs-pvc
+  name: pvc-ext4-options
   labels:
     nvmesh-csi-testing: ""
 spec:
@@ -11,4 +11,4 @@ spec:
   resources:
     requests:
       storage: 2Gi
-  storageClassName: nvmesh-raid10
+  storageClassName: nvmesh-ext4-options

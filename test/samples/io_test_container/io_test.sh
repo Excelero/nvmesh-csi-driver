@@ -48,8 +48,8 @@ run_block_device_tests() {
 
 run_fs_tests() {
     echo "Running Filesystem tests"
-    echo "running /opt/iozone/bin/iozone $VOLUME_PATH -a"
-    /opt/iozone/bin/iozone "$VOLUME_PATH" -a
+    echo "running iozone $VOLUME_PATH -a"
+    iozone "$VOLUME_PATH" -a
 }
 
 verfiy_env_var_arguments() {
