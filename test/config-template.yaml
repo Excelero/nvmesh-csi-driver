@@ -1,0 +1,19 @@
+integration:
+  testNamespace: default
+  managementServers:
+    - mgmt.company.com:443
+  numberOfVolumes: 1
+  skipECVolumes: true
+  skipTopology: true
+  topology:
+    zones:
+      zoneA:
+        management:
+          servers: 'mgmt1:4000'
+        nodes: ['worker1.company.com']
+      zoneB:
+        management:
+          servers: 'mgmt2:4000'
+        nodes: ['worker2.company.com']
+sanity:
+  logLevel: 3

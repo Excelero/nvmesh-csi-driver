@@ -30,6 +30,10 @@ build-integration-tests:
 # Test
 # ----------------
 
+# Create a config.yaml
+create-test-config:
+	cp test/config-template.yaml test/config.yaml
+
 # test sanity locally, some python dependencies are expected, such as kuberentes library etc.
 test-sanity-locally:
 	export PROJECT_ROOT="./" && export TEST_CONFIG_PATH=test/config.yaml && python -m unittest  discover --verbose test/sanity
