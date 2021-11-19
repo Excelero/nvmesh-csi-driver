@@ -177,8 +177,7 @@ class NVMeshControllerService(ControllerServicer):
 		}
 
 		for param_name in req_dict['parameters'].keys():
-			if 'csi.storage.k8s.io' in param_name:
-				csi_metadata[param_name] = req_dict['parameters'][param_name]
+			csi_metadata[param_name] = req_dict['parameters'][param_name]
 
 		for capability in capabilities:
 			if 'mount' in capability:
