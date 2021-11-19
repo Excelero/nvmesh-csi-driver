@@ -85,6 +85,9 @@ data:
   management.servers: n115:4000
   attachIOEnabledTimeout: "30"
   printStackTraces: "false"
+  usePreempt: "false"
+  csiConfigMapName: nvmesh-csi-config
+  topologyConfigMapName: nvmesh-csi-topology
 ---
 # Source: nvmesh-csi-driver/templates/configmaps.yaml
 kind: ConfigMap
@@ -205,32 +208,6 @@ rules:
     verbs: ["get", "list", "watch"]
 ---
 # Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
-# Attacher must be able to work with PVs, nodes and VolumeAttachments
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: nvmesh-csi:external-attacher-runner
-rules:
-  - apiGroups: [""]
-    resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["csinodes"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["volumeattachments"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["volumeattachments/status"]
-    verbs: ["get", "list", "watch", "update", "patch"]
-  - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["get", "watch", "list"]
----
-# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
 # Resizer must be able to work with PVCs, PVs, SCs.
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -300,20 +277,6 @@ roleRef:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: nvmesh-csi:csi-attacher-role
-subjects:
-  - kind: ServiceAccount
-    name: nvmesh-csi
-    namespace: nvmesh-csi
-roleRef:
-  kind: ClusterRole
-  name: nvmesh-csi:external-attacher-runner
-  apiGroup: rbac.authorization.k8s.io
----
-# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
   name: nvmesh-csi:csi-resizer-role
 subjects:
   - kind: ServiceAccount
@@ -374,24 +337,6 @@ rules:
   verbs: ["get", "list", "watch"]
 ---
 # Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
-# Attacher must be able to work with configmaps or leases in the current namespace
-# if (and only if) leadership election is enabled
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  namespace: nvmesh-csi
-  name: nvmesh-csi:external-attacher-cfg
-rules:
-# access to configmaps is only supported for backwards compatibility reasons
-# and can be removed once you are uses Leases (--leader-election-type=leases)
-- apiGroups: [""]
-  resources: ["configmaps"]
-  verbs: ["get", "watch", "list", "delete", "update", "create"]
-- apiGroups: ["coordination.k8s.io"]
-  resources: ["leases"]
-  verbs: ["get", "watch", "list", "delete", "update", "create"]
----
-# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
 # Resizer must be able to work with end point in current namespace
 # if (and only if) leadership election is enabled
 kind: Role
@@ -418,24 +363,6 @@ roleRef:
   name: nvmesh-csi:external-provisioner-cfg
   apiGroup: rbac.authorization.k8s.io
 
-
-#
-#  Permissions for attacher
-#
----
-# Source: nvmesh-csi-driver/templates/rbac-permissions.yaml
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: nvmesh-csi:csi-attacher-role-cfg
-  namespace: nvmesh-csi
-subjects:
-  - kind: ServiceAccount
-    name: nvmesh-csi
-roleRef:
-  kind: Role
-  name: nvmesh-csi:external-attacher-cfg
-  apiGroup: rbac.authorization.k8s.io
 
 #
 #  Permissions for resizer
@@ -702,16 +629,6 @@ spec:
             - "--timeout=300s"
             - "--v=5"
           imagePullPolicy: "IfNotPresent"
-          volumeMounts:
-            - name: plugin-socket-dir
-              mountPath: /csi
-        # Attacher
-        - name: csi-attacher
-          image: "quay.io/k8scsi/csi-attacher:v3.1.0"
-          imagePullPolicy: "IfNotPresent"
-          args:
-            - "--v=5"
-            - "--csi-address=/csi/ctrl-csi.sock"
           volumeMounts:
             - name: plugin-socket-dir
               mountPath: /csi

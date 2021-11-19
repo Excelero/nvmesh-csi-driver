@@ -10,16 +10,6 @@ spec:
       serviceAccountName: nvmesh-cluster
       restartPolicy: Never
       containers:
-        - name: filesystem-mount-io-test
-          image: registry.excelero.com/dev/io-test:1.0.0
-          imagePullPolicy: Always
-          command:
-            - /opt/iozone/bin/iozone
-            - /mnt/vol
-            - -a
-          volumeMounts:
-            - name: fs-volume
-              mountPath: /mnt/vol
         - name: block-device-io-test
           image: registry.excelero.com/dev/io-test:1.0.0
           imagePullPolicy: Always
@@ -35,11 +25,11 @@ spec:
             - --name=testread
             - --time_based
             - --verify=0
-            - --iodepth=1
-            - --numjobs=1s
+            - --iodepth=32
+            - --numjobs=32s
             - --size=1G
             - --bs=4k
-            - --runtime=$run_time
+            - --runtime=30
             - --random_generator=tausworthe64
             - --filename=/dev/my_block_dev
           volumeDevices:
@@ -49,6 +39,3 @@ spec:
       - name: block-volume
         persistentVolumeClaim:
           claimName: block-pvc
-      - name: fs-volume
-        persistentVolumeClaim:
-          claimName: fs-pvc

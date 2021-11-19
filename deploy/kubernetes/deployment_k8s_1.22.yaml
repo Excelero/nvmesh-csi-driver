@@ -68,9 +68,12 @@ metadata:
 apiVersion: v1
 data:
   attachIOEnabledTimeout: '30'
+  csiConfigMapName: nvmesh-csi-config
   management.protocol: https
   management.servers: n115:4000
   printStackTraces: 'false'
+  topologyConfigMapName: nvmesh-csi-topology
+  usePreempt: 'false'
 kind: ConfigMap
 metadata:
   labels:
@@ -232,64 +235,6 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: nvmesh-csi:external-attacher-runner
-rules:
-- apiGroups:
-  - ''
-  resources:
-  - persistentvolumes
-  verbs:
-  - get
-  - list
-  - watch
-  - update
-- apiGroups:
-  - ''
-  resources:
-  - nodes
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - storage.k8s.io
-  resources:
-  - csinodes
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - storage.k8s.io
-  resources:
-  - volumeattachments
-  verbs:
-  - get
-  - list
-  - watch
-  - update
-- apiGroups:
-  - storage.k8s.io
-  resources:
-  - volumeattachments/status
-  verbs:
-  - get
-  - list
-  - watch
-  - update
-  - patch
-- apiGroups:
-  - ''
-  resources:
-  - pods
-  verbs:
-  - get
-  - watch
-  - list
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
   name: nvmesh-csi:external-resizer-runner
 rules:
 - apiGroups:
@@ -392,19 +337,6 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: nvmesh-csi:csi-attacher-role
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: nvmesh-csi:external-attacher-runner
-subjects:
-- kind: ServiceAccount
-  name: nvmesh-csi
-  namespace: nvmesh-csi
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
   name: nvmesh-csi:csi-resizer-role
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -481,35 +413,6 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: nvmesh-csi:external-attacher-cfg
-  namespace: nvmesh-csi
-rules:
-- apiGroups:
-  - ''
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - watch
-  - list
-  - delete
-  - update
-  - create
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - get
-  - watch
-  - list
-  - delete
-  - update
-  - create
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
   name: nvmesh-csi:external-resizer-cfg
   namespace: nvmesh-csi
 rules:
@@ -534,19 +437,6 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: nvmesh-csi:external-provisioner-cfg
-subjects:
-- kind: ServiceAccount
-  name: nvmesh-csi
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: nvmesh-csi:csi-attacher-role-cfg
-  namespace: nvmesh-csi
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: nvmesh-csi:external-attacher-cfg
 subjects:
 - kind: ServiceAccount
   name: nvmesh-csi
@@ -776,15 +666,6 @@ spec:
         image: quay.io/k8scsi/csi-provisioner:v2.1.0
         imagePullPolicy: IfNotPresent
         name: csi-provisioner
-        volumeMounts:
-        - mountPath: /csi
-          name: plugin-socket-dir
-      - args:
-        - --v=5
-        - --csi-address=/csi/ctrl-csi.sock
-        image: quay.io/k8scsi/csi-attacher:v3.1.0
-        imagePullPolicy: IfNotPresent
-        name: csi-attacher
         volumeMounts:
         - mountPath: /csi
           name: plugin-socket-dir
