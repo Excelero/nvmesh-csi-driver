@@ -343,7 +343,7 @@ class NVMeshNodeService(NodeServicer):
 
 		if mount_request.mount_flags:
 			for flag in mount_request.mount_flags:
-				if flag.startswith('nvmesh:chmod='):
+				if flag.startswith('nvmesh:chmod=') or flag.startswith('nvmesh:permissions='):
 					permissions = flag.split('=')[1]
 				else:
 					mount_options.append(flag)
