@@ -139,20 +139,28 @@ class TopologyUtils(object):
 class VolumeAPIPool(object):
 	__lock = threading.Lock()
 	__api_dict = {}
-
+	__zone_locks = {}
 
 	@staticmethod
 	def get_volume_api_for_zone(zone):
 		api_params = TopologyUtils.get_api_params(zone)
 		management_servers = api_params['managementServers']
+
+		# acquire pool lock to create a new zone lock if needed
 		with VolumeAPIPool.__lock:
+			if zone not in VolumeAPIPool.__zone_locks:
+				# create a new zone specific lock
+				VolumeAPIPool.__zone_locks[zone] = threading.Lock()
+
+		# acquire specific zone lock in order to create a new VolumeAPI if needed
+		with VolumeAPIPool.__zone_locks[zone]:
 			if management_servers in VolumeAPIPool.__api_dict:
 				api = VolumeAPIPool.__api_dict[management_servers]
+				return api
 			else:
+				# take zone lock until the VolumeAPI is returned (this includes some HTTP calls which could take long if the server is unreachable)
 				api = VolumeAPIPool._create_new_volume_api(api_params)
 				VolumeAPIPool.__api_dict[management_servers] = api
-
-		return api
 
 	@staticmethod
 	def _create_new_volume_api(api_params):
