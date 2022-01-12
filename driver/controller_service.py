@@ -42,16 +42,19 @@ class NVMeshControllerService(ControllerServicer):
 
 	@CatchServerErrors
 	def CreateVolume(self, request, context):
-		request_uuid = uuid.uuid4()
+		request_uuid = str(uuid.uuid4())[:8]
 		Utils.validate_param_exists(request, 'name')
 		request_name = request.name
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request_name)
+		log = self.logger.getChild("CreateVolume:%s(request:%s)" % (request_name, request_uuid))
 
 		volume_cache = self.volume_to_zone_mapping.get_or_create_new(nvmesh_vol_name)
 
-		with volume_cache.lock:
-			log = self.logger.getChild("CreateVolume:%s(uuid:%s)" % (request_name, request_uuid))
+		if volume_cache.lock.locked():
+			log.debug("volume already has a request in a progress, waiting for lock to be released")
 
+		with volume_cache.lock:
+			log.debug("processing request")
 			if volume_cache.csi_volume:
 				if volume_cache.csi_volume.capacity_bytes != self._parse_required_capacity(request.capacity_range):
 					raise DriverError(StatusCode.FAILED_PRECONDITION, 'Volume already exists with different capacity')
@@ -259,7 +262,7 @@ class NVMeshControllerService(ControllerServicer):
 
 		volume_id = request.volume_id
 		log = self.logger.getChild("DeleteVolume-%s" % volume_id)
-
+		log.debug('delete called')
 		zone, nvmesh_vol_name = Utils.zone_and_vol_name_from_co_id(volume_id)
 		#secrets = request.secrets
 
