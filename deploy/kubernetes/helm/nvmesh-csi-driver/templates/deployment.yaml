@@ -138,6 +138,10 @@ spec:
       nodeSelector:
         {{ toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{ toYaml . | nindent 8 }}
+      {{- end }}
       hostNetwork: true
       {{- with .Values.nodeDriver.tolerations }}
       tolerations:
