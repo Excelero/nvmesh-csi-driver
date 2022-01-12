@@ -68,7 +68,7 @@ class Connection(object):
         self.logLevel = INFO
         self.managementServer = None
         self.managementServers = None
-        self.httpRequestTimeout = 200
+        self.httpRequestTimeout = 15
         self.randomSleepBetweenRequests = RandomSleepTime(start=0.5, stop=1)
         self.randomSleepBeforeChangingMgmt = RandomSleepTime(start=0, stop=0.2)
         self.maxHttpRequestRetries = 3
