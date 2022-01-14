@@ -152,29 +152,44 @@ class TopologyUtils(object):
 class VolumeAPIPool(object):
 	__lock = threading.Lock()
 	__api_dict = {}
-
+	__zone_locks = {}
 
 	@staticmethod
 	def get_volume_api_for_zone(zone, log):
 		api_params = TopologyUtils.get_api_params(zone)
 		management_servers = api_params['managementServers']
+
+		# acquire pool lock to create a new zone lock if needed
 		with VolumeAPIPool.__lock:
-			log.debug('get_volume_api_for_zone: management_servers=%s' % management_servers)
+			if zone not in VolumeAPIPool.__zone_locks:
+				# create a new zone specific lock
+				VolumeAPIPool.__zone_locks[zone] = threading.Lock()
+
+		# acquire specific zone lock in order to create a new VolumeAPI if needed
+		with VolumeAPIPool.__zone_locks[zone]:
 			if management_servers in VolumeAPIPool.__api_dict:
 				api = VolumeAPIPool.__api_dict[management_servers]
 				log.debug('get_volume_api_for_zone: got VolumeAPI object from pool with mgmts: %s' % api.managementConnection.managementServers)
+				return api
 			else:
+				# take zone lock until the VolumeAPI is returned (this includes some HTTP calls which could take long if the server is unreachable)
 				api = VolumeAPIPool._create_new_volume_api(api_params)
 				VolumeAPIPool.__api_dict[management_servers] = api
 				log.debug('get_volume_api_for_zone: created new VolumeAPI=%s from api_params %s' % (api.managementConnection.managementServers, api_params))
-				allowed_mgmt_servers = ['https://' + address for address in api_params['managementServers'].split(',')]
-				if api.managementConnection.managementServers[0] not in allowed_mgmt_servers:
-					# This means we asked for a connection to management server cluster A but got a connection to management server cluster B
-					db_uuid_to_servers = ['db_uuid={} servers={}'.format(db_uuid, conn_mgr.managementServers) for db_uuid, conn_mgr in ConnectionManager.debug_getInstances().items()]
-					log.debug('SDK internals: {}'.format(db_uuid_to_servers))
-					raise ValueError('BUG! Got wrong API object! got Connection for {} but expected {}'.format(api.managementConnection.managementServers[0], 'https://' + api_params['managementServers']))
+				VolumeAPIPool._check_for_volume_api_wrong_zone_bug(api, api_params, log)
 
 		return api
+
+	@staticmethod
+	def _check_for_volume_api_wrong_zone_bug(api, api_params, log):
+		allowed_mgmt_servers = ['https://' + address for address in api_params['managementServers'].split(',')]
+		if api.managementConnection.managementServers[0] not in allowed_mgmt_servers:
+			# This means we asked for a connection to management server cluster A but got a connection to management server cluster B
+			db_uuid_to_servers = ['db_uuid={} servers={}'.format(db_uuid, conn_mgr.managementServers) for db_uuid, conn_mgr in
+								  ConnectionManager.debug_getInstances().items()]
+			log.debug('SDK internals: {}'.format(db_uuid_to_servers))
+			raise ValueError('BUG! Got wrong API object! got Connection for {} but expected one of {}'.format(api.managementConnection.managementServers[0],
+																											  allowed_mgmt_servers))
 
 	@staticmethod
 	def _create_new_volume_api(api_params):
