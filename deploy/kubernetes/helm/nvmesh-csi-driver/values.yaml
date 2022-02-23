@@ -40,11 +40,15 @@ controller:
   replicaCount: 1
   tolerations: []
   hostNetwork: false
+  nodeSelector: {}
+  affinity: {}
 nodeDriver:
   tolerations:
     - key: node-role.kubernetes.io/master
       effect: NoSchedule
       operator: Exists
+  nodeSelector: {}
+  affinity: {}
 
 image:
   repository: excelero/nvmesh-csi-driver
@@ -95,10 +99,6 @@ securityContext: {}
 service:
   type: ClusterIP
   port: 80
-
-nodeSelector: {}
-
-affinity: {}
 
 # overrideKubeVersion - this is to workaround the missing flag --kube-version (https://github.com/helm/helm/issues/7326)
 # we should use this only for templating (running `helm template ..`)
