@@ -19,7 +19,8 @@ const simData = {
     ],
     options: {
         availableStorageGB: 1 * TB,
-        volumeCreationDelayMS: 50
+        volumeCreationDelayMS: 50,
+        customResponse: null
     },
 };
 
@@ -51,7 +52,7 @@ function updateOptions(newOptions) {
 
     // override specific fields
     for (var key in newOptions) {
-        console.log(`updating option ${key}=${newOptions[key]}`);
+        console.log(`updating option ${key}=${JSON.stringify(newOptions[key])}`);
         options[key] = newOptions[key];
     }
 
@@ -68,6 +69,8 @@ router.get('/status', function(req,res) {
 
 router.post('/set-options', function(req,res) {
     const newOptions = req.body;
+    console.log(`/set-options called with: ${JSON.stringify(newOptions)}`);
+
     const options = updateOptions(newOptions);
     res.json({ success: true, updatedOptions: options });
 });

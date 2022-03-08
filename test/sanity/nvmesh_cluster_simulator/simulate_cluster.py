@@ -90,10 +90,14 @@ class NVMeshCluster(object):
 		self.logger.info('Cluster is alive')
 
 	def is_alive(self):
-		mgmt_server = self.get_mgmt_server_string()
-		url = 'https://{}/isAlive'.format(mgmt_server)
+		url = self._get_mgmt_url() + '/isAlive'
 		res = requests.get(url, verify=False)
 		return res.status_code == 200
+
+	def _get_mgmt_url(self):
+		mgmt_server = self.get_mgmt_server_string()
+		url = 'https://{}'.format(mgmt_server)
+		return url
 
 	def stop(self):
 		self.should_continue = False
@@ -113,6 +117,12 @@ class NVMeshCluster(object):
 
 	def get_mgmt_server_string(self):
 		return 'localhost:{}'.format(self.http_port)
+
+	def update_options(self, new_options):
+		url = self._get_mgmt_url() + '/simControl/set-options'
+		res = requests.post(url, json=new_options, verify=False)
+		if res.status_code != 200:
+			raise ValueError('Failed to update mgmt-sim options. http code: {} message: {}'.format(res.status_code, res.content))
 
 def create_clusters(num_of_clusters, num_of_client_per_cluster, name_prefix='nvmesh'):
 	cluster_sim_logger.info('Creating {} NVMesh Clusters with {} clients each'.format(num_of_clusters, num_of_client_per_cluster))

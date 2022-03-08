@@ -53,6 +53,11 @@ router.post('/volumes/save', function(req,res) {
         }
 	});
 
+    if (data.options.customResponse && data.options.customResponse.route == '/volumes/save') {
+        console.log(`Volume creation - customResponse: ${JSON.stringify(data.options.customResponse)}`);
+        return res.status(data.options.customResponse.httpCode).send(data.options.customResponse.response);
+    }
+
     if (totalTimeout > 1000)
         console.log(`Volume creation - waiting ${totalTimeout} before responding`, response);
 
