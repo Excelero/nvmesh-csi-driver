@@ -153,16 +153,19 @@ class NVMeshControllerService(ControllerServicer):
 			mgmt=mgmt_server)
 
 		SCHEMA_ERROR = 422
-		if err and err['code'] not in [SCHEMA_ERROR]:
-			# Failed to Connect to Management or other HTTP Error
-			self.topology_service.topology.disable_zone(zone)
-			raise DriverError(StatusCode.RESOURCE_EXHAUSTED, '{} Error: {}'.format(failed_to_create_msg, err))
+		if err:
+			if err.get('code') in [SCHEMA_ERROR]:
+				raise DriverError(StatusCode.RESOURCE_EXHAUSTED, failed_to_create_msg + '. Response: {} Volume Requested: {}'.format(err, str(volume)))
+			else:
+				# Failed to Connect to Management or other HTTP Error
+				self.topology_service.topology.disable_zone(zone)
+				raise DriverError(StatusCode.RESOURCE_EXHAUSTED, '{} Error: {}'.format(failed_to_create_msg, err))
 		else:
 			# management returned a response
 			self.topology_service.topology.make_sure_zone_enabled(zone)
 
-			if not type(data) == list or not data[0]['success']:
-				volume_already_exists = 'Name already Exists' in data[0]['error'] or 'duplicate key error' in json.dumps(data[0]['error'])
+			if not type(data) == list or not data[0].get('success'):
+				volume_already_exists = 'Name already Exists' in data[0].get('error') or 'duplicate key error' in json.dumps(data[0].get('error'))
 				if volume_already_exists:
 					existing_capacity = self._get_nvmesh_volume_capacity(volume.name, log, zone)
 					if volume.capacity == existing_capacity:

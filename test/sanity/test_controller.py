@@ -22,6 +22,7 @@ from test.sanity.clients.controller_client import ControllerClient
 from test.sanity.helpers.error_handlers import CatchRequestErrors
 from test.sanity.nvmesh_cluster_simulator.simulate_cluster import NVMeshCluster, create_clusters, get_config_topology_from_cluster_list
 
+MB = pow(1024, 2)
 GB = pow(1024, 3)
 VOL_1_ID = "vol_1"
 VOL_2_ID = "vol_2"
@@ -112,6 +113,29 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 
 		with self.assertRaises(_Rendezvous):
 			self.ctrl_client.CreateVolume(name=VOL_2_ID, capacity_in_bytes=2 * GB, parameters=parameters)
+
+	@CatchRequestErrors
+	def test_fail_to_create_volume_schema_error(self):
+		custom_response_option = {
+			'customResponse': {
+				'route': '/volumes/save',
+				'httpCode': 422,
+				'response': 'Received incorrect REST request! Error: data.body[0].capacity should be >= 1000000000,' +
+							'data.body[0].capacity should be equal to constant, data.body[0].capacity should be equal to constant,' +
+							'data.body[0].capacity should match some schema in anyOf, data.body should match "then" schema'
+			}
+		}
+		TestControllerServiceWithoutTopology.cluster1.update_options(custom_response_option)
+		parameters = {'vpg': 'DEFAULT_CONCATENATED_VPG'}
+		ten_tera_byte = 200 * MB
+		try:
+			self.ctrl_client.CreateVolume(name=VOL_2_ID, capacity_in_bytes=ten_tera_byte, parameters=parameters)
+		except _Rendezvous as ex:
+			self.assertTrue(ex._state.code == StatusCode.RESOURCE_EXHAUSTED)
+
+		self.assertTrue(True,'Exception not raised')
+
+
 
 	@CatchRequestErrors
 	def test_success_create_existing_volume_with_the_same_capacity(self):
