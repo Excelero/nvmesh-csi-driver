@@ -155,7 +155,7 @@ class NVMeshControllerService(ControllerServicer):
 		SCHEMA_ERROR = 422
 		if err:
 			if err.get('code') in [SCHEMA_ERROR]:
-				raise DriverError(StatusCode.RESOURCE_EXHAUSTED, failed_to_create_msg + '. Response: {} Volume Requested: {}'.format(err, str(volume)))
+				raise DriverError(StatusCode.INVALID_ARGUMENT, failed_to_create_msg + '. Response: {} Volume Requested: {}'.format(err, str(volume)))
 			else:
 				# Failed to Connect to Management or other HTTP Error
 				self.topology_service.topology.disable_zone(zone)

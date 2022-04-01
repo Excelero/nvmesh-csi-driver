@@ -131,11 +131,12 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 		try:
 			self.ctrl_client.CreateVolume(name=VOL_2_ID, capacity_in_bytes=ten_tera_byte, parameters=parameters)
 		except _Rendezvous as ex:
-			self.assertTrue(ex._state.code == StatusCode.RESOURCE_EXHAUSTED)
+			self.assertTrue(ex._state.code == StatusCode.INVALID_ARGUMENT)
+			ex_as_string = str(ex)
+			# Make sure specific schema error is returned
+			self.assertIn('data.body[0].capacity should be >= 1000000000', ex_as_string)
 
-		self.assertTrue(True,'Exception not raised')
-
-
+		self.assertTrue(True, 'Exception not raised')
 
 	@CatchRequestErrors
 	def test_success_create_existing_volume_with_the_same_capacity(self):
