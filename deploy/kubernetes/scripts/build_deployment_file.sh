@@ -5,6 +5,14 @@ build_deployment_file() {
     echo "Deployment file $DEPLOYMENT_FILE_PATH ready"
 }
 
+check_herm_exists() {
+    if ! which helm; then
+        echo "Cannot compile yaml deployment files - failed to find helm"
+        exit 1
+    fi
+}
+
+check_herm_exists
 build_deployment_file
 
 ./post_process_deployment.py
