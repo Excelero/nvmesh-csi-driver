@@ -53,6 +53,7 @@ nodeDriver:
 image:
   repository: excelero/nvmesh-csi-driver
   pullPolicy: IfNotPresent
+#  pullSecrets: excelero-registry-cred
 
 pspEnabled: true
 

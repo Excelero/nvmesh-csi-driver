@@ -40,6 +40,10 @@ spec:
       hostNetwork: {{ .Values.controller.hostNetwork }}
       serviceAccount: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
       terminationGracePeriodSeconds: 70
+{{- if .Values.image.pullSecrets }}
+      imagePullSecrets:
+        - name: {{ .Values.image.pullSecrets }}
+{{- end }}
       containers:
         # NVMesh Driver
         - name: nvmesh-csi-driver
@@ -147,6 +151,10 @@ spec:
       tolerations:
         {{ toYaml . | nindent 8 }}
       {{- end }}
+{{- if .Values.image.pullSecrets }}
+      imagePullSecrets:
+        - name: {{ .Values.image.pullSecrets }}
+{{- end }}
       containers:
         # NVMesh Driver
         - name: nvmesh-csi-driver
