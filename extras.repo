@@ -1,6 +1,6 @@
 [BaseOS]
 name=CentOS-$releasever - Base
-mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=BaseOS&infra=$infra
-#baseurl=http://mirror.centos.org/$contentdir/$releasever/BaseOS/$basearch/os/
+#mirrorlist=http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=BaseOS&infra=$infra
+baseurl=https://vault.epel.cloud/8.5.2111/BaseOS/x86_64/os/
 gpgcheck=0
 enabled=1
