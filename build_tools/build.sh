@@ -213,8 +213,11 @@ if [ "$BUILD_HELM_PKG" == "true" ]; then
     echo "Building Helm Package"
     last_dir=$(pwd)
     cd ../deploy/kubernetes/helm
-    helm package nvmesh-csi-driver --destination $last_dir
+    helm package nvmesh-csi-driver --destination $last_dir/
     cd $last_dir
+
+    # Add "helm" to the tar name
+    mv nvmesh-csi-driver-*.tgz helm-chart.nvmesh-csi-driver-${DRIVER_VERSION:1}.tgz
 fi
 
 if [ "$ONLY_MANIFESTS" == "true" ]; then
