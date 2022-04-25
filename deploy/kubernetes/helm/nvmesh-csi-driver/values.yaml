@@ -12,7 +12,7 @@ features:
 
 config:
   protocol: https
-  servers: n115:4000
+  servers: mgmt.domain.com:4000
   # logLevel: DEBUG
   # sdkLogLevel: DEBUG
   # kubeClientLogLevel: INFO
