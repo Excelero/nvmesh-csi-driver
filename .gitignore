@@ -13,5 +13,8 @@ build_tools/*.tgz
 
 **/node_modules
 
+# test configmap
+test/integration/container/configmap.yaml
+
 # include this file
 !/.gitignore

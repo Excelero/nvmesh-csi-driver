@@ -25,5 +25,17 @@ spec:
           #- test_default_storage_classes.TestAllRAIDTypes
           #- test_default_storage_classes.TestAllRAIDTypes.test_concatenated
           #- test_default_storage_classes.TestAllRAIDTypes.test_raid0
+        volumeMounts:
+          - name: config-volume
+            mountPath: /config/config.yaml.read-only
+            subPath: config.yaml
       restartPolicy: Never
+      volumes:
+      - name: config-volume
+        configMap:
+          name: integration-test-config
+          items:
+            - key: config.yaml
+              path: config.yaml
+    
   backoffLimit: 0

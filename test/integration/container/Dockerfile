@@ -15,12 +15,10 @@ RUN yum install -y sudo \
 
 RUN cp /usr/bin/python2 /usr/bin/python
 
-ENV TEST_CONFIG_PATH="/test/config.yaml"
+ENV TEST_CONFIG_PATH="/config/config.yaml"
 
 COPY driver/ /driver/
 COPY test/ /test/
 COPY test/integration/container/init.py /init.py
-
-RUN chmod 777 /test/config.yaml
 
 ENTRYPOINT ["python", "/init.py"]

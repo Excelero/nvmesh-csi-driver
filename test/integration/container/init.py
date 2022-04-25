@@ -71,11 +71,13 @@ def run_test(config):
 
 def edit_config_file():
 	config_file_path = os.environ['TEST_CONFIG_PATH']
-	with open(config_file_path, 'r') as f:
+	config_file_path_read_only = config_file_path + '.read-only'
+	with open(config_file_path_read_only, 'r') as f:
 		config_yaml = yaml.safe_load(f)
 
 	config_yaml['integration']['testNamespace'] = namespace
-	config_yaml['integration']['managementServers'] = [default_mgmt_address]
+	if not config_yaml['integration'].get('managementServers'):
+		config_yaml['integration']['managementServers'] = [default_mgmt_address]
 
 	with open(config_file_path, 'w') as f:
 		yaml.safe_dump(config_yaml, f)
