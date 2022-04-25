@@ -62,11 +62,11 @@ class NVMeshControllerService(ControllerServicer):
 				log.info('Returning volume from cache')
 				return CreateVolumeResponse(volume=volume_cache.csi_volume)
 
-			csiVolume = self.do_create_volume(log, nvmesh_vol_name, request)
+			csiVolume = self.do_create_volume(log, nvmesh_vol_name, request, request_uuid)
 			volume_cache.csi_volume = csiVolume
 			return CreateVolumeResponse(volume=csiVolume)
 
-	def do_create_volume(self, log, nvmesh_vol_name, request):
+	def do_create_volume(self, log, nvmesh_vol_name, request, request_uuid):
 		# UNUSED - secrets = request.secrets
 		# UNUSED - volume_content_source = request.volume_content_source
 		reqDict = MessageToDict(request)
@@ -96,7 +96,13 @@ class NVMeshControllerService(ControllerServicer):
 		volume_topology = Topology(segments={topology_key: zone})
 
 		# Volume Context will be returned by the CO in NodeStageVolume and NodePublishVolume
-		volume_context = {}
+		volume_context = {
+			'nvmesh-csi-driver/name': Config.DRIVER_NAME,
+			'nvmesh-csi-driver/version': Config.DRIVER_VERSION,
+			'request_uuid': request_uuid,
+			'zone': zone
+		}
+
 		# Add all fields from the StorageClass parameters
 		volume_context.update(reqDict['parameters'])
 		csiVolume = Volume(volume_id=volume_id_for_co, capacity_bytes=capacity, accessible_topology=[volume_topology], volume_context=volume_context)
