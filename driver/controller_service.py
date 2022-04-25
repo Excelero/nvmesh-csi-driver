@@ -104,13 +104,14 @@ class NVMeshControllerService(ControllerServicer):
 
 	def create_volume_on_a_valid_zone(self, volume, zones, log):
 		zones_left = set(zones)
+		only_one_zone = len(zones) == 1
 		while True:
 			selected_zone = ZoneSelectionManager.pick_zone(list(zones_left))
 			zones_left.remove(selected_zone)
 
 			try:
 				is_zone_disabled = self.topology_service.topology.is_zone_disabled(selected_zone)
-				if is_zone_disabled:
+				if is_zone_disabled and not only_one_zone:
 					raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Zone {} is disabled. Skipping this zone'.format(selected_zone))
 
 				self.create_volume_in_zone(volume, selected_zone, log)
@@ -123,7 +124,10 @@ class NVMeshControllerService(ControllerServicer):
 				if len(zones_left):
 					log.info('retrying volume creation for {} on zones: {}'.format(volume.name, ','.join(list(zones_left))))
 				else:
-					raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Failed to create volume on all zones ({})'.format(', '.join(zones)))
+					if only_one_zone:
+						raise
+					else:
+						raise DriverError(StatusCode.RESOURCE_EXHAUSTED, 'Failed to create volume on all zones ({})'.format(', '.join(zones)))
 
 	def create_volume_in_zone(self, volume, zone, log):
 		csi_metadata = volume.csi_metadata
