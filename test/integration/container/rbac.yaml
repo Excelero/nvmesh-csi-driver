@@ -5,6 +5,9 @@ metadata:
   labels:
     nvmesh-csi-testing: ""
 rules:
+  - apiGroups: ["", "events.k8s.io"]
+    resources: ["events"]
+    verbs: ["*"]
   - apiGroups: [""]
     resources: ["persistentvolumes", "persistentvolumeclaims"]
     verbs: ["get", "list", "create", "watch", "update", "patch", "delete"]
