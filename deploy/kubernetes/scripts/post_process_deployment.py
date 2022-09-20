@@ -30,6 +30,10 @@ def write_yaml_file(docs, output_file):
 def get_deployment_for_k8s_version(k8s_version):
 	deployment = load_yaml_file('../deployment.yaml')
 	apis_to_update = k8s_api_compatibility[k8s_version]
+
+	# filter out empty objects
+	deployment = list(filter(lambda x: x, deployment))
+	
 	for obj in deployment:
 		if not obj:
 			continue
