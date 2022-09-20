@@ -12,9 +12,12 @@ k8s_api_compatibility = {
 	'1.22': {
 		'storage.k8s.io/v1beta1': 'storage.k8s.io/v1'
 	},
-	# '1.25': {
-	# 	'policy/v1beta1': 'policy/v1'
-	# }
+	'1.25': {
+		'policy/v1beta1': 'deprecated',
+		'storage.k8s.io/v1beta1': 'storage.k8s.io/v1', 
+		'node.k8s.io/v1beta1': 'node.k8s.io/v1', 
+		'events.k8s.io/v1beta1': 'events.k8s.io/v1' 
+	} 
 }
 
 
@@ -28,19 +31,25 @@ def write_yaml_file(docs, output_file):
         yaml.dump_all(docs, f)
 
 def get_deployment_for_k8s_version(k8s_version):
-	deployment = load_yaml_file('../deployment.yaml')
+	deployment_template = load_yaml_file('../deployment.yaml')
 	apis_to_update = k8s_api_compatibility[k8s_version]
 
-	# filter out empty objects
-	deployment = list(filter(lambda x: x, deployment))
-	
-	for obj in deployment:
+	deployment = []
+
+	for obj in deployment_template:
 		if not obj:
+			# remove empty objects
 			continue
 		old_api_version = obj.get('apiVersion')
 		if old_api_version in apis_to_update:
-			obj['apiVersion'] = apis_to_update[obj['apiVersion']]
+			new_api_or_action = apis_to_update[obj['apiVersion']]
+			if new_api_or_action == 'deprecated':
+				# remove objects with deprecated API 
+				continue
+			obj['apiVersion'] = new_api_or_action
 			print('updated %s to %s for object %s' %(old_api_version, obj['apiVersion'], obj['metadata']['name']))
+
+		deployment.append(obj)
 
 	return deployment
 
