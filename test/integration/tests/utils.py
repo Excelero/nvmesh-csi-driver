@@ -674,6 +674,7 @@ class KubeUtils(object):
 	@staticmethod
 	def get_block_consumer_pod_template(pod_name, pvc_name):
 		spec = {
+			'terminationGracePeriodSeconds': 1,
 			'containers': [
 				{
 					'name': 'block-volume-consumer',
