@@ -263,6 +263,22 @@ print('{{ "status": "success", "volumes": {{ "%s": {status_and_error} }} }}' % v
 		log.debug("NodeStageVolume Finished")
 
 	@CatchRequestErrors
+	def test_detach_retries_when_volume_is_busy(self):
+		new_config = TestNodeService.driver_server.config.copy()
+		new_config['attachIOEnabledTimeout'] = '3'
+		self.restart_server(new_config=new_config)
+
+		nvmesh_detach_script_code = NVMeshDetachScriptMockBuilder().returnBusy().compile()
+		TestNodeService.driver_server.set_nvmesh_detach_volumes_content(nvmesh_detach_script_code)
+
+		try:
+			r = self._client.NodeUnstageVolume(volume_id=VOL_ID)
+		except _Rendezvous as ex:
+			self.assertIn('nvmesh_detach_volumes failed after', str(ex))
+
+		log.debug("NodeUnstageVolume Finished")
+
+	@CatchRequestErrors
 	def test_stage_volume_failed_access_mode_denied_workaround(self):
 		self._test_nvmesh_attach_volume_response(
 			status_and_error='{"status": "Attached IO Enabled", "error": "Access Mode Denied."}',

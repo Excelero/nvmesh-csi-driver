@@ -342,19 +342,40 @@ class NVMeshDetachScriptMockBuilder(object):
 	DETACHED = "Detached"
 
 	def __init__(self):
-		pass
+		self.code = self._getDefaultCode()
+		self.vol_status = "Detached"
 
-	def getDefaultSuccessBehavior(self):
-		return self.compile()
-
-	def compile(self):
-		code = """
+	def _getDefaultCode(self):
+		return """
 import sys
 import os
+import json
 
 vol_id = sys.argv[-1]
+vol_status = "{vol_status}"
+if vol_status == "Detached":
+	device_path = "/dev/nvmesh/%s" % vol_id
+	os.remove(device_path)
 
-device_path = "/dev/nvmesh/%s" % vol_id
-os.remove(device_path)
-		"""
-		return code
+response = {{
+	"status": "success",
+	"volumes": {{
+		vol_id: {{ 
+			"status": vol_status
+		}}
+	}}
+}}
+
+print(json.dumps(response))
+"""
+
+	def getDefaultSuccessBehavior(self):
+		self.vol_status = "Detached"
+		return self.compile()
+
+	def returnBusy(self):
+		self.vol_status = "Busy"
+		return self
+		
+	def compile(self):
+		return self.code.format(vol_status=self.vol_status)

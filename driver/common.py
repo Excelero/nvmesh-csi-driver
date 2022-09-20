@@ -186,18 +186,45 @@ class Utils(object):
 			Utils._attach_volume_legacy(nvmesh_volume_name)
 
 	@staticmethod
-	def nvmesh_detach_volume(nvmesh_volume_name):
-		exit_code, stdout, stderr = Utils.run_command('python {}/nvmesh_detach_volumes --json {}'.format(Config.NVMESH_BIN_PATH, nvmesh_volume_name))
+	def call_nvmesh_detach_volume(nvmesh_volume_name):
+		exit_code, stdout, stderr = Utils.run_command(
+			'python {}/nvmesh_detach_volumes --json {}'.format(Config.NVMESH_BIN_PATH, nvmesh_volume_name))
 		if exit_code != 0:
-			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_detach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
+			raise DriverError(grpc.StatusCode.INTERNAL,
+							  "nvmesh_detach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
 		else:
 			response = json.loads(stdout or stderr)
 			if response["status"] != "success":
-				raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_detach_volumes failed. Got status {}. full response: {}".format(response["status"], response))
+				raise DriverError(grpc.StatusCode.INTERNAL, 
+									"nvmesh_detach_volumes failed. Got status {}. full response: {}".format(
+									response["status"], response))
 
 			volume_status = response["volumes"][nvmesh_volume_name]["status"]
-			if volume_status != "Detached":
-				raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_detach_volumes failed. Volume status is {}. full response: {}".format(volume_status,  response))
+			return volume_status, response
+
+	@staticmethod
+	def nvmesh_detach_volume(nvmesh_volume_name, stop_event):
+		backoff = BackoffDelayWithStopEvent(stop_event, initial_delay=0.5, factor=2, max_delay=4, max_timeout=15)
+		response = None
+		while True:
+			try:
+				volume_status, response = Utils.call_nvmesh_detach_volume(nvmesh_volume_name)
+				if volume_status == "Detached":
+					# Operation successful
+					return
+				elif volume_status == "Busy":
+					stopped_flag = backoff.wait()
+					if stopped_flag:
+						raise DriverError(grpc.StatusCode.INTERNAL, 'Stopped nvmesh_detach_volume attempts because Driver is shutting down')
+				else:
+					# unexpected error returned from nvmesh_detach_volumes
+					raise DriverError(grpc.StatusCode.INTERNAL,
+									  "nvmesh_detach_volumes failed. Volume status is {}. full response: {}".format(
+										  volume_status, response))
+			except BackoffTimeoutError:
+				raise DriverError(grpc.StatusCode.INTERNAL,
+								  "nvmesh_detach_volumes failed after {} seconds and {} attempts. Last error received: {}".format(
+									  backoff.get_total_time_seconds(), backoff.num_of_backoffs, response))
 
 	@staticmethod
 	def wait_for_volume_io_enabled(nvmesh_volume_name):
@@ -354,20 +381,42 @@ class FeatureSupportChecks(object):
 class FeatureSupport(object):
 	AccessMode = None
 
+class BackoffTimeoutError(Exception):
+	pass
 
 '''
 Helper for a back-off mechanism to allow repeated action with an increasing delay after each failure
+Parameters:
+initial_delay - The delay in the first iteration
+factor - The factor in which the delay changes every iteration. 
+max_delay - the maximum delay 
+max_timeout - The timeout for the entire operation in all iterations
+
+A factor value of 1 means the delay is the same every iteration, 
+a factor value of 2 means the delay is doubled every iteration until it reaches max_delay 
+and keeps the max_delay until max_timeout is reached
+
 '''
 class BackoffDelay(object):
-	def __init__(self, initial_delay, factor, max_delay=None):
+	def __init__(self, initial_delay, factor, max_delay=None, max_timeout=None):
 		self.initial_delay = initial_delay
 		self.factor = factor
 		self.max_delay = max_delay
+		self.max_timeout = max_timeout
 		self.current_delay = self.initial_delay
+		self.start_time = datetime.now()
+		self.num_of_backoffs = 0
 
 	def wait(self):
+		if self.max_timeout and self.get_total_time_seconds() > self.max_timeout:
+			raise BackoffTimeoutError('Backoff timed out reached')
+
+		self.num_of_backoffs += 1
 		time.sleep(self.current_delay)
 		self.calculate_next_delay()
+
+	def get_total_time_seconds(self):
+		return (datetime.now() - self.start_time).seconds
 
 	def calculate_next_delay(self):
 		self.current_delay = self.current_delay * self.factor
@@ -377,6 +426,8 @@ class BackoffDelay(object):
 
 	def reset(self):
 		self.current_delay = self.initial_delay
+		self.start_time = datetime.now()
+		self.num_of_backoffs = 0
 
 	def is_reset(self):
 		return self.current_delay == self.initial_delay
@@ -386,11 +437,15 @@ Helper for a back-off mechanism using the threading.Event() wait() method which 
 '''
 class BackoffDelayWithStopEvent(BackoffDelay):
 	''
-	def __init__(self, event, initial_delay, factor, max_delay=None):
+	def __init__(self, event, initial_delay, factor, max_delay=None, max_timeout=None):
 		self.event = event
-		super(BackoffDelayWithStopEvent, self).__init__(initial_delay, factor, max_delay)
+		super(BackoffDelayWithStopEvent, self).__init__(initial_delay, factor, max_delay, max_timeout)
 
 	def wait(self):
+		if self.max_timeout and self.get_total_time_seconds() + self.current_delay > self.max_timeout:
+			raise BackoffTimeoutError('Backoff timed out reached')
+
+		self.num_of_backoffs += 1
 		event_flag = self.event.wait(self.current_delay)
 		self.calculate_next_delay()
 		return event_flag

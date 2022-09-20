@@ -86,7 +86,7 @@ class NVMeshNodeService(NodeServicer):
 				if FileSystemManager.is_mounted(staging_target_path):
 					FileSystemManager.umount(staging_target_path)
 
-				Utils.nvmesh_detach_volume(nvmesh_volume_name)
+				Utils.nvmesh_detach_volume(nvmesh_volume_name, self.stop_event)
 			except Exception as cleanup_err:
 				self.logger.warning('Failed to cleanup and detach device after attached and staging failed. Error: %s' % cleanup_err)
 
@@ -118,7 +118,7 @@ class NVMeshNodeService(NodeServicer):
 		else:
 			self.logger.warning('NodeUnstageVolume - mount path {} not found.'.format(staging_target_path))
 
-		Utils.nvmesh_detach_volume(nvmesh_volume_name)
+		Utils.nvmesh_detach_volume(nvmesh_volume_name, self.stop_event)
 
 		self.logger.debug('NodeUnstageVolume finished successfully for request: {}'.format(reqJson))
 		return NodeUnstageVolumeResponse()
