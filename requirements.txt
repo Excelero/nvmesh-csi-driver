@@ -1,6 +1,6 @@
 grpcio==1.25
 futures==3.3.0
-protobuf==3.15.0
+protobuf==3.18.3
 requests==2.24.0
 packaging==20.4
 websocket-client==0.56.0
