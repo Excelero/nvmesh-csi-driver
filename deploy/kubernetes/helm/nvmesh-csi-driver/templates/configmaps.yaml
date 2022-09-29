@@ -11,6 +11,8 @@ data:
   management.servers: {{ .Values.config.servers }}
 {{- end }}
   attachIOEnabledTimeout: "{{ .Values.config.attachIOEnabledTimeout }}"
+  detachTimeout: "{{ .Values.config.detachTimeout }}"
+  forceDetach: "{{ .Values.config.forceDetach }}"
   printStackTraces: "{{ .Values.config.printStackTraces }}"
   usePreempt: "{{ .Values.config.usePreempt }}"
 {{- if .Values.config.logLevel }}

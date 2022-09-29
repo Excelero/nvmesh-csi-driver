@@ -10,7 +10,7 @@ from driver import topology
 from driver import topology_utils
 from driver.topology_utils import VolumeAPIPool
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock, DEFAULT_MOCK_CONFIG
-from test.sanity.nvmesh_cluster_simulator.simulate_cluster import NVMeshCluster
+from test.sanity.nvmesh_cluster_simulator.nvmesh_mgmt_sim import NVMeshManagementSim
 
 logger = logging.getLogger()
 handler = logging.StreamHandler()
@@ -37,11 +37,11 @@ class TestVolumeAPIPool(unittest.TestCase):
 	@classmethod
 	def setUpClass(cls):
 		super(TestVolumeAPIPool, cls).setUpClass()
-		cls.cluster1 = NVMeshCluster('cluster1', http_port=4000, ws_port=4001)
+		cls.cluster1 = NVMeshManagementSim('cluster1', http_port=4000, ws_port=4001)
 		cls.cluster1.start()
 		cls.cluster1.wait_until_is_alive()
 
-		cls.cluster2 = NVMeshCluster('cluster2', http_port=4010, ws_port=4011)
+		cls.cluster2 = NVMeshManagementSim('cluster2', http_port=4010, ws_port=4011)
 		cls.cluster2.start()
 		cls.cluster2.wait_until_is_alive()
 

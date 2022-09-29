@@ -41,7 +41,7 @@ test-sanity-locally:
 # test sanity inside a conatiner (which will spawn other containers on the host)
 # requires to run make build-sanity-tests
 test-sanity:
-	cd test/sanity/container && ./run.sh
+	test/sanity/run.sh --config $(PWD)/test/config.yaml
 
 # This will create a kubernetes Job resource using local kubectl tool
 test-integration:
@@ -55,6 +55,8 @@ test-integration:
 manifests:
 	cd deploy/kubernetes/scripts && ./build_deployment_file.sh
 
+dep_file := deployment_k8s_1.22.yaml
+
 deploy: manifests
-	echo "Deploying YAML files.."
-	kubectl delete -f deploy/kubernetes/deployment.yaml ; kubectl create -f deploy/kubernetes/deployment.yaml
+	echo "Deploying YAML file: " $(dep_file)
+	kubectl delete -f deploy/kubernetes/$(dep_file) ; kubectl create -f deploy/kubernetes/$(dep_file)

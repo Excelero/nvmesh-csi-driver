@@ -13,7 +13,7 @@ import driver.consts as Consts
 
 from test.sanity.helpers.test_case_with_server import TestCaseWithServerRunning
 from test.sanity.clients.controller_client import ControllerClient
-from test.sanity.nvmesh_cluster_simulator.simulate_cluster import create_clusters, get_config_topology_from_cluster_list
+from test.sanity.nvmesh_cluster_simulator.nvmesh_mgmt_sim import create_clusters, get_config_topology_from_cluster_list
 
 GB = pow(1024, 3)
 VOL_1_ID = "vol_1"

@@ -8,11 +8,12 @@ from grpc import StatusCode
 
 from config import Config, get_config_json
 from FileSystemManager import FileSystemManager
-from common import Utils, CatchServerErrors, DriverError, FeatureSupportChecks, BackoffDelay, BackoffDelayWithStopEvent
+from common import Utils, CatchServerErrors, DriverError, BackoffDelayWithStopEvent
 import consts as Consts
 from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
 	NodeStageVolumeResponse, NodeUnstageVolumeResponse, NodeExpandVolumeResponse, Topology
 from csi.csi_pb2_grpc import NodeServicer
+from attach_detach_addon_to_sdk import NewClientAPI
 from topology_utils import TopologyUtils, NodeNotFoundInTopology
 
 
@@ -20,16 +21,15 @@ class NVMeshNodeService(NodeServicer):
 	def __init__(self, logger, stop_event):
 		NodeServicer.__init__(self)
 		self.node_id = socket.gethostname()
+		self.zone = None
 
 		self.logger = logger
+		self.stop_event = stop_event
+
 		self.logger.info('NVMesh Version Info: {}'.format(json.dumps(Config.NVMESH_VERSION_INFO, indent=4, sort_keys=True)))
 
-		feature_list = json.dumps(FeatureSupportChecks.get_all_features(), indent=4, sort_keys=True)
-		self.logger.info('Supported Features: {}'.format(feature_list))
-		self.topology = None
-
 		self.logger.info('Config: {}'.format(get_config_json()))
-		self.stop_event = stop_event
+		self.topology = self._get_topology()
 
 	@CatchServerErrors
 	def NodeStageVolume(self, request, context):
@@ -50,11 +50,12 @@ class NVMeshNodeService(NodeServicer):
 		access_type = self._get_block_or_mount_volume(request)
 
 		block_device_path = Utils.get_nvmesh_block_device_path(nvmesh_volume_name)
+		client_api = self.get_client_api()
 
 		if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
 			# run nvmesh attach locally
 			requested_nvmesh_access_mode = Consts.AccessMode.to_nvmesh(access_mode)
-			Utils.nvmesh_attach_volume(nvmesh_volume_name, requested_nvmesh_access_mode)
+			Utils.nvmesh_attach_volume(self.node_id, client_api, nvmesh_volume_name, requested_nvmesh_access_mode)
 
 		try:
 			Utils.wait_for_volume_io_enabled(nvmesh_volume_name)
@@ -86,15 +87,20 @@ class NVMeshNodeService(NodeServicer):
 				if FileSystemManager.is_mounted(staging_target_path):
 					FileSystemManager.umount(staging_target_path)
 
-				Utils.nvmesh_detach_volume(nvmesh_volume_name, self.stop_event)
+				Utils.nvmesh_detach_volume(self.node_id, client_api, nvmesh_volume_name, force=True, stop_event=self.stop_event)
 			except Exception as cleanup_err:
 				self.logger.warning('Failed to cleanup and detach device after attached and staging failed. Error: %s' % cleanup_err)
-
+				raise cleanup_err
 			# Re-raise the initial exception
 			raise staging_err
 
 		self.logger.debug('NodeStageVolume finished successfully for request: {}'.format(reqJson))
 		return NodeStageVolumeResponse()
+
+	def get_client_api(self):
+		api_params = TopologyUtils.get_api_params(self.zone)
+		client_api = NewClientAPI(**api_params)
+		return client_api
 
 	@CatchServerErrors
 	def NodeUnstageVolume(self, request, context):
@@ -118,7 +124,8 @@ class NVMeshNodeService(NodeServicer):
 		else:
 			self.logger.warning('NodeUnstageVolume - mount path {} not found.'.format(staging_target_path))
 
-		Utils.nvmesh_detach_volume(nvmesh_volume_name, self.stop_event)
+		client_api = self.get_client_api()
+		Utils.nvmesh_detach_volume(self.node_id, client_api, nvmesh_volume_name, Config.FORCE_DETACH, self.stop_event)
 
 		self.logger.debug('NodeUnstageVolume finished successfully for request: {}'.format(reqJson))
 		return NodeUnstageVolumeResponse()
@@ -188,7 +195,8 @@ class NVMeshNodeService(NodeServicer):
 		self.logger.debug('NodeUnpublishVolume called with request: {}'.format(reqJson))
 
 		if not os.path.exists(target_path):
-			raise DriverError(StatusCode.NOT_FOUND, 'mount path {} not found'.format(target_path))
+			self.logger.debug('NodeUnpublishVolume: target_path {} not found - nothing to do'.format(target_path))
+			return NodeUnpublishVolumeResponse()
 
 		if not FileSystemManager.is_mounted(mount_path=target_path):
 			self.logger.debug('NodeUnpublishVolume: {} is already not mounted'.format(target_path))
@@ -309,9 +317,9 @@ class NVMeshNodeService(NodeServicer):
 		topology_info = {}
 
 		if Config.TOPOLOGY_TYPE == Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS:
-			zone = self.get_node_zone_or_wait(self.node_id)
+			self.zone = self.get_node_zone_or_wait(self.node_id)
 			topology_key = TopologyUtils.get_topology_key()
-			topology_info[topology_key] = zone
+			topology_info[topology_key] = self.zone
 		elif Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
 			topology_key = TopologyUtils.get_topology_key()
 			topology_info[topology_key] = Consts.SINGLE_CLUSTER_ZONE_NAME

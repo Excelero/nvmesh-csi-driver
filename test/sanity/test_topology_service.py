@@ -5,7 +5,7 @@ import time
 
 from driver.zone_topology_fetcher import ZoneTopologyFetcherThread
 from test.sanity.helpers import config_map_api_mock
-from test.sanity.nvmesh_cluster_simulator.simulate_cluster import create_clusters
+from test.sanity.nvmesh_cluster_simulator.nvmesh_mgmt_sim import create_clusters
 
 os.environ['DEVELOPMENT'] = 'TRUE'
 

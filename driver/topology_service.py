@@ -5,7 +5,7 @@ import threading
 from threading import Thread
 
 import config
-from common import BackoffDelay, BackoffDelayWithStopEvent
+from common import BackoffDelayWithStopEvent
 from zone_topology_fetcher import ZoneTopologyFetcherThread
 from topology import Topology
 

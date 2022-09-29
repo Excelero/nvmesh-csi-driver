@@ -21,9 +21,6 @@ def setup_logging_level():
 	level = SanityTestConfig.LogLevel
 
 	sanity_logger = logging.getLogger('SanityTests')
-	if not len(sanity_logger.handlers):
-		add_stdout_logger(sanity_logger)
-
 	root_logger = logging.getLogger()
 	driver_logger = logging.getLogger('CSIDriver')
 	sdk_logger = logging.getLogger('NVMeshSDK')
@@ -42,10 +39,10 @@ def setup_logging_level():
 		topology_svc_logger,
 	]
 
-	# By default turn all loggers off
+	# By default, turn all loggers off
 	for l in all_loggers + [root_logger]:
-		l.removeHandler(sys.stderr)
-		l.removeHandler(sys.stdout)
+		for handler in l.handlers:
+			l.removeHandler(handler)
 
 	if level == LOG_LEVEL_QUIET:
 		# Should preferably output nothing
