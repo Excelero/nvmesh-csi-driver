@@ -12,7 +12,6 @@ from driver.config import Config
 from driver.csi.csi_pb2 import TopologyRequirement, Topology
 from driver.topology_utils import RoundRobinZonePicker
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
-from test.sanity.helpers.sanity_test_config import SanityTestConfig
 from test.sanity.helpers.setup_and_teardown import start_server
 
 import driver.consts as Consts
@@ -20,7 +19,7 @@ import driver.consts as Consts
 from test.sanity.helpers.test_case_with_server import TestCaseWithServerRunning
 from test.sanity.clients.controller_client import ControllerClient
 from test.sanity.helpers.error_handlers import CatchRequestErrors
-from test.sanity.nvmesh_cluster_simulator.simulate_cluster import NVMeshCluster, create_clusters, get_config_topology_from_cluster_list
+from test.sanity.nvmesh_cluster_simulator.nvmesh_mgmt_sim import NVMeshManagementSim, create_clusters, get_config_topology_from_cluster_list
 
 MB = pow(1024, 2)
 GB = pow(1024, 3)
@@ -54,7 +53,7 @@ class TestControllerServiceWithoutTopology(TestCaseWithServerRunning):
 	@classmethod
 	def setUpClass(cls):
 		super(TestControllerServiceWithoutTopology, cls).setUpClass()
-		cls.cluster1 = NVMeshCluster('cluster_' + cls.__name__)
+		cls.cluster1 = NVMeshManagementSim('cluster_' + cls.__name__)
 		cls.cluster1.start()
 
 		config = {
@@ -485,7 +484,7 @@ class TestRetryOnAnotherZone(TestCaseWithServerRunning):
 	def setUpClass(cls):
 		super(TestRetryOnAnotherZone, cls).setUpClass()
 
-		cls.cluster = NVMeshCluster('nvmesh_1', clients=['client1','client2'])
+		cls.cluster = NVMeshManagementSim('nvmesh_1', clients=['client1', 'client2'])
 		cls.cluster.start()
 		cls.cluster.wait_until_is_alive()
 		cls.active_mgmt_server = cls.cluster.get_mgmt_server_string()
@@ -743,7 +742,7 @@ class TestServerShutdown(TestCaseWithServerRunning):
 	This test checks that while the server terminates all running requests are able to finish successfully
 	'''
 	def test_abort_during_request(self):
-		cluster = NVMeshCluster('cluster1', options={'volumeCreationDelayMS': 5000})
+		cluster = NVMeshManagementSim('cluster1', options={'volumeCreationDelayMS': 5000})
 		cluster.start()
 
 		self.addCleanup(lambda: cluster.stop())

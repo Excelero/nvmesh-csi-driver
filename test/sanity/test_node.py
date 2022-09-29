@@ -13,13 +13,13 @@ from driver import consts
 
 from driver.csi.csi_pb2 import NodeServiceCapability, Topology, VolumeCapability, NodePublishVolumeRequest
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
-from test.sanity.helpers.container_server_manager import NVMeshAttachScriptMockBuilder, NVMeshDetachScriptMockBuilder
-from test.sanity.helpers.setup_and_teardown import start_server, start_containerized_server
+from test.sanity.helpers.quick_json_schema import JSONSchemaBuilder
+from test.sanity.helpers.setup_and_teardown import start_containerized_server
 from test.sanity.helpers.test_case_with_server import TestCaseWithServerRunning
 
-from test.sanity.clients.node_client import NodeClient, STAGING_PATH_TEMPLATE, TARGET_PATH_TEMPLATE, TARGET_PATH_PARENT_DIR_TEMPLATE
+from test.sanity.clients.node_client import NodeClient, STAGING_PATH_TEMPLATE, TARGET_PATH_PARENT_DIR_TEMPLATE
 from test.sanity.helpers.error_handlers import CatchRequestErrors, CatchNodeDriverErrors
-
+from test.sanity.nvmesh_cluster_simulator.nvmesh_mgmt_sim import NVMeshManagementSim
 
 GB = pow(1024, 3)
 VOL_ID = "vol_1"
@@ -27,16 +27,17 @@ NODE_ID_1 = "node-1"
 DEFAULT_POD_ID = "pod-ab12"
 TOPOLOGY_SINGLE_ZONE = {'zones': {'zone_1': {'management': {'servers': 'localhost:4000'}}}}
 TOPOLOGY_MULTIPLE_ZONES = Topology(segments={Consts.TopologyKey.ZONE: 'zone_1'})
+config_for_driver = None
 
 os.environ['DEVELOPMENT'] = 'TRUE'
 log = logging.getLogger('SanityTests')
 
 class TestNodeService(TestCaseWithServerRunning):
-	driver_server = None
+	driver_server = None  # ContainerizedCSIDriver: None
+	cluster1 = None  # type: NVMeshManagementSim
 
 	def __init__(self, *args, **kwargs):
 		TestCaseWithServerRunning.__init__(self, *args, **kwargs)
-		self.driver_server = None
 
 	@staticmethod
 	def restart_server(new_config=None):
@@ -48,25 +49,54 @@ class TestNodeService(TestCaseWithServerRunning):
 
 	@classmethod
 	def setUpClass(cls):
+		log.debug('setUpClass')
 		super(TestNodeService, cls).setUpClass()
+
+		# Start Management Simulator
+		cls.cluster1 = NVMeshManagementSim('cluster-1')
+		cls.cluster1.start()
+		log.debug('wait_until_is_alive()')
+		cls.cluster1.wait_until_is_alive()
+		log.debug('after wait_until_is_alive()')
+
+		cls.cluster1.add_clients({'node-1': {}, 'node-2': {}})
+
 		topology = {
 				'type': consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
-				'zones': TOPOLOGY_SINGLE_ZONE['zones']
+				'zones': {'zone_1': {'management': {'servers': cls.cluster1.get_mgmt_server_string()}}}
 			}
-		config = {'topology': json.dumps(topology)}
-		cls.driver_server = start_containerized_server(Consts.DriverType.Node, config=config, hostname='node-1')
-		config['SOCKET_PATH'] = 'unix://%s' % cls.driver_server.csi_socket_path
-		ConfigLoaderMock(config).load()
-		cls._client = NodeClient()
 
-		# To keep the container running after a test un-comment the following line:
-		#TestNodeService.driver_server.keep_container_on_finish()
+		config_for_test = {
+			'TOPOLOGY': topology,
+		}
+
+		global config_for_driver
+
+		config_for_driver = {
+			'topology': json.dumps(topology),
+			'sdkLogLevel': 'DEBUG',
+			'printStackTraces': 'true',
+			'attachIOEnabledTimeout': '3',
+		}
+
+		ConfigLoaderMock(config_for_test).load()
+
+		cls.driver_server = start_containerized_server(Consts.DriverType.Node, config=config_for_driver, hostname='node-1')
+		config_for_test['SOCKET_PATH'] = 'unix://%s' % cls.driver_server.csi_socket_path
+
+		ConfigLoaderMock(config_for_test).load()
+		cls._client = NodeClient()
 
 	@classmethod
 	def tearDownClass(cls):
 		log.debug('stopping server')
+		# To keep the container running after a test comment the following line:
 		cls.driver_server.stop()
 		log.debug('server stopped')
+
+		log.debug('stopping NVMesh cluster')
+		cls.cluster1.stop()
+		log.debug('NVMesh cluster stopped')
 
 	@CatchRequestErrors
 	def test_get_info_basic_test(self):
@@ -75,22 +105,13 @@ class TestNodeService(TestCaseWithServerRunning):
 
 	@CatchNodeDriverErrors(NODE_ID_1)
 	def test_get_info_with_topology(self):
-		self.restart_server()
-
-		zones_dict = {
-			'A': {'nodes': ['node-2', NODE_ID_1, 'node-3']},
-			'B': {'nodes': ['node-4', 'node-5']}
-		}
-
-		TestNodeService.driver_server.set_topology_config_map(json.dumps(zones_dict))
-
 		res = self._client.NodeGetInfo()
 		self.assertEquals(res.node_id, NODE_ID_1)
 
 		topology_info = res.accessible_topology.segments
 		log.debug(topology_info)
 		# This is configured in ConfigLoaderMock.TOPOLOGY
-		self.assertEquals(topology_info.get(Consts.TopologyKey.ZONE), 'A')
+		self.assertEquals(topology_info.get(Consts.TopologyKey.ZONE), 'zone_1')
 
 	@CatchRequestErrors
 	def test_get_info_node_not_found_in_any_mgmt(self):
@@ -129,60 +150,32 @@ class TestNodeService(TestCaseWithServerRunning):
 
 	@CatchRequestErrors
 	def test_node_stage_volume_successful(self):
-		nvmesh_attach_script_content = NVMeshAttachScriptMockBuilder().getDefaultSuccessBehavior()
-		TestNodeService.driver_server.set_nvmesh_attach_volumes_content(nvmesh_attach_script_content)
-		try:
-			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
-		except:
-			pass
-
 		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
 		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
-		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
-		r = self._client.NodeStageVolume(volume_id=VOL_ID)
+		self._client.NodeStageVolume(volume_id=VOL_ID)
 		log.debug("NodeStageVolume Finished")
 
 	@CatchRequestErrors
 	def test_node_stage_mkfs_options(self):
-		nvmesh_attach_script_content = NVMeshAttachScriptMockBuilder().getDefaultSuccessBehavior()
-		TestNodeService.driver_server.set_nvmesh_attach_volumes_content(nvmesh_attach_script_content)
-		try:
-			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
-		except:
-			pass
-
 		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
-		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
 		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
 		volume_context = {
 			'mkfsOptions': '-O encrypt'
 		}
 
-		r = self._client.NodeStageVolume(volume_id=VOL_ID, volume_context=volume_context)
+		self._client.NodeStageVolume(volume_id=VOL_ID, volume_context=volume_context)
 		log.debug("NodeStageVolume Finished")
 
 	@CatchRequestErrors
 	def test_cleanup_detach_after_timeout_waiting_for_io_enabled(self):
-		new_config = TestNodeService.driver_server.config.copy()
-		new_config['attachIOEnabledTimeout'] = '3'
-		self.restart_server(new_config=new_config)
-
-		nvmesh_detach_script_code = NVMeshDetachScriptMockBuilder().getDefaultSuccessBehavior()
-		TestNodeService.driver_server.set_nvmesh_detach_volumes_content(nvmesh_detach_script_code)
-
-		nvmesh_attach_script_content = NVMeshAttachScriptMockBuilder().setDbgValue('0x300').compile()
-		TestNodeService.driver_server.set_nvmesh_attach_volumes_content(nvmesh_attach_script_content)
-
-		try:
-			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
-		except:
-			pass
-
 		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
 		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
 		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+
+		self.cluster1.update_options({'volumeStatusProcContent': {'dbg': '0x300'}})
+
 		try:
-			r = self._client.NodeStageVolume(volume_id=VOL_ID)
+			self._client.NodeStageVolume(volume_id=VOL_ID)
 		except _Rendezvous as ex:
 			self.assertIn('Timed-out after waiting', str(ex))
 			self.assertIn('to have IO Enabled', str(ex))
@@ -194,11 +187,9 @@ class TestNodeService(TestCaseWithServerRunning):
 		log.debug("NodeStageVolume Finished")
 
 	def _test_nvmesh_attach_volume_response(self, status_and_error, expected_code, expected_string_in_details):
-		TestNodeService.driver_server.set_nvmesh_attach_volumes_content("""
-import sys
-vol_id = sys.argv[-1]
-print('{{ "status": "success", "volumes": {{ "%s": {status_and_error} }} }}' % vol_id)
-""".format(status_and_error=status_and_error))
+		# TODO: tell management sim to return error
+		pass
+
 		try:
 			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
 		except:
@@ -213,12 +204,14 @@ print('{{ "status": "success", "volumes": {{ "%s": {status_and_error} }} }}' % v
 
 	@CatchRequestErrors
 	def test_attach_should_use_preempt_when_flag_is_set_and_mode_rwo(self):
-		new_config = TestNodeService.driver_server.config.copy()
-		new_config['usePreempt'] = 'True'
-		self.restart_server(new_config=new_config)
+		schema_builder = JSONSchemaBuilder()
+		schema_builder.validate_obj_value('volumes[].reservation.preempt', {'enum': [True]})
+		schema = schema_builder.get_schema()
+		self.cluster1.update_options({'schemas': {'/clients/attach': schema}})
 
-		nvmesh_attach_script_content = NVMeshAttachScriptMockBuilder().makeSureArgumentExists('--preempt').compile()
-		TestNodeService.driver_server.set_nvmesh_attach_volumes_content(nvmesh_attach_script_content)
+		config_for_driver['usePreempt'] = 'True'
+		self.restart_server(new_config=config_for_driver)
+
 		try:
 			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
 		except:
@@ -232,8 +225,11 @@ print('{{ "status": "success", "volumes": {{ "%s": {status_and_error} }} }}' % v
 
 	@CatchRequestErrors
 	def test_attach_should_not_use_preempt_when_flag_is_set_but_mode_is_not_rwo(self):
-		nvmesh_attach_script_content = NVMeshAttachScriptMockBuilder().makeSureArgumentDoesNotExist('--preempt').compile()
-		TestNodeService.driver_server.set_nvmesh_attach_volumes_content(nvmesh_attach_script_content)
+		schema_builder = JSONSchemaBuilder()
+		schema_builder.validate_obj_value('volumes[].reservation.preempt', {'enum': [False]})
+		schema = schema_builder.get_schema()
+		self.cluster1.update_options({'schemas' : { '/clients/attach': schema }})
+
 		try:
 			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
 		except:
@@ -248,9 +244,10 @@ print('{{ "status": "success", "volumes": {{ "%s": {status_and_error} }} }}' % v
 
 	@CatchRequestErrors
 	def test_attach_should_not_use_preempt_when_flag_is_not_set(self):
-		nvmesh_attach_script_content = NVMeshAttachScriptMockBuilder().makeSureArgumentDoesNotExist('--preempt').compile()
-		TestNodeService.driver_server.set_nvmesh_attach_volumes_content(nvmesh_attach_script_content)
-
+		schema_builder = JSONSchemaBuilder()
+		schema_builder.validate_obj_value('volumes[].reservation.preempt', {'enum': [False]})
+		schema = schema_builder.get_schema()
+		self.cluster1.update_options({'schemas': {'/clients/attach': schema}})
 		try:
 			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
 		except:
@@ -264,12 +261,14 @@ print('{{ "status": "success", "volumes": {{ "%s": {status_and_error} }} }}' % v
 
 	@CatchRequestErrors
 	def test_detach_retries_when_volume_is_busy(self):
+		# TODO: make mgmt sim return busy
+		pass
 		new_config = TestNodeService.driver_server.config.copy()
 		new_config['attachIOEnabledTimeout'] = '3'
 		self.restart_server(new_config=new_config)
 
-		nvmesh_detach_script_code = NVMeshDetachScriptMockBuilder().returnBusy().compile()
-		TestNodeService.driver_server.set_nvmesh_detach_volumes_content(nvmesh_detach_script_code)
+		pass
+		TestNodeService.driver_server.set_nvmesh_detach_volumes_content()
 
 		try:
 			r = self._client.NodeUnstageVolume(volume_id=VOL_ID)
@@ -277,55 +276,6 @@ print('{{ "status": "success", "volumes": {{ "%s": {status_and_error} }} }}' % v
 			self.assertIn('nvmesh_detach_volumes failed after', str(ex))
 
 		log.debug("NodeUnstageVolume Finished")
-
-	@CatchRequestErrors
-	def test_stage_volume_failed_access_mode_denied_workaround(self):
-		self._test_nvmesh_attach_volume_response(
-			status_and_error='{"status": "Attached IO Enabled", "error": "Access Mode Denied."}',
-			expected_code=StatusCode.FAILED_PRECONDITION,
-			expected_string_in_details='Access Mode Denied'
-		)
-
-
-	@CatchRequestErrors
-	def test_stage_volume_failed_reservation_mode_denied(self):
-		self._test_nvmesh_attach_volume_response(
-			status_and_error='{"status": "Attached IO Enabled", "error": "Reservation Mode Denied."}',
-			expected_code=StatusCode.FAILED_PRECONDITION,
-			expected_string_in_details='Access Mode Denied'
-		)
-
-	@CatchRequestErrors
-	def test_stage_volume_failed_reservation_mode_denied(self):
-		self._test_nvmesh_attach_volume_response(
-			status_and_error='{"status": "Access Mode Denied"}',
-			expected_code=StatusCode.FAILED_PRECONDITION,
-			expected_string_in_details='Access Mode Denied'
-		)
-
-	@CatchRequestErrors
-	def test_stage_volume_failed_access_version_outdated(self):
-		self._test_nvmesh_attach_volume_response(
-			status_and_error='{"status": "Access Version Outdated"}',
-			expected_code=StatusCode.INTERNAL,
-			expected_string_in_details='Access Version Outdated'
-		)
-
-	@CatchRequestErrors
-	def test_stage_volume_failed_access_version_outdated(self):
-		self._test_nvmesh_attach_volume_response(
-			status_and_error='{"status": "Attach Failed"}',
-			expected_code=StatusCode.INTERNAL,
-			expected_string_in_details='Attach Failed'
-		)
-
-	@CatchRequestErrors
-	def test_stage_volume_failed_access_version_outdated(self):
-		self._test_nvmesh_attach_volume_response(
-			status_and_error='{"status": "Update Failed", "error": "Volume attach request failed. Failed to update volume. ErrorID: 1047, review system logs for more information."}',
-			expected_code=StatusCode.INTERNAL,
-			expected_string_in_details='Attach Failed'
-		)
 
 	@CatchRequestErrors
 	def test_node_publish_volume_fs(self):

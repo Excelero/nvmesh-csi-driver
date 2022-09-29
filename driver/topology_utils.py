@@ -23,6 +23,7 @@ class TopologyUtils(object):
 		zone_info = Config.TOPOLOGY['zones'].get(zone)
 
 		if not zone_info:
+			logger.debug('Zone {} missing from Config.topology topology: {}'.format(zone, Config.TOPOLOGY))
 			raise ValueError('Zone %s missing from Config.topology' % zone)
 
 		return zone_info

@@ -4,7 +4,7 @@ import time
 from driver import config
 from test.sanity.helpers import config_loader_mock
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
-from test.sanity.helpers.container_server_manager import ContainerServerManager
+from test.sanity.helpers.containerized_csi_driver import ContainerizedCSIDriver
 
 config.config_loader = config_loader_mock.ConfigLoaderMock()
 
@@ -41,8 +41,7 @@ def start_server(driverType, config, mock_node_id=None, wait_for_grpc=True):
 
 
 def start_containerized_server(driver_type, config, hostname=None):
-	ConfigLoaderMock(config).load()
-	driver_server = ContainerServerManager(driver_type, config, node_id=hostname)
+	driver_server = ContainerizedCSIDriver(driver_type, config, node_id=hostname)
 	driver_server.start()
 	driver_server.wait_for_grpc_server_to_be_alive()
 	return driver_server

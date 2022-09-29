@@ -8,7 +8,7 @@ import sys, os
 from concurrent import futures
 import config as config_module
 from config import Config
-from common import ServerLoggingInterceptor, FeatureSupportChecks, LoggerUtils
+from common import ServerLoggingInterceptor, LoggerUtils
 import consts as Consts
 from controller_service import NVMeshControllerService
 from csi import csi_pb2_grpc
@@ -38,7 +38,6 @@ class NVMeshCSIDriverServer(object):
 		if self.driver_type == Consts.DriverType.Controller:
 			self.controller_service = NVMeshControllerService(self.logger, stop_event=self.stop_event)
 		else:
-			FeatureSupportChecks.calculate_all_feature_support()
 			self.node_service = NVMeshNodeService(self.logger, stop_event=self.stop_event)
 
 		self.server = None

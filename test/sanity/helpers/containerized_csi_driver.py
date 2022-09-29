@@ -5,6 +5,7 @@ import os
 import subprocess
 
 import time
+from threading import Thread
 
 from test.sanity.clients.identity_client import IdentityClient
 from test.sanity.helpers.config_loader_mock import get_version_info
@@ -16,10 +17,11 @@ DEFAULT_CONFIG = {
 	'management.protocol': 'https',
 	'management.servers': 'mgmt:4000',
 	'attachIOEnabledTimeout': '30',
-	'printStackTraces': 'false'
+	'printStackTraces': 'true'
 }
 
-class ContainerServerManager(object):
+class ContainerizedCSIDriver(object):
+
 	def __init__(self, driver_type, config=None, node_id=None):
 		self.driver_type = driver_type
 		self.node_id = node_id
@@ -29,13 +31,10 @@ class ContainerServerManager(object):
 		self.env_dir = '/tmp/csi_sanity/{}'.format(self.container_name)
 		self.csi_socket_path = os.path.join(self.env_dir, 'csi/csi.sock')
 		self.version_info = get_version_info()
-		self.stop_container_on_finish = True
 		self._setup_env_dir()
 		self._stopped = False
 		self.image_name_with_tag = None
-
-	def keep_container_on_finish(self):
-		self.stop_container_on_finish = False
+		self.stdout = []
 
 	def _remove_last_container(self):
 		try:
@@ -49,7 +48,7 @@ class ContainerServerManager(object):
 			pass
 
 	def start(self):
-		self.logger.info('Starting ContainerServerManager {}'.format(self.container_name))
+		self.logger.info('Starting ContainerizedCSIDriver {}'.format(self.container_name))
 		self._remove_last_container()
 
 		self.image_name_with_tag = 'excelero/nvmesh-csi-driver:{}'.format(self.version_info['DRIVER_VERSION'])
@@ -57,6 +56,7 @@ class ContainerServerManager(object):
 		cmd = [
 			'docker', 'run', '-d', '--privileged',
 			'--cap-add=sys_admin',
+			'--net', 'csi_test',
 			'--name', self.container_name,
 			'-h', self.node_id,
 			'-v', '{}/topology:/topology'.format(self.env_dir),
@@ -73,18 +73,43 @@ class ContainerServerManager(object):
 			'-e', 'SOCKET_PATH={}'.format('unix:///csi/csi.sock'),
 			'-e', 'MANAGEMENT_SERVERS=a.b:4000',
 			'-e', 'SIMULATED_PROC=True',
+			'-p', '5050',
 			self.image_name_with_tag
 		]
 
-		p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		stdout, stderr = p.communicate()
+		csi_driver_logger = self.logger.getChild("CSI")
+		p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		csi_driver_logger.info("Started")
+		self.logs_thread = self.stream_output_in_a_thread(p)
 
-		if p.returncode != 0:
-			self.handle_docker_errors(cmd, p.returncode, stdout, stderr)
-
-		self.logger.info('ContainerServerManager {} Started'.format(self.container_name))
+		self.logger.info('ContainerizedCSIDriver {} Started'.format(self.container_name))
 		self._chown_path(self.env_dir)
+
 		return self
+
+	def stream_output_in_a_thread(self, p):
+
+		def stream_logs(pipe, logger):
+			for line in iter(pipe.readline, b''):
+				logger.info(line)
+				for h in logger.handlers:
+					h.flush()
+				self.stdout.append(line)
+			logger.info('finished reading output')
+			p.wait()
+			logger.debug('Cluster ended with exit code: {}'.format(p.returncode))
+			if p.returncode != 0:
+				if p.returncode == -15:
+					logger.info('Server was stopped')
+				else:
+					logger.error('Cluster ended with an error (exit code %d). exiting..' % p.returncode)
+
+			logger.info('Cluster stopped')
+			self.stopped = True
+
+		t = Thread(name='{}_stream_logs'.format(self.container_name), target=stream_logs, args=(p.stdout, self.logger))
+		t.start()
+		return t
 
 	def handle_docker_errors(self, command, exit_code, stdout, stderr):
 		if 'Unable to find image' in stderr:
@@ -92,27 +117,21 @@ class ContainerServerManager(object):
 		else:
 			raise ValueError('Error running docker container  command: {} exit code: {} stdout: {} stderr: {}'.format(' '.join(command), exit_code, stdout, stderr))
 
-	def stream_logs(self):
-		# TODO: Implement
-		# we could just spawn a new process and call `docker logs container_name --follow`...
-		pass
-
 	def run_command_in_container(self, cmd, **kwargs):
 		return subprocess.check_output(['docker', 'exec', self.container_name] + cmd, **kwargs)
 
 	def stop(self):
-		if self.stop_container_on_finish:
-			if not self._stopped:
-				self.logger.info('Stopping')
-				try:
-					subprocess.check_call(['docker', 'stop', self.container_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-				except subprocess.CalledProcessError as ex:
-					self.logger.warning('docker stop command failed')
+		self.logger.info('Joining logs_thread')
+		self.logs_thread.join()
+		if not self._stopped:
+			self.logger.info('Stopping')
+			try:
+				subprocess.check_call(['docker', 'stop', self.container_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			except subprocess.CalledProcessError as ex:
+				self.logger.warning('docker stop command failed')
 
-				self.logger.info('stopped successfully')
-				self._stopped = True
-		else:
-			self.logger.info("Keeping container running")
+			self.logger.info('stopped successfully')
+			self._stopped = True
 
 	def __del__(self):
 		if not self._stopped:
@@ -147,22 +166,6 @@ class ContainerServerManager(object):
 		if config:
 			config_copy.update(config)
 		return config_copy
-
-	def set_nvmesh_attach_volumes_content(self, content):
-		nvmesh_scripts_dir = os.path.join(self.env_dir, 'host/bin')
-		attach_script_path = os.path.join(nvmesh_scripts_dir, 'nvmesh_attach_volumes')
-		self._make_sure_dir_exists(nvmesh_scripts_dir)
-
-		with open(attach_script_path, 'w') as fp:
-			fp.write(content)
-
-	def set_nvmesh_detach_volumes_content(self, content):
-		nvmesh_scripts_dir = os.path.join(self.env_dir, 'host/bin')
-		attach_script_path = os.path.join(nvmesh_scripts_dir, 'nvmesh_detach_volumes')
-		self._make_sure_dir_exists(nvmesh_scripts_dir)
-
-		with open(attach_script_path, 'w') as fp:
-			fp.write(content)
 
 	def write_config(self):
 		# This will write the config as a mounted kubernetes ConfigMap (file per field)
@@ -208,16 +211,15 @@ class ContainerServerManager(object):
 		self._make_sure_dir_exists(self.env_dir)
 		self._chown_path(self.env_dir)
 		self.write_config()
-		self.set_nvmesh_attach_volumes_content('print("--access-mode")')
-		self.set_nvmesh_detach_volumes_content("raise ValueError('No Content')")
 
 		# Set the topology/zones with the first zone from the topology config
 		zones = {}
-		topologyConfig = json.loads(self.config['topology'])
-		if topologyConfig:
-			zone = topologyConfig['zones'].keys()[0]
+		topology_config = json.loads(self.config['topology'])
+		if topology_config:
+			zone = topology_config['zones'].keys()[0]
 			zones[zone] = {'nodes': [self.node_id]}
 			self.set_topology_config_map(json.dumps(zones))
+
 
 	def add_nvmesh_device(self, volume_id):
 		dev_nvmesh = os.path.join(self.env_dir, 'dev/nvmesh')
@@ -232,150 +234,3 @@ class ContainerServerManager(object):
 		dev_nvmesh = os.path.join(self.env_dir, 'dev/nvmesh')
 		device_file = os.path.join(dev_nvmesh, volume_id)
 		os.remove(device_file)
-
-
-class NVMeshAttachScriptMockBuilder(object):
-	"""
-	This class is a builder to create code for nvmesh_attach_volumes that will run inside the container
-	Which would simulate the script, the device file, and the proc file
-	"""
-	IO_ENABLED = '0x200'
-	ATTACHED_IO_ENABLED = "Attached IO Enabled"
-
-	def __init__(self):
-		self.create_proc_file = True
-		self.create_device_file = True
-		self.proc_dbg_value = NVMeshAttachScriptMockBuilder.IO_ENABLED
-		self.res_volume_status = NVMeshAttachScriptMockBuilder.ATTACHED_IO_ENABLED
-		self.expect_preempt = False
-
-		self.expected_argument = None
-		self.not_expected_argument = None
-
-	def getDefaultSuccessBehavior(self):
-		return self.compile()
-
-	def setDbgValue(self, dbg_value):
-		self.proc_dbg_value = dbg_value
-		return self
-
-	def noProcFile(self):
-		self.create_proc_file = False
-		return self
-
-	def noDeviceFile(self):
-		self.create_device_file = False
-		return self
-
-	def setVolumeStatus(self, volume_status):
-		self.res_volume_status = volume_status
-		return self
-
-	def makeSureArgumentExists(self, expected_argument):
-		self.expected_argument = expected_argument
-		return self
-
-	def makeSureArgumentDoesNotExist(self, not_expected_argument):
-		self.not_expected_argument = not_expected_argument
-		return self
-
-	def compile(self):
-		code = """
-import sys
-import json
-import os
-
-MB = 1024 * 1024
-GB = MB * 1024
-vol_id = sys.argv[-1]
-"""
-		if self.expected_argument:
-			code += """
-if '{expected_argument}' not in sys.argv:
-	raise ValueError('Expected {expected_argument} flag when AccessMode is Exclusive (ReadWriteOnce). argv=%s' % sys.argv)
-""".format(expected_argument=self.expected_argument)
-
-		if self.not_expected_argument:
-			code += """
-if '{not_expected_argument}' in sys.argv:
-	raise ValueError('Not expecting {not_expected_argument} flag when the Config.preempt flag is set to false. argv=%s' % sys.argv)
-""".format(not_expected_argument=self.not_expected_argument)
-
-		if self.create_device_file:
-			code += """
-device_path = "/dev/nvmesh/%s" % vol_id
-with open(device_path, "wb") as f:
-	f.truncate(MB * 100)
-"""
-
-		# Add code to simulate a /proc/nvmeibc
-		if self.create_proc_file:
-			code += """
-proc_dir = '/simulated/proc/nvmeibc/volumes/%s'  % vol_id
-proc_status_file = "%s/status.json" % proc_dir
-
-try:
-	os.makedirs(proc_dir)
-except:
-	pass
-with open(proc_status_file, "w") as f:
-	proc_content_dict = {{
-		'dbg':'{dbg_value}'
-	}}
-	f.write(json.dumps(proc_content_dict))
-""".format(dbg_value=self.proc_dbg_value)
-
-		# Add code to
-		code += """
-	print('{{ "status": "success", "volumes": {{ "%s": {{ "status": "{volume_status}" }} }} }}' % vol_id)
-""".format(volume_status=self.res_volume_status)
-
-		return code
-
-
-
-class NVMeshDetachScriptMockBuilder(object):
-	"""
-	This class is a builder to create code for nvmesh_detach_volumes that will run inside the container
-	Which would simulate the script, the device file, and the proc file
-	"""
-	DETACHED = "Detached"
-
-	def __init__(self):
-		self.code = self._getDefaultCode()
-		self.vol_status = "Detached"
-
-	def _getDefaultCode(self):
-		return """
-import sys
-import os
-import json
-
-vol_id = sys.argv[-1]
-vol_status = "{vol_status}"
-if vol_status == "Detached":
-	device_path = "/dev/nvmesh/%s" % vol_id
-	os.remove(device_path)
-
-response = {{
-	"status": "success",
-	"volumes": {{
-		vol_id: {{ 
-			"status": vol_status
-		}}
-	}}
-}}
-
-print(json.dumps(response))
-"""
-
-	def getDefaultSuccessBehavior(self):
-		self.vol_status = "Detached"
-		return self.compile()
-
-	def returnBusy(self):
-		self.vol_status = "Busy"
-		return self
-		
-	def compile(self):
-		return self.code.format(vol_status=self.vol_status)

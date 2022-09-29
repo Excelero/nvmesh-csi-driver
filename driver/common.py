@@ -10,7 +10,6 @@ import grpc
 from config import Config
 import consts as Consts
 
-
 class ServerLoggingInterceptor(grpc.ServerInterceptor):
 	def __init__(self, logger):
 		self.logger = logger
@@ -126,114 +125,90 @@ class Utils(object):
 		for i in range(int(duration / sleep_interval)):
 			time.sleep(sleep_interval)
 
-	# legacy API of calling nvmesh_attach_volumes before Exclusive Access feature introduced
 	@staticmethod
-	def _attach_volume_legacy(nvmesh_volume_name):
-		exit_code, stdout, stderr = Utils.run_command('python {}/nvmesh_attach_volumes --wait_for_attach {}'.format(Config.NVMESH_BIN_PATH, nvmesh_volume_name))
-		if exit_code != 0:
-			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
+	def nvmesh_attach_volume_rest_call(client_id, client_api, nvmesh_volume_name, requested_nvmesh_access_mode):
+		Utils.logger.debug('nvmesh_attach_volume_rest_call Volume {} doing attach REST call to management'.format(nvmesh_volume_name))
 
-	@staticmethod
-	def _attach_volume_with_access_mode(nvmesh_volume_name, nvmesh_access_mode):
-		preempt_flag = ''
-		if Config.USE_PREEMPT and nvmesh_access_mode == Consts.AccessMode.to_nvmesh(Consts.AccessMode.SINGLE_NODE_WRITER):
-			preempt_flag = '--preempt'
-		cmd_template = 'python {script_dir}/nvmesh_attach_volumes --wait_for_attach --json --access {access} {preempt} {volume}'
-		cmd = cmd_template.format(script_dir=Config.NVMESH_BIN_PATH, access=nvmesh_access_mode, preempt=preempt_flag, volume=nvmesh_volume_name)
-		exit_code, stdout, stderr = Utils.run_command(cmd)
+		err, res = client_api.attach(client_id, nvmesh_volume_name, requested_nvmesh_access_mode)
+		# example: [{"_id": "vol1", "success": false, "error": "There is no such client client-1 or attachment", "payload": null}]
 
 		try:
-			results = json.loads(stdout or stderr)
-		except Exception as ex:
-			raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: Could not parse output as JSON error_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
-
-		if results.get('status') == 'failed':
-			# General Script Failure
-			raise DriverError(grpc.StatusCode.INTERNAL,
-							  "nvmesh_attach_volumes failed: error_code: {} error: {} cmd: {}".format(results['error_code'], results['error'], cmd))
-		else:
-			volumes_results = results.get('volumes', [])
-			if nvmesh_volume_name in volumes_results:
-				# volumes_results is an object with volume_name as keys. we only need to handle one volume
-				volume_res = volumes_results[nvmesh_volume_name]
-				volume_status = volume_res['status']
-				attach_error = volume_res.get('error', None)
-				debug_info = "nvmesh_attach_volumes returned volume status: {} error: {} cmd: {}".format(volume_status, volume_res.get('error', None), cmd)
-				if attach_error in ['Reservation Mode Denied.', 'Access Mode Denied.'] or volume_status in ['Reservation Mode Denied', 'Access Mode Denied']:
-					raise DriverError(grpc.StatusCode.FAILED_PRECONDITION, "Attach Failed - Access Mode Denied - {}".format(debug_info))
-				elif volume_status in ['Attached IO Enabled', 'Attached']:
-					# Success
-					Utils.logger.debug('Volume {} attached with reservation mode {}'.format(nvmesh_volume_name, nvmesh_access_mode))
-				elif volume_status == 'Already Attached':
-					if 'error' in volume_res:
-						raise DriverError(grpc.StatusCode.FAILED_PRECONDITION, "Attach Failed - Already Attached - {}".format(debug_info))
-					else:
-						Utils.logger.debug('Volume {} is already attached with the requested access mode. output: {}'.format(nvmesh_volume_name, stdout))
-				else:
-					raise DriverError(grpc.StatusCode.INTERNAL, "Attach Failed - {}".format(debug_info))
+			res = res[0]
+			if res["success"]:
+				# operation successful
+				return
 			else:
-				raise DriverError(grpc.StatusCode.INTERNAL, "nvmesh_attach_volumes failed: Volume {} not found in results. cmd: {} output: {}".format(nvmesh_volume_name, cmd, results))
-
-	@staticmethod
-	def nvmesh_attach_volume(nvmesh_volume_name, requested_nvmesh_access_mode):
-		if FeatureSupport.AccessMode:
-			Utils.check_if_access_mode_allowed(requested_nvmesh_access_mode, nvmesh_volume_name)
-			Utils.logger.debug('using nvmesh_attach_volume with --access and --json')
-			Utils._attach_volume_with_access_mode(nvmesh_volume_name, requested_nvmesh_access_mode)
-		else:
-			# Backward Compatibility for NVMesh versions without exclusive access feature
-			Utils.logger.debug('using legacy nvmesh_attach_volume without --access or --json')
-			Utils._attach_volume_legacy(nvmesh_volume_name)
-
-	@staticmethod
-	def call_nvmesh_detach_volume(nvmesh_volume_name):
-		exit_code, stdout, stderr = Utils.run_command(
-			'python {}/nvmesh_detach_volumes --json {}'.format(Config.NVMESH_BIN_PATH, nvmesh_volume_name))
-		if exit_code != 0:
-			raise DriverError(grpc.StatusCode.INTERNAL,
-							  "nvmesh_detach_volumes failed: exit_code: {} stdout: {} stderr: {}".format(exit_code, stdout, stderr))
-		else:
-			response = json.loads(stdout or stderr)
-			if response["status"] != "success":
-				raise DriverError(grpc.StatusCode.INTERNAL, 
-									"nvmesh_detach_volumes failed. Got status {}. full response: {}".format(
-									response["status"], response))
-
-			volume_status = response["volumes"][nvmesh_volume_name]["status"]
-			return volume_status, response
-
-	@staticmethod
-	def nvmesh_detach_volume(nvmesh_volume_name, stop_event):
-		backoff = BackoffDelayWithStopEvent(stop_event, initial_delay=0.5, factor=2, max_delay=4, max_timeout=15)
-		response = None
-		while True:
-			try:
-				volume_status, response = Utils.call_nvmesh_detach_volume(nvmesh_volume_name)
-				if volume_status == "Detached":
-					# Operation successful
+				err = res["error"].lower()
+				if 'already attached' in err:
+					# Already attached - Idempotent => return true
+					Utils.logger.debug('Volume {} is already attached with the requested access mode. output: {}'.format(nvmesh_volume_name, res))
 					return
-				elif volume_status == "Busy":
+				elif 'access mode denied' in err:
+					raise DriverError(grpc.StatusCode.FAILED_PRECONDITION, "Attach Failed - Access Mode Denied - {}".format(res))
+				else:
+					raise DriverError(grpc.StatusCode.INTERNAL, "Attach Failed - {}".format(res))
+		except Exception as ex:
+			err = "Failed to parse attach response from the management. error: {} message received: {}".format(ex, res)
+			raise DriverError(grpc.StatusCode.INTERNAL, "Attach Failed - {}".format(err))
+
+	@staticmethod
+	def nvmesh_attach_volume(client_id, client_api, nvmesh_volume_name, requested_nvmesh_access_mode):
+		Utils.check_if_access_mode_allowed(requested_nvmesh_access_mode, nvmesh_volume_name)
+		Utils.nvmesh_attach_volume_rest_call(client_id, client_api, nvmesh_volume_name, requested_nvmesh_access_mode)
+
+	@staticmethod
+	def nvmesh_detach_volume_rest_call(client_id, client_api, nvmesh_volume_name, force):
+		err, res = client_api.detach(client_id, nvmesh_volume_name, force)
+		# example: [{"_id": "vol1", "success": false, "error": "There is no such client client-1 or attachment", "payload": null}]
+		try:
+			res = res[0]
+			if res["success"]:
+				# operation successful
+				return
+			else:
+				err = res["error"].lower()
+				if 'already detached' in err:
+					# Already detached - Idempotent => return true
+					Utils.logger.debug('Volume {} is already detached with the requested access mode. output: {}'.format(nvmesh_volume_name, res))
+					return
+				elif 'access mode denied' in err:
+					raise DriverError(grpc.StatusCode.FAILED_PRECONDITION, "Detach Failed - Access Mode Denied - {}".format(res))
+				else:
+					raise DriverError(grpc.StatusCode.INTERNAL, "Detach Failed - {}".format(res))
+		except Exception as ex:
+			raise DriverError(grpc.StatusCode.INTERNAL, "Failed to parse detach response: {} Error: {}".format(res, ex))
+
+	@staticmethod
+	def wait_for_volume_to_detach(nvmesh_volume_name, stop_event):
+		backoff = BackoffDelayWithStopEvent(stop_event, initial_delay=0.2, factor=2, max_delay=1, max_timeout=Config.DETACH_TIMEOUT)
+		detached = False
+		while not detached:
+			try:
+				if not Utils.is_nvmesh_volume_attached(nvmesh_volume_name):
+					detached = True
+				else:
 					stopped_flag = backoff.wait()
 					if stopped_flag:
 						raise DriverError(grpc.StatusCode.INTERNAL, 'Stopped nvmesh_detach_volume attempts because Driver is shutting down')
-				else:
-					# unexpected error returned from nvmesh_detach_volumes
-					raise DriverError(grpc.StatusCode.INTERNAL,
-									  "nvmesh_detach_volumes failed. Volume status is {}. full response: {}".format(
-										  volume_status, response))
 			except BackoffTimeoutError:
 				raise DriverError(grpc.StatusCode.INTERNAL,
-								  "nvmesh_detach_volumes failed after {} seconds and {} attempts. Last error received: {}".format(
-									  backoff.get_total_time_seconds(), backoff.num_of_backoffs, response))
+								  "timed out waiting for volume {} to detach after {} seconds and {} attempts.".format(
+									  nvmesh_volume_name, backoff.get_total_time_seconds(), backoff.num_of_backoffs))
+
+		Utils.logger.debug('Volume {} successfully detached and device removed from the host'.format(nvmesh_volume_name))
+
+	@staticmethod
+	def nvmesh_detach_volume(client_id, client_api, nvmesh_volume_name, force, stop_event):
+		Utils.nvmesh_detach_volume_rest_call(client_id, client_api, nvmesh_volume_name, force)
+		Utils.wait_for_volume_to_detach(nvmesh_volume_name, stop_event)
 
 	@staticmethod
 	def wait_for_volume_io_enabled(nvmesh_volume_name):
-		try:
-			now = datetime.now()
-			max_time = datetime.now() + timedelta(seconds=Config.ATTACH_IO_ENABLED_TIMEOUT)
-			volume_status = None
+		backoff = BackoffDelay(initial_delay=1, factor=1, max_timeout=Config.ATTACH_IO_ENABLED_TIMEOUT)
+		volume_status = None
 
-			while now <= max_time:
+		while True:
+			try:
 				try:
 					volume_status = Utils.get_volume_status(nvmesh_volume_name)
 					if volume_status.get("dbg") == '0x200':
@@ -247,16 +222,12 @@ class Utils(object):
 					Utils.logger.debug("Waiting for volume {} to have IO Enabled. Error: {}".format(nvmesh_volume_name, ex))
 					pass
 
-				time.sleep(1)
-				now = datetime.now()
-		except Exception as ex:
-			Utils.logger.exception(ex)
-			raise DriverError(grpc.StatusCode.INTERNAL, "Error while trying to wait_for_volume_io_enabled. Error: {}.".format(ex))
-
-		raise DriverError(grpc.StatusCode.INTERNAL, "Timed-out after waiting {} seconds for volume {} to have IO Enabled. volume status: {}".format(
-			Config.ATTACH_IO_ENABLED_TIMEOUT,
-			nvmesh_volume_name,
-			json.dumps(volume_status)))
+				backoff.wait()
+			except BackoffTimeoutError:
+				raise DriverError(grpc.StatusCode.INTERNAL, "Timed-out after waiting {} seconds for volume {} to have IO Enabled. volume status: {}".format(
+					Config.ATTACH_IO_ENABLED_TIMEOUT,
+					nvmesh_volume_name,
+					json.dumps(volume_status)))
 
 	@staticmethod
 	def get_volume_status(nvmesh_volume_name):
@@ -352,34 +323,6 @@ class Utils(object):
 		raise ValueError('Failed to parse boolean from %s with type %s' % (value, type(value)))
 
 
-
-class FeatureSupportChecks(object):
-	@staticmethod
-	def calculate_all_feature_support():
-		FeatureSupport.AccessMode = FeatureSupportChecks.is_access_mode_supported()
-
-	@staticmethod
-	def get_all_features():
-		features = {}
-		for key, value in FeatureSupport.__dict__.iteritems():
-			if not key.startswith('_') and not callable(value):
-				features[key] = value
-
-		return features
-
-	@staticmethod
-	def is_access_mode_supported():
-		if os.environ.get('DEVELOPMENT'):
-			return True
-		attach_script_path = '{}/nvmesh_attach_volumes'.format(Config.NVMESH_BIN_PATH)
-		while not os.path.exists(attach_script_path):
-			print('Waiting for attach script to be available under {}'.format(attach_script_path))
-			time.sleep(5)
-		exit_code, stdout, stderr = Utils.run_command('python {} --help | grep -e "access"'.format(attach_script_path))
-		return exit_code == 0
-
-class FeatureSupport(object):
-	AccessMode = None
 
 class BackoffTimeoutError(Exception):
 	pass

@@ -13,7 +13,7 @@ features:
 config:
   protocol: https
   servers: mgmt.domain.com:4000
-  # logLevel: DEBUG
+  logLevel: DEBUG
   # sdkLogLevel: DEBUG
   # kubeClientLogLevel: INFO
   # use the format of <ip:port> or <hostname:port> pointing to your management server REST interface
@@ -24,6 +24,8 @@ config:
   password: YWRtaW4=
 
   attachIOEnabledTimeout: 30
+  detachTimeout: 90
+  forceDetach: true
   printStackTraces: false
   usePreempt: false
 
@@ -35,6 +37,9 @@ hostBinariesPath: /bin
 systemdHost: false
 
 defaultStorageClasses: true
+
+annotations:
+  kubectl.kubernetes.io/default-logs-container: nvmesh-csi-driver
 
 controller:
   replicaCount: 1
