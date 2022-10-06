@@ -1,3 +1,6 @@
+version := `./get_version_info.sh | grep ^VERSION | cut -d '=' -f2`
+image_name := `cat deploy/kubernetes/helm/nvmesh-csi-driver/values.yaml | yq '.image.repository'`
+
 # ----------------
 # Build
 # ----------------
@@ -52,6 +55,12 @@ test-integration:
 # ----------------
 # Deploy
 # ----------------
+
+push:
+	echo "Pushing version $(version) as $(image_name)"
+	docker tag excelero/nvmesh-csi-driver:$(version) $(image_name):$(version)
+	docker push $(image_name):$(version) && make deploy
+
 manifests:
 	cd deploy/kubernetes/scripts && ./build_deployment_file.sh
 
