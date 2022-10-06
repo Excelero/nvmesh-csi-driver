@@ -35,7 +35,7 @@ data:
   forceDetach: 'true'
   logLevel: DEBUG
   management.protocol: https
-  management.servers: 10.240.18.92:4000
+  management.servers: mgmt.domain.com:4000
   printStackTraces: 'false'
   topologyConfigMapName: nvmesh-csi-topology
   usePreempt: 'false'
@@ -491,7 +491,7 @@ spec:
               key: password
               name: nvmesh-csi-credentials
         image: excelero/nvmesh-csi-driver:v1.3.0
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         name: nvmesh-csi-driver
         securityContext:
           allowPrivilegeEscalation: true
@@ -536,8 +536,6 @@ spec:
         - mountPath: /registration
           name: registration-dir
       hostNetwork: true
-      imagePullSecrets:
-      - name: excelero-registry-cred
       serviceAccount: nvmesh-csi
       tolerations:
       - effect: NoSchedule
@@ -619,7 +617,7 @@ spec:
               key: password
               name: nvmesh-csi-credentials
         image: excelero/nvmesh-csi-driver:v1.3.0
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         name: nvmesh-csi-driver
         volumeMounts:
         - mountPath: /config
@@ -651,8 +649,6 @@ spec:
         - mountPath: /csi
           name: plugin-socket-dir
       hostNetwork: false
-      imagePullSecrets:
-      - name: excelero-registry-cred
       serviceAccount: nvmesh-csi
       terminationGracePeriodSeconds: 70
       volumes:
