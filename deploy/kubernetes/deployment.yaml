@@ -82,7 +82,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
 data:
   management.protocol: https
-  management.servers: 10.240.18.92:4000
+  management.servers: mgmt.domain.com:4000
   attachIOEnabledTimeout: "30"
   detachTimeout: "90"
   forceDetach: "true"
@@ -452,14 +452,12 @@ spec:
         - effect: NoSchedule
           key: node-role.kubernetes.io/master
           operator: Exists
-      imagePullSecrets:
-        - name: excelero-registry-cred
       containers:
         # NVMesh Driver
         - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
           image: "excelero/nvmesh-csi-driver:v1.3.0"
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
             capabilities:
@@ -598,14 +596,12 @@ spec:
       hostNetwork: false
       serviceAccount: nvmesh-csi
       terminationGracePeriodSeconds: 70
-      imagePullSecrets:
-        - name: excelero-registry-cred
       containers:
         # NVMesh Driver
         - name: nvmesh-csi-driver
           # if we use image tag :latest kubernetes will try to fetch from Docker Hub (hub.docker.com)
           image: "excelero/nvmesh-csi-driver:v1.3.0"
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           env:
             - name: DRIVER_TYPE
               value: "Controller"
