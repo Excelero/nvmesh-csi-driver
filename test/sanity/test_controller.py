@@ -1,3 +1,5 @@
+import glob
+import json
 import logging
 import os
 import threading
@@ -7,10 +9,12 @@ from threading import Thread
 
 from grpc import StatusCode
 from grpc._channel import _Rendezvous
+from driver import config_map_api
 
 from driver.config import Config
 from driver.csi.csi_pb2 import TopologyRequirement, Topology
 from driver.topology_utils import RoundRobinZonePicker
+from test.sanity.helpers import config_map_api_mock
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
 from test.sanity.helpers.sanity_test_config import SanityTestConfig
 from test.sanity.helpers.setup_and_teardown import start_server
@@ -473,6 +477,70 @@ class TestControllerServiceWithZoneTopology(TestCaseWithServerRunning):
 		self.assertEqual(selection_sequence[0], selection_sequence[3])
 		self.assertEqual(selection_sequence[1], selection_sequence[4])
 		self.assertEqual(selection_sequence[2], selection_sequence[5])
+
+class TestZoneTopologyScale(TestCaseWithServerRunning):
+	driver_server = None
+	clusters = None
+	topology = None
+	num_of_clusters = 20
+	clients_per_cluster = 25
+
+	def __init__(self, *args, **kwargs):
+		TestCaseWithServerRunning.__init__(self, *args, **kwargs)
+
+	@classmethod
+	def setUpClass(cls):
+		super(TestZoneTopologyScale, cls).setUpClass()
+
+		
+		cls.clusters = create_clusters(num_of_clusters=cls.num_of_clusters, num_of_client_per_cluster=cls.clients_per_cluster, name_prefix='zone_')
+
+		for c in cls.clusters:
+			c.start()
+
+		for c in cls.clusters:
+			c.wait_until_is_alive()
+
+		cls.topology = get_config_topology_from_cluster_list(cls.clusters)
+
+		config = {
+			'MANAGEMENT_SERVERS': None,
+			'MANAGEMENT_PROTOCOL': None,
+			'MANAGEMENT_USERNAME': None,
+			'MANAGEMENT_PASSWORD': None,
+			'TOPOLOGY_TYPE': Consts.TopologyType.MULTIPLE_NVMESH_CLUSTERS,
+			'TOPOLOGY': cls.topology,
+			'TOPOLOGY_CONFIG_MAP_NAME': 'nvmesh-csi-topology',
+			'LOG_LEVEL': 'DEBUG',
+			'SDK_LOG_LEVEL': 'DEBUG'
+		}
+
+		ConfigLoaderMock(config).load()
+		cls.driver_server = start_server(Consts.DriverType.Controller, config=config)
+		cls.ctrl_client = ControllerClient()
+
+	@classmethod
+	def tearDownClass(cls):
+		for c in cls.clusters:
+			c.stop()
+		cls.driver_server.stop()
+
+	@CatchRequestErrors
+	def test_topology_config_map(self):
+		time.sleep(2)
+
+		config_map = config_map_api_mock.read_config_map_from_disk('nvmesh-csi_nvmesh-csi-topology')
+		log.debug("type(config_map['zones']) = %s" % type(config_map['zones']))
+		zones = json.loads(config_map['zones'])
+		log.debug("type(zones) = %s" % type(zones))
+
+		self.assertEqual(TestZoneTopologyScale.num_of_clusters, len(zones))
+
+		for zone_id in zones:
+			zone = zones[zone_id]
+			self.assertEqual(TestZoneTopologyScale.clients_per_cluster, len(zone['nodes']))
+
+
 
 class TestRetryOnAnotherZone(TestCaseWithServerRunning):
 	cluster = None

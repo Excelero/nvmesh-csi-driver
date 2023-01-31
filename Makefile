@@ -41,7 +41,7 @@ test-sanity-locally:
 # test sanity inside a conatiner (which will spawn other containers on the host)
 # requires to run make build-sanity-tests
 test-sanity:
-	cd test/sanity/container && ./run.sh
+	cd test/sanity/container && ./run.sh test.sanity.test_controller.TestZoneTopologyScale > ./sanity-test.log
 
 # This will create a kubernetes Job resource using local kubectl tool
 test-integration:
