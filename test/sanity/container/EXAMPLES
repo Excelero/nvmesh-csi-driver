@@ -1,0 +1,16 @@
+
+
+# run all tests
+./run.sh
+
+# test node_driver
+./run.sh test.sanity.test_node
+
+# test controller
+./run.sh test.sanity.test_controller
+
+# run a single test suite
+./run.sh test.sanity.test_controller.TestZoneTopologyScale
+
+# run a single test 
+./run.sh TestControllerServiceWithoutTopology.test_create_and_delete_volume
