@@ -3,6 +3,7 @@ import logging
 import os
 import threading
 from threading import Thread
+import time
 
 import config
 from common import BackoffDelayWithStopEvent
@@ -14,6 +15,8 @@ import config_map_api
 logger = logging.getLogger('topology-service')
 logger.setLevel(logging.DEBUG)
 
+CONFIG_MAP_UPDATE_INTERVAL_SECONDS = 1
+
 class TopologyService(object):
     '''
     TopologyService is responsible for monitoring the ManagementServers on each zone and updating the csi-topology ConfigMap
@@ -23,16 +26,19 @@ class TopologyService(object):
         config_map_api.init()
         self.ws_threads = {}
         self.topology = Topology()
-        self.topology.on_change_listeners.append(self.save_topology_to_config_map)
+        self.topology.on_change_listeners.append(self.mark_config_map_update_required)
         self.config_map_event_stream = None
         self.config_map_event_watcher = None
-        self.config_map_watcher_thread = Thread(name='config-map-watcher', target=self.watch_topology_config_map)
+        self.config_map_watcher_thread = Thread(name='zone-config-watcher', target=self.watch_zones_config_in_config_map)
         self.stop_event = threading.Event()
+        self.config_map_update_required = False
+        self.save_config_map_lock = threading.Lock()
 
     def run(self):
         self.load_zones_configuration()
         self.load_topology_from_config_map()
         self.config_map_watcher_thread.start()
+        self.update_topology_config_map_loop()
 
     def start_listening_thread_for_zone(self, zone_id, zone_config, topology):
         t = ZoneTopologyFetcherThread(zone_id, zone_config, topology, self.stop_event)
@@ -94,7 +100,7 @@ class TopologyService(object):
         else:
             logger.debug('ConfigMap %s event %s: %s' % (config.Config.CSI_CONFIG_MAP_NAME, event_type.lower(), event))
 
-    def watch_topology_config_map(self):
+    def watch_zones_config_in_config_map(self):
         if os.environ.get('DEVELOPMENT'):
             return
         logger.info('Listening for changes on ConfigMap %s' % config.Config.CSI_CONFIG_MAP_NAME)
@@ -183,7 +189,30 @@ class TopologyService(object):
 
         logger.debug('Finished loading topology from ConfigMap')
 
+    def mark_config_map_update_required(self):
+        with self.save_config_map_lock:
+            if not self.config_map_update_required:
+                logger.debug('TopologyService:: setting config_map_update_required to True')
+                self.config_map_update_required = True
+            else:
+                logger.debug('TopologyService:: config_map_update_required already set')
+
+
+    def update_topology_config_map_loop(self):
+        while not self.stop_event.is_set():
+
+            # every x seconds check if needs to update configmap
+            time.sleep(CONFIG_MAP_UPDATE_INTERVAL_SECONDS)
+
+            with self.save_config_map_lock:
+                if self.config_map_update_required:
+                    self.save_topology_to_config_map()
+
+                    logger.debug('TopologyService:: setting config_map_update_required to False')
+                    self.config_map_update_required = False
+
     def save_topology_to_config_map(self):
+        logger.debug('TopologyService::save_topology_to_config_map')
         zones = self.topology.get_serializable_topology()
 
         config_map_data = {
@@ -193,9 +222,13 @@ class TopologyService(object):
         try:
             config_map = config_map_api.update(config.Config.TOPOLOGY_CONFIG_MAP_NAME, config_map_data)
         except config_map_api.ConfigMapNotFound as ex:
+            logger.debug('TopologyService::Topology ConfigMap not found - Creating a new ConfigMap')
             config_map = config_map_api.create(config.Config.TOPOLOGY_CONFIG_MAP_NAME, config_map_data)
-        return config_map
 
+        # TODO: remove
+        logger.debug('TopologyService::updated config_map: %s' % zones)
+        return config_map
+                   
 
 if __name__ == "__main__":
     topology_sever = TopologyService()
