@@ -7,7 +7,7 @@
 from NVMeshSDK.Entities.Client import Client
 from .BaseClassAPI import BaseClassAPI
 from NVMeshSDK.Consts import EndpointRoutes
-
+from NVMeshSDK.Utils import Utils
 
 class ClientAPI(BaseClassAPI):
     """**All the functions of the Client API are defined here**"""
@@ -122,6 +122,7 @@ class ClientAPI(BaseClassAPI):
                 >>> out
                 None
         """
+        filter = Utils.addExistenceCheckToFilter(filter=filter, field=Client.Id)
         return super(ClientAPI, self).get(page=page, count=count, filter=filter, sort=sort, projection=projection)
 
     # entity or id
