@@ -14,7 +14,7 @@ class Client(Entity):
             * BlockDevices
     """
 
-    Id = AttributeRepresentation(display='Name', dbKey='_id')
+    Id = AttributeRepresentation(display='Name', dbKey='client_id')
     Version = AttributeRepresentation(display='Version', dbKey='version')
     Health = AttributeRepresentation(display='Health', dbKey='health')
     Status = AttributeRepresentation(display='Status', dbKey='client_status')

@@ -1,7 +1,7 @@
 from NVMeshSDK.Entities.Target import Target
 from .BaseClassAPI import BaseClassAPI
 from NVMeshSDK.Consts import EndpointRoutes
-
+from NVMeshSDK.Utils import Utils
 
 class TargetAPI(BaseClassAPI):
     """**All the functions of the Target API are defined here**"""
@@ -130,6 +130,7 @@ class TargetAPI(BaseClassAPI):
                 >>> out
                 None
         """
+        filter = Utils.addExistenceCheckToFilter(filter=filter, field=Target.Health)
         return super(TargetAPI, self).get(page=page, count=count, filter=filter, sort=sort, projection=projection)
 
     def deleteNicByIds(self, nicTargetIds):
