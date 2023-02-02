@@ -92,11 +92,6 @@ class ContainerServerManager(object):
 		else:
 			raise ValueError('Error running docker container  command: {} exit code: {} stdout: {} stderr: {}'.format(' '.join(command), exit_code, stdout, stderr))
 
-	def stream_logs(self):
-		# TODO: Implement
-		# we could just spawn a new process and call `docker logs container_name --follow`...
-		pass
-
 	def run_command_in_container(self, cmd, **kwargs):
 		return subprocess.check_output(['docker', 'exec', self.container_name] + cmd, **kwargs)
 

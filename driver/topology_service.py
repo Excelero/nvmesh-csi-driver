@@ -225,8 +225,7 @@ class TopologyService(object):
             logger.debug('TopologyService::Topology ConfigMap not found - Creating a new ConfigMap')
             config_map = config_map_api.create(config.Config.TOPOLOGY_CONFIG_MAP_NAME, config_map_data)
 
-        # TODO: remove
-        logger.debug('TopologyService::updated config_map: %s' % zones)
+        logger.debug('TopologyService::updated config_map: %s' % config.Config.TOPOLOGY_CONFIG_MAP_NAME)
         return config_map
                    
 
