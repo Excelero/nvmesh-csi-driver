@@ -1,0 +1,105 @@
+From d41cfdf19f6cd01ec53bd44f452f5fafdf6dd8ea Mon Sep 17 00:00:00 2001
+From: Ron Petrov <rpetrov@nvidia.com>
+Date: Tue, 31 Jan 2023 17:26:58 +0200
+Subject: [PATCH] BugFix - Partial client and target entities can be fetched
+ via the SDK
+
+* Get method for clients and targets will add a filter that will check
+  an existence of a specific field when fetching the entity. This
+will validate that the entity was fully reported to the mgmt.
+
+Change-Id: Ia4d283a54e0035b199a8c3c68ea423d398134d12
+Signed-off-by: Ron <rpetrov@nvidia.com>
+---
+ NVMeshSDK/APIs/ClientAPI.py  |  3 ++-
+ NVMeshSDK/APIs/TargetAPI.py  |  3 ++-
+ NVMeshSDK/Entities/Client.py |  2 +-
+ NVMeshSDK/Utils.py           | 12 +++++++++++-
+ 4 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/NVMeshSDK/APIs/ClientAPI.py b/NVMeshSDK/APIs/ClientAPI.py
+index 1744f5638..0bbf1cc46 100644
+--- a/NVMeshSDK/APIs/ClientAPI.py
++++ b/NVMeshSDK/APIs/ClientAPI.py
+@@ -7,7 +7,7 @@
+ from NVMeshSDK.Entities.Client import Client
+ from .BaseClassAPI import BaseClassAPI
+ from NVMeshSDK.Consts import EndpointRoutes
+-
++from NVMeshSDK.Utils import Utils
+ 
+ class ClientAPI(BaseClassAPI):
+     """**All the functions of the Client API are defined here**"""
+@@ -122,6 +122,7 @@ class ClientAPI(BaseClassAPI):
+                 >>> out
+                 None
+         """
++        filter = Utils.addExistenceCheckToFilter(filter=filter, field=Client.Id)
+         return super(ClientAPI, self).get(page=page, count=count, filter=filter, sort=sort, projection=projection)
+ 
+     # entity or id
+diff --git a/NVMeshSDK/APIs/TargetAPI.py b/NVMeshSDK/APIs/TargetAPI.py
+index 2d2b5bba4..6ae07892f 100644
+--- a/NVMeshSDK/APIs/TargetAPI.py
++++ b/NVMeshSDK/APIs/TargetAPI.py
+@@ -1,7 +1,7 @@
+ from NVMeshSDK.Entities.Target import Target
+ from .BaseClassAPI import BaseClassAPI
+ from NVMeshSDK.Consts import EndpointRoutes
+-
++from NVMeshSDK.Utils import Utils
+ 
+ class TargetAPI(BaseClassAPI):
+     """**All the functions of the Target API are defined here**"""
+@@ -130,6 +130,7 @@ class TargetAPI(BaseClassAPI):
+                 >>> out
+                 None
+         """
++        filter = Utils.addExistenceCheckToFilter(filter=filter, field=Target.Health)
+         return super(TargetAPI, self).get(page=page, count=count, filter=filter, sort=sort, projection=projection)
+ 
+     def deleteNicByIds(self, nicTargetIds):
+diff --git a/NVMeshSDK/Entities/Client.py b/NVMeshSDK/Entities/Client.py
+index f01ddbc4d..46e039ced 100644
+--- a/NVMeshSDK/Entities/Client.py
++++ b/NVMeshSDK/Entities/Client.py
+@@ -14,7 +14,7 @@ class Client(Entity):
+             * BlockDevices
+     """
+ 
+-    Id = AttributeRepresentation(display='Name', dbKey='_id')
++    Id = AttributeRepresentation(display='Name', dbKey='client_id')
+     Version = AttributeRepresentation(display='Version', dbKey='version')
+     Health = AttributeRepresentation(display='Health', dbKey='health')
+     Status = AttributeRepresentation(display='Status', dbKey='client_status')
+diff --git a/NVMeshSDK/Utils.py b/NVMeshSDK/Utils.py
+index 653f89c85..24fbd1216 100644
+--- a/NVMeshSDK/Utils.py
++++ b/NVMeshSDK/Utils.py
+@@ -16,7 +16,7 @@ import os
+ import urllib.request, urllib.parse, urllib.error
+ 
+ from NVMeshSDK.Consts import ScriptPaths
+-
++from NVMeshSDK.MongoObj import MongoObj
+ 
+ class Utils(object):
+ 
+@@ -230,3 +230,13 @@ class Utils(object):
+             print('Failed to read file {}, ex: {}'.format(path, e))
+ 
+         return content
++
++    @staticmethod
++    def addExistenceCheckToFilter(filter, field):
++        existsFilter = MongoObj(field=field, value={'$exists': 1})
++        if filter is None:
++            filter = [existsFilter]
++        else:
++            filter.append(existsFilter)
++
++        return filter
+\ No newline at end of file
+-- 
+2.25.1
+

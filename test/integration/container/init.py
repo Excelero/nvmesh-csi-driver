@@ -50,8 +50,6 @@ def print_available_tests(config):
 	for mod in available_tests:
 		print(mod)
 
-	# TODO: print test tree
-
 def clear_environment():
 	log.info('Clearing Environment')
 	from test.integration.tests.utils import TestUtils
