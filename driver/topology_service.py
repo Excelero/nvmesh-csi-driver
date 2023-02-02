@@ -39,6 +39,8 @@ class TopologyService(object):
         self.load_topology_from_config_map()
         self.config_map_watcher_thread.start()
         self.update_topology_config_map_loop()
+        
+        self.stop()
 
     def start_listening_thread_for_zone(self, zone_id, zone_config, topology):
         t = ZoneTopologyFetcherThread(zone_id, zone_config, topology, self.stop_event)
