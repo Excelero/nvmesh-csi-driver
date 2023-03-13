@@ -20,7 +20,7 @@ from topology_service import TopologyService
 from persistency import VolumesCache
 from sdk_helper import NVMeshSDKHelper
 from topology_utils import TopologyUtils, VolumeAPIPool, ZoneSelectionManager
-
+from version_compatibility import CompatibilityValidator, VersionMatrix, VersionFetcher
 
 class NVMeshControllerService(ControllerServicer):
 	def __init__(self, logger, stop_event):
@@ -36,9 +36,17 @@ class NVMeshControllerService(ControllerServicer):
 		if Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
 			api = NVMeshSDKHelper.init_session_with_single_management()
 			management_version_info = NVMeshSDKHelper.get_management_version(api)
+			self.validate_mgmt_version(management_version_info.get('version'))
 			self._log_mgmt_version_info(management_version_info)
 		else:
 			self.start_topology_service_thread()
+
+	def validate_mgmt_version(self, mgmt_version):
+		# fetch compatibility matrix from configmap
+		ver_mat = VersionMatrix()
+		ver_mat.load_from_config_map()
+		validator = CompatibilityValidator(ver_mat)
+		validator.validate_nvmesh_mgmt(mgmt_version)
 
 	@CatchServerErrors
 	def CreateVolume(self, request, context):

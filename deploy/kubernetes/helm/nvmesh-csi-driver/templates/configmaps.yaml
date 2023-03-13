@@ -44,3 +44,14 @@ metadata:
     {{- include "nvmesh-csi-driver.labels" . | nindent 4 }}
 data:
   zones: "{}"
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ template "nvmesh-csi-driver.fullname" . }}-compatibility
+  namespace: {{ template "nvmesh-csi-driver.namespace" . }}
+  labels:
+    {{- include "nvmesh-csi-driver.labels" . | nindent 4 }}
+data:
+  comp_matrix: |-
+{{ printf .Values.config.versionMatrixJsonFilePath | .Files.Get | indent 4 }}
