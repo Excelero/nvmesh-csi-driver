@@ -15,6 +15,7 @@ from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeSe
 from csi.csi_pb2_grpc import NodeServicer
 from attach_detach_addon_to_sdk import NewClientAPI
 from topology_utils import TopologyUtils, NodeNotFoundInTopology
+from version_compatibility import CompatibilityValidator, VersionMatrix, VersionFetcher
 
 
 class NVMeshNodeService(NodeServicer):
@@ -30,6 +31,16 @@ class NVMeshNodeService(NodeServicer):
 
 		self.logger.info('Config: {}'.format(get_config_json()))
 		self.topology = self._get_topology()
+
+		self.validate_versions()
+
+	def validate_versions(self):
+		ver_mat = VersionMatrix()
+		ver_mat.load_from_config_map()
+		validator = CompatibilityValidator(ver_mat)
+
+		nvmesh_core_version = VersionFetcher.get_nvmesh_core_version()
+		validator.validate_nvmesh_core(nvmesh_core_version)
 
 	@CatchServerErrors
 	def NodeStageVolume(self, request, context):

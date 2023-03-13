@@ -7,6 +7,7 @@ SYSLOG_PATH = "/dev/log"
 SINGLE_CLUSTER_ZONE_NAME = 'single-zone-cluster'
 NODE_DRIVER_TOPOLOGY_PATH = '/topology/zones'
 DEFAULT_MOUNT_PERMISSIONS = 777
+VERSION_MATRIX_CONFIGMAP_NAME = 'nvmesh-csi-compatibility'
 
 class FSType(object):
 	XFS = 'xfs'
