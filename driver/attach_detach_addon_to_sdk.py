@@ -34,6 +34,20 @@ class NewClientAPI(ClientAPI):
         }
         return self.makePost(['detach'], req, postTimeout=postTimeout)
 
+    def detach_many(self, clientID, volumeIDs, force, postTimeout=None):
+        volumes = []
+        for volID in volumeIDs:
+            volumes.append({
+                "name": volID,
+                "force": force
+            })
+
+        req = {
+            'client': clientID,
+            'volumes': volumes,
+        }
+
+        return self.makePost(['detach'], req, postTimeout=postTimeout)
 
 if __name__ == "__main__":
     vol_id = "csi-a5a0a6b6-5695-445a"
