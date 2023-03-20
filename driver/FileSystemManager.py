@@ -105,7 +105,7 @@ class FileSystemManager(object):
 			for line in blkid_output.split('\n'):
 				key, value = line.split('=')
 				if key == 'TYPE':
-					return value
+					return value.strip()
 
 			raise ValueError('Could not find TYPE key in blkid output')
 		except Exception as ex:
@@ -131,7 +131,6 @@ class FileSystemManager(object):
 
 	@staticmethod
 	def expand_file_system(block_device_path, fs_type):
-		fs_type = fs_type.strip()
 
 		if fs_type == '':
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Device not formatted with FileSystem found fs type {}'.format(fs_type))
@@ -139,11 +138,13 @@ class FileSystemManager(object):
 			cmd = 'resize2fs {}'.format(block_device_path)
 		elif fs_type == FSType.XFS:
 			cmd = 'xfs_growfs {}'.format(block_device_path)
+		elif fs_type == FSType.CRYPTO_LUKS:
+			cmd = 'cryptsetup resize {}'.format(block_device_path)
 		else:
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'unknown fs_type {}'.format(fs_type))
 
 		exit_code, stdout, stderr = Utils.run_command(cmd)
-		logger.debug("resize file-system finished {} {} {}".format(exit_code, stdout, stderr))
+		logger.debug("resize file-system finished exit_code: {}".format(exit_code))
 
 		if exit_code != 0:
 			raise DriverError(StatusCode.INTERNAL, 'Error expanding File System {} on block device {}'.format(fs_type, block_device_path))
@@ -151,7 +152,19 @@ class FileSystemManager(object):
 		return exit_code, stdout, stderr
 
 	@staticmethod
-	def get_block_device_size(block_device_path):
-		cmd = "lsblk {} --output SIZE | tail -1".format(block_device_path)
+	def get_block_device_size_bytes(block_device_path):
+		cmd = "lsblk --bytes --nodeps --output SIZE --noheadings %s" % block_device_path
 		exit_code, stdout, stderr = Utils.run_command(cmd)
-		return stdout.strip()
+		size_in_bytes = int(stdout.strip())
+		return size_in_bytes
+
+	@staticmethod
+	def get_file_system_size(mount_path):
+		# Example output of df
+		# Filesystem                          1K-blocks  	Used Avail Use% Mounted on
+		# /dev/mapper/csi-b56c8a85-76cd-43d0  3119104   	33M  3.0G   2% /var/lib/ku..
+		cmd = "df %s | awk '{ print $2 }' | tail -1" % mount_path
+		exit_code, stdout, stderr = Utils.run_command(cmd)
+		size_in_kb = stdout.strip()
+		size_in_byte = int(size_in_kb) * 1024
+		return size_in_byte

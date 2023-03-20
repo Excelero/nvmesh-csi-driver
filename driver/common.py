@@ -9,6 +9,8 @@ import grpc
 
 from config import Config
 import consts as Consts
+from sdk_helper import NVMeshSDKHelper
+
 
 class ServerLoggingInterceptor(grpc.ServerInterceptor):
 	def __init__(self, logger):
@@ -78,6 +80,23 @@ class DriverError(Exception):
 class Utils(object):
 	logger = logging.getLogger("Utils")
 
+	GB_TO_BYTES = pow(2.0, 30)
+
+	@staticmethod
+	def format_as_GiB(bytes_as_int):
+		gib = bytes_as_int / Utils.GB_TO_BYTES
+		# This will round the nubmer and display up to 1 decimal point - only if he nuber is not round.
+		return "{1:0.{0}f}GiB".format(int(gib % 1 > 0), gib)
+
+	@staticmethod
+	def hide_secrets_from_message(req_json):
+		req_obj = json.loads(req_json)
+		secrets = req_obj.get('secrets')
+		if secrets:
+			for secret_name in secrets.keys():
+				secrets[secret_name] = "<removed-from-log>"
+		return json.dumps(req_obj, indent=4)
+
 	@staticmethod
 	def volume_id_to_nvmesh_name(co_vol_name):
 		# NVMesh volume name / id cannot be longer than 23 characters
@@ -98,6 +117,21 @@ class Utils(object):
 		exit_code = p.returncode
 		if debug:
 			Utils.logger.debug("cmd: {} return exit_code={} stdout={} stderr={}".format(cmd, exit_code, stdout, stderr))
+		return exit_code, stdout, stderr
+
+	@staticmethod
+	def run_safe_command(cmd, input=None, debug=True):
+		# This function prevents shell injection attacks when the command includes input from the user
+		# for example when parsing StorageClass parameters as flags for a shell command
+		# cmd is a list where the first item is the command and the rest are arguments
+		if debug:
+			Utils.logger.debug("running: {}".format(' '.join(cmd)))
+			
+		p = Popen(cmd, stdout=PIPE, stderr=PIPE, stdin=PIPE)
+		stdout, stderr = p.communicate(input=input)
+		exit_code = p.returncode
+		if debug:
+			Utils.logger.debug("cmd: {} return exit_code={} stdout={} stderr={}".format(' '.join(cmd), exit_code, stdout, stderr))
 		return exit_code, stdout, stderr
 
 	@staticmethod
@@ -137,19 +171,26 @@ class Utils(object):
 				return
 			else:
 				err = res["error"].lower()
+				Utils.logger.debug('NVMesh attach failed for volume {} Error: {}'.format(nvmesh_volume_name, err))
+
 				if 'already attached' in err:
 					# Already attached - Idempotent => return true
 					Utils.logger.debug('Volume {} is already attached with the requested access mode. output: {}'.format(nvmesh_volume_name, res))
 					return
-				elif 'access mode denied' in err:
-					raise DriverError(grpc.StatusCode.FAILED_PRECONDITION, "Attach Failed - Access Mode Denied - {}".format(res))
+				elif 'access mode denied' in err \
+					or 'the requested RM doesn\'t comply with the volume RM'.lower() in err:
+					msg = "NVMesh attach access mode denied for {} (NVMesh \"{}\"). Error: {}".format(
+						Consts.AccessMode.nvmesh_to_k8s_string(requested_nvmesh_access_mode), requested_nvmesh_access_mode, err)
+					raise DriverError(grpc.StatusCode.FAILED_PRECONDITION, msg)
 				elif 'reservation version is outdated' in err and retries_left > 0:
-					Utils.logger.debug('Attach returned "reservation version outdated" we will retry with the updated reservation version'.format(nvmesh_volume_name))
+					Utils.logger.debug('Attach returned {} we will retry with the updated reservation version'.format(err, nvmesh_volume_name))
 					# TODO: the mgmt should send the updated reservation as a separate int field, but for now we have to parse the string.
 					reservation_version = int(err.split(':')[1].strip())
 					Utils.nvmesh_attach_volume_rest_call(client_id, client_api, nvmesh_volume_name, requested_nvmesh_access_mode, reservation_version, retries_left-1)
 				else:
-					raise DriverError(grpc.StatusCode.INTERNAL, "Attach Failed - {}".format(res))
+					raise DriverError(grpc.StatusCode.INTERNAL, "NVMesh Attach Failed - {}".format(err))
+		except DriverError:
+			raise
 		except Exception as ex:
 			err = "Failed to parse attach response from the management. error: {} message received: {}".format(ex, res)
 			raise DriverError(grpc.StatusCode.INTERNAL, "Attach Failed - {}".format(err))
