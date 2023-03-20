@@ -33,7 +33,6 @@ class LoggerUtils(object):
 	def init_sdk_logger():
 		sdk_logger = logging.getLogger('NVMeshSDK')
 		sdk_logger.setLevel(logging.getLevelName(Config.SDK_LOG_LEVEL or 'DEBUG'))
-		LoggerUtils.add_stdout_handler(sdk_logger)
 
 	@staticmethod
 	def _get_default_formatter():
@@ -51,7 +50,6 @@ class LoggerUtils(object):
 	def add_stdout_handler(logger):
 		handler = logging.StreamHandler(sys.stdout)
 		LoggerUtils._add_handler(logger, handler)
-		return handler
 
 def CatchServerErrors(func):
 	def func_wrapper(self, request, context):
@@ -88,7 +86,7 @@ class Utils(object):
 	@staticmethod
 	def is_nvmesh_volume_attached(nvmesh_volume_name):
 		cmd = 'ls /dev/nvmesh/{}'.format(nvmesh_volume_name)
-		exit_code, stdout, stderr = Utils.run_command(cmd)
+		exit_code, stdout, stderr = Utils.run_command(cmd, debug=False)
 		return exit_code == 0
 
 	@staticmethod
