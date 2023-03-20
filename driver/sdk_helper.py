@@ -76,7 +76,12 @@ class NVMeshSDKHelper(object):
 		try:
 			client_api = NVMeshSDKHelper.get_client_api(logger, api_params)
 			filter_by_node_id=[MongoObj(field='_id', value=node_name)]
-			err, res = client_api.get(filter=filter_by_node_id)
+			projection = [
+				MongoObj(field='_id', value=1), 
+				MongoObj(field='client_status', value=1)
+			]
+
+			err, res = client_api.get(filter=filter_by_node_id, projection=projection)
 			if err:
 				raise err
 
