@@ -414,16 +414,19 @@ class NVMeshControllerService(ControllerServicer):
 
 		# Call Node Expansion Method to Expand a FileSystem
 		# For a Block Device there is no need to do anything on the node
-		node_expansion_required = True if 'fsType' in volume.csi_metadata else False
+		node_expansion_required = True if 'fsType' or 'encryption' in volume.csi_metadata else False
 
 		# Extend Volume
 		volume.capacity = capacity_in_bytes
 
 		self.logger.debug("ControllerExpandVolume volume={}".format(str(volume)))
-		err, out = volume_api.update([volume])
+		err, out = volume_api.makePost(routes=['/extend'], objects=[volume])
 
 		if err:
 			raise DriverError(StatusCode.NOT_FOUND, err)
+
+		if not out[0]['success']:
+			raise DriverError(StatusCode.RESOURCE_EXHAUSTED, err)
 
 		self.logger.debug("ControllerExpandVolumeResponse: capacity_in_bytes={}, node_expansion_required={}".format(capacity_in_bytes, node_expansion_required))
 		return ControllerExpandVolumeResponse(capacity_bytes=capacity_in_bytes, node_expansion_required=node_expansion_required)

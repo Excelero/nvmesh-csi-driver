@@ -1,9 +1,6 @@
 import logging
-import threading
 
 from NVMeshSDK.APIs.ClientAPI import ClientAPI
-from NVMeshSDK.MongoObj import MongoObj
-from common import Utils
 from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from NVMeshSDK.ConnectionManager import ManagementTimeout
 from config import Config

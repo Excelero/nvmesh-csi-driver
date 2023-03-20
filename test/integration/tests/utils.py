@@ -16,26 +16,34 @@ from kubernetes.stream import stream
 from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from NVMeshSDK.Consts import RAIDLevels
 from NVMeshSDK.MongoObj import MongoObj
+from NVMeshSDK.LoggerUtils import Logger as InitNVMeshSDKLogger
+
 from driver import consts
+from driver.attach_detach_addon_to_sdk import NewClientAPI
 
 SERVICE_ACCOUNT_NAME = 'csi-driver-test-account'
 TEST_LABEL_KEY = 'nvmesh-csi-testing'
 
 try:
+	print("Attempt to load incluster config")
 	config.load_incluster_config()
 except:
+	print("No incluster config found. loading from local kube config")
 	config.load_kube_config()
+	#c = client.Configuration()
+	#c.assert_hostname = False
+	#c.verify_ssl = False
+	#c.debug = False
+	#client.Configuration.set_default(c)
 
-configuration = client.Configuration()
-configuration.verify_ssl = False
-configuration.debug = False
-client.Configuration.set_default(configuration)
 core_api = client.CoreV1Api()
 storage_api = client.StorageV1Api()
 apps_api = client.AppsV1Api()
 
 TEST_IMAGE_NAME = 'centos:7'
 
+sdk_logger = InitNVMeshSDKLogger().getLogger('NVMeshSDK')
+    
 class TestConfig(object):
 	TestNamespace = 'test-csi-driver-integration'
 	ManagementServers = ['localhost:4000']
@@ -117,8 +125,8 @@ def create_logger():
 	logger_instance.setLevel(stdout_log_level or logging.DEBUG)
 	sdk_logger = logging.getLogger('NVMeshSDK')
 	sdk_logger.setLevel(stdout_log_level or logging.DEBUG)
-	formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', "%H:%M:%S")
-
+	#formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', "%H:%M:%S")
+	formatter = logging.Formatter('%(levelname)s %(module)s %(funcName)s - %(message)s', '%m-%d %H:%M:%S')
 	handler.setFormatter(formatter)
 	logger_instance.addHandler(handler)
 
@@ -167,8 +175,10 @@ class TestUtils(object):
 		KubeUtils.delete_all_pvcs()
 		KubeUtils.delete_all_non_default_storage_classes()
 		KubeUtils.delete_all_testing_pv()
+		KubeUtils.delete_all_secrets()
 
 		# NVMesh Cleanup
+		NVMeshUtils.detach_all_volumes()
 		NVMeshUtils.delete_all_nvmesh_volumes()
 
 
@@ -192,6 +202,21 @@ class KubeUtils(object):
 
 		# Verify no Extra Storage Classes
 		KubeUtils.delete_all_non_default_storage_classes()
+
+	@staticmethod
+	def clear_zone_label_on_all_nodes():
+		node_list = core_api.list_node()
+
+		for node in node_list.items:
+			body = {
+				"metadata": {
+					"labels": {
+						"nvmesh-csi.excelero.com/zone": None
+					}
+				}
+			}
+		
+			core_api.patch_node(node.metadata.name, body)
 
 	@staticmethod
 	def taint_node(node_name, key, value, effect=None):
@@ -493,7 +518,7 @@ class KubeUtils(object):
 	@staticmethod
 	def wait_for_pod_event(pod_name, keyword='', attempts=10):
 		logger.info('Waiting for event for pod {} that includes "{}"'.format(pod_name, keyword))
-
+		lsat_event = None
 		while attempts > 0:
 			attempts = attempts - 1
 			for e in KubeUtils.list_obj_events(obj_kind='Pod', obj_name=pod_name):
@@ -502,7 +527,9 @@ class KubeUtils(object):
 				if keyword in e.message:
 					logger.info('Found {} in {}'.format(keyword, e.message))
 					return
-		raise TestError('Timed out waiting for {} in pod {} events'.format(keyword, pod_name))
+				lsat_event = e.message
+			time.sleep(1)
+		raise TestError('Timed out waiting for {} in pod {} events. last event was: {}'.format(keyword, pod_name, lsat_event))
 
 	@staticmethod
 	def list_obj_events(obj_kind, obj_name):
@@ -547,6 +574,14 @@ class KubeUtils(object):
 		KubeUtils.wait_for_pod_to_delete(pod_name, attempts)
 
 	@staticmethod
+	def delete_pods_and_wait(pod_names, attempts=60):
+
+		for name in pod_names:
+			KubeUtils.delete_pod(name)
+
+		for name in pod_names:
+			KubeUtils.wait_for_pod_to_delete(name, attempts)
+	@staticmethod
 	def wait_for_pod_to_delete(pod_name, attempts=60):
 		while attempts > 0:
 			pod = KubeUtils.get_pod_by_name(pod_name)
@@ -579,6 +614,13 @@ class KubeUtils(object):
 			KubeUtils.wait_for_pod_to_delete(pod.metadata.name)
 
 	@staticmethod
+	def delete_all_secrets():
+		secrets = core_api.list_namespaced_secret(TestConfig.TestNamespace)
+
+		for secret in secrets.items:
+			KubeUtils.delete_secret(secret.metadata.name)
+
+	@staticmethod
 	def delete_all_deployments():
 		deps = apps_api.list_namespaced_deployment(TestConfig.TestNamespace, label_selector=TEST_LABEL_KEY)
 
@@ -603,7 +645,35 @@ class KubeUtils(object):
 		return response
 
 	@staticmethod
-	def get_fs_consumer_pod_template(pod_name, pvc_name):
+	def set_pod_spec_as_privileged(pod_spec):
+		pod_spec['securityContext'] = {
+			'allowPrivilegeEscalation': True,
+			'capabilities': {
+				'add': ['SYS_ADMIN', 'SYS_MODULE']
+			},
+			'privileged': True
+		}
+
+		host_path_dev_vol = {
+			'name': 'host-dev',
+			'hostPath': {
+				'path': '/dev'
+			},
+			'type': 'Directory'
+		}
+
+		host_dev_mount = {
+			'name': 'host-dev',
+			'mountPath': '/dev'
+		}
+
+		pod_spec['volumes'].append(host_path_dev_vol)
+		if not 'volumeMounts' in pod_spec['containers'][0]:
+			pod_spec['containers'][0]['volumeMounts'] = []
+		pod_spec['containers'][0]['volumeMounts'].append(host_dev_mount)
+
+	@staticmethod
+	def get_fs_consumer_pod_template(pod_name, pvc_name, privileged=False):
 		spec = {
 			'containers': [
 				{
@@ -628,8 +698,45 @@ class KubeUtils(object):
 			]
 		}
 
+		if privileged:
+			KubeUtils.set_pod_spec_as_privileged(spec)
+
 		pod = KubeUtils.get_pod_template(pod_name, spec)
 		return pod
+
+	@staticmethod
+	def get_block_consumer_pod_template(pod_name, pvc_name, privileged=False):
+		spec = {
+			'terminationGracePeriodSeconds': 1,
+			'containers': [
+				{
+					'name': 'block-volume-consumer',
+					'image': TEST_IMAGE_NAME,
+					'command': ['/bin/sh', '-c', 'while true; do ls -l /dev/my_block_dev; sleep 1 ; done'],
+					'volumeDevices': [
+						{
+							'name': 'block-volume',
+							'devicePath': '/dev/my_block_dev'
+						}
+					]
+				}
+			],
+			'volumes': [
+				{
+					'name': 'block-volume',
+					'persistentVolumeClaim': {
+						'claimName': pvc_name
+					}
+				}
+			]
+		}
+
+		if privileged:
+			KubeUtils.set_pod_spec_as_privileged(spec)
+
+		pod = KubeUtils.get_pod_template(pod_name, spec)
+		return pod
+
 
 	@staticmethod
 	def get_shell_pod_template(pod_name, pvc_name, cmd, volume_mode_block=False):
@@ -667,36 +774,6 @@ class KubeUtils(object):
 					'devicePath': '/vol'
 				}
 			]
-
-		pod = KubeUtils.get_pod_template(pod_name, spec)
-		return pod
-
-	@staticmethod
-	def get_block_consumer_pod_template(pod_name, pvc_name):
-		spec = {
-			'terminationGracePeriodSeconds': 1,
-			'containers': [
-				{
-					'name': 'block-volume-consumer',
-					'image': TEST_IMAGE_NAME,
-					'command': ['/bin/sh', '-c', 'while true; do ls -l /dev/my_block_dev; sleep 1 ; done'],
-					'volumeDevices': [
-						{
-							'name': 'block-volume',
-							'devicePath': '/dev/my_block_dev'
-						}
-					]
-				}
-			],
-			'volumes': [
-				{
-					'name': 'block-volume',
-					'persistentVolumeClaim': {
-						'claimName': pvc_name
-					}
-				}
-			]
-		}
 
 		pod = KubeUtils.get_pod_template(pod_name, spec)
 		return pod
@@ -788,7 +865,7 @@ class KubeUtils(object):
 				lines = stdout.split('\n')
 				for line in lines:
 					if nvmesh_vol_name in line:
-						logger.debug('found nvmesh volume line = %s' % line)
+						logger.debug('found %s in line = %s' % (nvmesh_vol_name,line))
 						columns = line.split()
 						size = columns[3]
 						break
@@ -797,7 +874,7 @@ class KubeUtils(object):
 				logger.info('Block device on {} was extended to {}'.format(pod_name, new_size))
 				return
 			else:
-				logger.debug('Waiting for block device to extend to {} current size is {}'.format(new_size, size))
+				logger.debug('Waiting for block device {} to extend to {} current size is {}'.format(nvmesh_vol_name, new_size, size))
 				logger.debug('lsblk output = %s' % stdout)
 			time.sleep(1)
 
@@ -917,18 +994,50 @@ class KubeUtils(object):
 
 		return labels
 
+	@staticmethod
+	def create_secret(secret):
+		logger.info('Creating Secret {}'.format(secret['metadata']['name']))
+		return core_api.create_namespaced_secret(TestConfig.TestNamespace, secret)
+
+	@staticmethod
+	def delete_secret(secret_name):
+		logger.info('Deleting Secret {}'.format(secret_name))
+		return core_api.delete_namespaced_secret(secret_name, TestConfig.TestNamespace)
 
 class NVMeshUtils(object):
+	@staticmethod
+	def detach_all_volumes(mgmt_addresses=None):
+		if not mgmt_addresses:
+			mgmt_addresses = TestConfig.ManagementServers
+
+		for mgmt_address in mgmt_addresses:
+			client_api = NewClientAPI(managementServers=mgmt_address)
+
+			has_attachments = [MongoObj(field='block_devices', value={"$exists": True, "$ne": []})]
+			projection = [MongoObj(field='block_devices', value=1)]
+			err, client_list = client_api.get(filter=has_attachments, projection=projection)
+			for client in client_list:
+				volume_ids = [dev.name for dev in client.block_devices]
+				err, out = client_api.detach_many(client._id, volume_ids, force=False)
+				if err:
+					raise TestError('Failed to delete NVMesh volumes. Error: {}'.format(err))
+
+				for vol_res in out:
+					if not vol_res['success']:
+						if 'Couldn\'t find the specified volume' not in vol_res['error']:
+							raise TestError('Failed to delete NVMesh volume {}. Error: {}'.format(vol_res['_id'], vol_res['error']))
+
 	@staticmethod
 	def delete_all_nvmesh_volumes(mgmt_addresses=None):
 		if not mgmt_addresses:
 			mgmt_addresses = TestConfig.ManagementServers
 
 		for mgmt_address in mgmt_addresses:
+			volume_api = VolumeAPI(managementServers=mgmt_address)
 			projection = [MongoObj(field='_id', value=1)]
-			err, volume_list = VolumeAPI(managementServers=mgmt_address).get(projection=projection)
+			err, volume_list = volume_api.get(projection=projection)
 			if len(volume_list) != 0:
-				err, out = VolumeAPI(managementServers=mgmt_address).delete([ vol._id for vol in volume_list ])
+				err, out = volume_api.delete([ vol._id for vol in volume_list ])
 				if err:
 					raise TestError('Failed to delete NVMesh volumes. Error: {}'.format(err))
 
@@ -1013,11 +1122,12 @@ class NVMeshUtils(object):
 					nvmesh_key = key
 
 				nvmesh_value = getattr(volume, nvmesh_key)
-				if expected_val != nvmesh_value:
-					logger.debug('Waiting for {key}={val} to be {key}={expected_val}'.format(
+				success = expected_val == nvmesh_value
+				if not success:
+					logger.debug('Waiting for volume property {key}={val} to be {key}={expected_val}'.format(
 						key=nvmesh_key, val=nvmesh_value, expected_val=expected_val))
 					if not attempts:
-						unittest_instance.assertEqual(str(expected_val).lower(), str(nvmesh_value).lower(), 'Wrong value in Volume {}'.format(nvmesh_key))
+						unittest_instance.assertEqual(str(expected_val).lower(), str(nvmesh_value).lower(), 'Wrong value in Volume.{}'.format(nvmesh_key))
 				else:
 					return mgmt_address
 			time.sleep(1)
