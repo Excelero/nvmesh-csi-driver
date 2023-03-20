@@ -8,12 +8,12 @@ from NVMeshSDK.APIs.VolumeAPI import VolumeAPI
 from NVMeshSDK.ConnectionManager import ManagementTimeout
 from config import Config
 
+logger = logging.getLogger("NVMeshSDKHelper")
 
 class NVMeshSDKHelper(object):
-	logger = logging.getLogger("NVMeshSDKHelper")
 
 	@staticmethod
-	def _try_to_connect_to_single_management(logger):
+	def _try_to_connect_to_single_management():
 		protocol = Config.MANAGEMENT_PROTOCOL
 		managementServers = Config.MANAGEMENT_SERVERS
 		user = Config.MANAGEMENT_USERNAME
@@ -29,14 +29,14 @@ class NVMeshSDKHelper(object):
 		return api, connected
 
 	@staticmethod
-	def init_session_with_single_management(logger):
+	def init_session_with_single_management():
 		connected = False
 		api = None
 		# try until able to connect to NVMesh Management
 		print("Looking for a NVMesh Management server using {} from servers {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
 		while not connected:
 			try:
-				api, connected = NVMeshSDKHelper._try_to_connect_to_single_management(logger)
+				api, connected = NVMeshSDKHelper._try_to_connect_to_single_management()
 			except ManagementTimeout as ex:
 				NVMeshSDKHelper.logger.info("Waiting for NVMesh Management servers on ({}) {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
 				Utils.interruptable_sleep(10)
@@ -62,10 +62,10 @@ class NVMeshSDKHelper(object):
 		return None
 
 	@staticmethod
-	def get_client_api(logger, api_params):
+	def get_client_api(api_params):
 		try:
-			volume_api = ClientAPI(logger=logger.getChild('NVMeshSDK'), **api_params)
-			return volume_api
+			client_api = ClientAPI(**api_params)
+			return client_api
 		except Exception as ex:
 			logger.error('Failed to create ClientAPI with params: {}. \nError {}'.format(api_params, ex))
 			raise

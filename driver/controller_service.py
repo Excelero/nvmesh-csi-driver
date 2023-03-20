@@ -34,7 +34,7 @@ class NVMeshControllerService(ControllerServicer):
 		self.topology_service_thread = None
 
 		if Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
-			api = NVMeshSDKHelper.init_session_with_single_management(self.logger)
+			api = NVMeshSDKHelper.init_session_with_single_management()
 			management_version_info = NVMeshSDKHelper.get_management_version(api)
 			self._log_mgmt_version_info(management_version_info)
 		else:
