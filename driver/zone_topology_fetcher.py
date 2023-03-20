@@ -4,6 +4,7 @@ import logging
 from websocket import WebSocketConnectionClosedException
 
 from NVMeshSDK.APIs.ClientAPI import ClientAPI
+from NVMeshSDK.MongoObj import MongoObj
 from common import BackoffDelayWithStopEvent
 from config import Config
 from mgmt_websocket_client import ManagementWebSocketClient, EmptyResponseFromServer, FailedToConnect, LoginFailed
@@ -11,7 +12,6 @@ from mgmt_websocket_client import ManagementWebSocketClient, EmptyResponseFromSe
 logger = logging.getLogger('topology-service')
 
 sdk_logger = logging.getLogger('NVMeshSDK')
-sdk_logger.setLevel(logging.DEBUG)
 
 class ZoneTopologyFetcherThread(threading.Thread):
 	'''
@@ -120,9 +120,14 @@ class ZoneTopologyFetcherThread(threading.Thread):
 		api_params = self.get_api_params(management_info)
 
 		self.logger.debug('Creating API from servers %s ' % api_params['managementServers'])
-		api = ClientAPI(logger=sdk_logger, **api_params)
+		api = ClientAPI(**api_params)
 		self.logger.debug('Fetching nodes from servers %s ' % api_params['managementServers'])
-		err, results = api.get()
+		projection = [
+			MongoObj(field='client_id', value=1), 
+			MongoObj(field='client_status', value=1)
+		]
+
+		err, results = api.get(projection=projection)
 		if err:
 			raise Exception(str(err))
 
