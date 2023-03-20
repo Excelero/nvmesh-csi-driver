@@ -9,6 +9,7 @@ from NVMeshSDK.Utils import Utils
 from NVMeshSDK.LoggerUtils import Logger
 from NVMeshSDK.APIs.ConfigurationVersionAPI import ConfigurationVersionAPI
 
+import logging
 
 class BaseClassAPI(object):
     configFile = '/etc/opt/NVMesh/nvmesh.conf'
@@ -28,7 +29,7 @@ class BaseClassAPI(object):
         :type managementProtocol: str, optional
         :raises ConnectionManagerError: If there was a problem connecting to the management server.
         """
-        self.logger = logger if logger else Logger().getLogger('NVMeshSDK')
+        self.logger = logger if logger else logging.getLogger('NVMeshSDK')
 
         if not managementServers:
             managementServers, managementProtocol = self.getManagementServersAndProtocolFromConfigs()

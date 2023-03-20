@@ -4,9 +4,6 @@ import logging
 
 logger = logging.getLogger('topology')
 
-sdk_logger = logging.getLogger('NVMeshSDK')
-sdk_logger.setLevel(logging.DEBUG)
-
 class SetEncoder(json.JSONEncoder):
 	def default(self, obj):
 		if isinstance(obj, set):
