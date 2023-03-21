@@ -16,5 +16,9 @@ build_tools/*.tgz
 # test configmap
 test/integration/container/configmap.yaml
 
+# collected logs
+logs/
+
 # include this file
 !/.gitignore
+
