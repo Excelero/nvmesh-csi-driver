@@ -35,14 +35,6 @@ class NVMeshCSIDriverServer(object):
 
 		self.identity_service = NVMeshIdentityService(self.logger)
 
-		if self.driver_type == Consts.DriverType.Controller:
-			self.controller_service = NVMeshControllerService(self.logger, stop_event=self.stop_event)
-		else:
-			self.node_service = NVMeshNodeService(self.logger, stop_event=self.stop_event)
-
-		self.server = None
-		self.shouldContinue = True
-
 		def shutdown(signum, frame):
 			self.logger.info('Received signal {}. Stopping the server'.format(signum))
 			self.stop()
@@ -50,6 +42,15 @@ class NVMeshCSIDriverServer(object):
 		signal.signal(signal.SIGTERM, shutdown)
 		signal.signal(signal.SIGINT, shutdown)
 
+		self.server = None
+		self.shouldContinue = True
+
+		if self.driver_type == Consts.DriverType.Controller:
+			self.controller_service = NVMeshControllerService(self.logger, stop_event=self.stop_event)
+			self.controller_service.init()
+		else:
+			self.node_service = NVMeshNodeService(self.logger, stop_event=self.stop_event)
+			self.node_service.init()
 
 	def serve(self):
 		self.logger.info("Config Topology Type {}".format(Config.TOPOLOGY_TYPE))
@@ -83,10 +84,13 @@ class NVMeshCSIDriverServer(object):
 		if self.driver_type == Consts.DriverType.Controller:
 			self.controller_service.stop()
 
-		self.logger.debug("Shutting down gRPC Server..")
-		grpc_stopped_event = self.server.stop(SERVER_STOP_GRACE_SECONDS)
-		grpc_stopped_event.wait()
+		if self.server:
+			self.logger.debug("Shutting down gRPC Server..")
+			grpc_stopped_event = self.server.stop(SERVER_STOP_GRACE_SECONDS)
+			grpc_stopped_event.wait()
+
 		self.logger.debug("Finished Shut down.")
+		sys.exit(0)
 
 def get_driver_type():
 	if not 'DRIVER_TYPE' in os.environ:
