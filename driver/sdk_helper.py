@@ -29,20 +29,25 @@ class NVMeshSDKHelper(object):
 		return api, connected
 
 	@staticmethod
-	def init_session_with_single_management():
+	def init_session_with_single_management(stop_event):
 		connected = False
+		retries = 3
 		api = None
 		# try until able to connect to NVMesh Management
-		print("Looking for a NVMesh Management server using {} from servers {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
-		while not connected:
+		print("Looking for NVMesh Management server using {} from servers {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
+		while not connected and retries > 0:
 			try:
 				api, connected = NVMeshSDKHelper._try_to_connect_to_single_management()
+				return api
 			except ManagementTimeout as ex:
-				NVMeshSDKHelper.logger.info("Waiting for NVMesh Management servers on ({}) {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
-				Utils.interruptable_sleep(10)
-
+				logger.info("Waiting for NVMesh Management servers on ({}) {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
+				stop_event.wait(10)
+				
+				retries = retries - 1
+				
+				if retries == 0:
+					raise ex
 			print("Connected to NVMesh Management server on ({}) {}".format(Config.MANAGEMENT_PROTOCOL, Config.MANAGEMENT_SERVERS))
-		return api
 
 	@staticmethod
 	def get_management_version(api):
@@ -69,23 +74,3 @@ class NVMeshSDKHelper(object):
 		except Exception as ex:
 			logger.error('Failed to create ClientAPI with params: {}. \nError {}'.format(api_params, ex))
 			raise
-
-	@staticmethod
-	def check_if_node_in_management(node_name, api_params, logger):
-		logger.debug('Checking if node {} is in management server: {}'.format(node_name, api_params))
-		try:
-			client_api = NVMeshSDKHelper.get_client_api(logger, api_params)
-			filter_by_node_id=[MongoObj(field='_id', value=node_name)]
-			projection = [
-				MongoObj(field='_id', value=1), 
-				MongoObj(field='client_status', value=1)
-			]
-
-			err, res = client_api.get(filter=filter_by_node_id, projection=projection)
-			if err:
-				raise err
-
-			return len(res) > 0 and res[0]._id == node_name
-		except Exception as ex:
-			logger.warning('Failed to check if node {} is in management {}. Error: {}'.format(node_name, api_params, ex))
-			return False

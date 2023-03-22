@@ -30,8 +30,10 @@ class NVMeshNodeService(NodeServicer):
 		self.logger.info('NVMesh Version Info: {}'.format(json.dumps(Config.NVMESH_VERSION_INFO, indent=4, sort_keys=True)))
 
 		self.logger.info('Config: {}'.format(get_config_json()))
-		self.topology = self._get_topology()
+		self.topology = None
 
+	def init(self):
+		self.topology = self._get_topology()
 		self.validate_versions()
 
 	def validate_versions(self):

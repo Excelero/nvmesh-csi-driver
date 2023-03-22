@@ -33,8 +33,9 @@ class NVMeshControllerService(ControllerServicer):
 		self.topology_service = TopologyService()
 		self.topology_service_thread = None
 
+	def init(self):
 		if Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
-			api = NVMeshSDKHelper.init_session_with_single_management()
+			api = NVMeshSDKHelper.init_session_with_single_management(self.stop_event)
 			management_version_info = NVMeshSDKHelper.get_management_version(api)
 			self.validate_mgmt_version(management_version_info.get('version'))
 			self._log_mgmt_version_info(management_version_info)
@@ -513,3 +514,5 @@ class NVMeshControllerService(ControllerServicer):
 		self.logger.info('Waiting for Topology Service to terminate..')
 		if self.topology_service_thread:
 			self.topology_service_thread.join()
+
+		self.logger.info('Topology Service terminated.')
