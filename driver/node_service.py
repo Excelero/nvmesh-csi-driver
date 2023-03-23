@@ -10,8 +10,8 @@ from config import Config, get_config_json
 from filesystem_manager import FileSystemManager
 from common import Utils, CatchServerErrors, DriverError, BackoffDelayWithStopEvent
 import consts as Consts
-from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
-	NodeStageVolumeResponse, NodeUnstageVolumeResponse, NodeExpandVolumeResponse, Topology
+from csi.csi_pb2 import NodeGetInfoResponse, NodeGetCapabilitiesResponse, NodeGetVolumeStatsResponse, NodeServiceCapability, NodePublishVolumeResponse, NodeUnpublishVolumeResponse, \
+	NodeStageVolumeResponse, NodeUnstageVolumeResponse, NodeExpandVolumeResponse, Topology, VolumeCondition, VolumeUsage
 from csi.csi_pb2_grpc import NodeServicer
 from attach_detach_addon_to_sdk import NewClientAPI
 from topology_utils import TopologyUtils, NodeNotFoundInTopology
@@ -264,7 +264,41 @@ class NVMeshNodeService(NodeServicer):
 
 	@CatchServerErrors
 	def NodeGetVolumeStats(self, request, context):
-		raise NotImplementedError('Method not implemented!')
+		Utils.validate_params_exists(request, ['volume_id', 'volume_path'])
+
+		reqJson = MessageToJson(request)
+		self.logger.debug('NodeGetVolumeStats called with request: {}'.format(reqJson))
+
+		volume_path = request.volume_path
+
+		# check volume path
+		if len(volume_path) == 0:
+			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Volume path cannot be empty')
+		
+		if not os.path.exists(volume_path):
+			raise DriverError(StatusCode.INVALID_ARGUMENT, 'Volume path does not exist')
+	
+		if not os.path.ismount(volume_path):
+			raise DriverError(StatusCode.NOT_FOUND, 'Volume path is not mounted')
+
+		stats = Utils.get_volume_stats(volume_path)
+		usage = [
+			VolumeUsage(
+				available=stats['available_bytes'],
+				total=stats['total_bytes'],
+				used=stats['used_bytes'],
+				unit=VolumeUsage.Unit.BYTES,
+			),
+			VolumeUsage(
+				available=stats['available_inodes'],
+				total=stats['total_inodes'],
+				used=stats['used_inodes'],
+				unit=VolumeUsage.Unit.INODES,
+			),
+		]
+		condition = VolumeCondition(abnormal=False, message="Ok")
+
+		return NodeGetVolumeStatsResponse(usage=usage, volume_condition=condition)
 
 	@CatchServerErrors
 	def NodeExpandVolume(self, request, context):
@@ -364,11 +398,11 @@ class NVMeshNodeService(NodeServicer):
 		def buildCapability(type):
 			return NodeServiceCapability(rpc=NodeServiceCapability.RPC(type=type))
 
-		#get_volume_stats = buildCapability(NodeServiceCapability.RPC.GET_VOLUME_STATS)
+		get_volume_stats = buildCapability(NodeServiceCapability.RPC.GET_VOLUME_STATS)
 		stage_unstage = buildCapability(NodeServiceCapability.RPC.STAGE_UNSTAGE_VOLUME)
 		expand_volume = buildCapability(NodeServiceCapability.RPC.EXPAND_VOLUME)
 
-		capabilities = [stage_unstage, expand_volume]
+		capabilities = [get_volume_stats, stage_unstage, expand_volume]
 
 		return NodeGetCapabilitiesResponse(capabilities=capabilities)
 
@@ -423,7 +457,6 @@ class NVMeshNodeService(NodeServicer):
 
 		self.logger.debug('Node topology: %s' % topology_info)
 		return Topology(segments=topology_info)
-
 
 	def get_node_zone_or_wait(self, node_id):
 		attempts_left = 6
