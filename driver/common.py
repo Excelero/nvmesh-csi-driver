@@ -351,7 +351,26 @@ class Utils(object):
 
 		raise ValueError('Failed to parse boolean from %s with type %s' % (value, type(value)))
 
+	@staticmethod
+	def get_volume_stats(volume_path):
+		if len(volume_path) == 0:
+			raise DriverError(grpc.StatusCode.INVALID_ARGUMENT, 'Volume path cannot be empty')
 
+		try:
+			# see https://man7.org/linux/man-pages/man3/statvfs.3.html for details
+			info = os.statvfs(volume_path)
+			stats = {
+				"available_bytes": info.f_bavail * info.f_bsize,
+				"total_bytes": info.f_blocks * info.f_bsize,
+				"used_bytes": (info.f_blocks - info.f_bfree) * info.f_bsize,
+				"available_inodes": info.f_ffree,
+				"total_inodes": info.f_files,
+				"used_inodes": info.f_files - info.f_ffree,
+			}
+
+			return stats
+		except OSError:
+			raise DriverError(grpc.StatusCode.INTERNAL, 'node-driver unable to reach the volume path')
 
 class FeatureSupportChecks(object):
 	@staticmethod
