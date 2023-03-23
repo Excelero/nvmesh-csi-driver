@@ -126,10 +126,10 @@ class Utils(object):
 			time.sleep(sleep_interval)
 
 	@staticmethod
-	def nvmesh_attach_volume_rest_call(client_id, client_api, nvmesh_volume_name, requested_nvmesh_access_mode):
+	def nvmesh_attach_volume_rest_call(client_id, client_api, nvmesh_volume_name, requested_nvmesh_access_mode, reservation_version=None, retries_left=1):
 		Utils.logger.debug('nvmesh_attach_volume_rest_call Volume {} doing attach REST call to management'.format(nvmesh_volume_name))
 
-		err, res = client_api.attach(client_id, nvmesh_volume_name, requested_nvmesh_access_mode)
+		err, res = client_api.attach(client_id, nvmesh_volume_name, requested_nvmesh_access_mode, reservation_version=reservation_version)
 		# example: [{"_id": "vol1", "success": false, "error": "There is no such client client-1 or attachment", "payload": null}]
 
 		try:
@@ -145,6 +145,11 @@ class Utils(object):
 					return
 				elif 'access mode denied' in err:
 					raise DriverError(grpc.StatusCode.FAILED_PRECONDITION, "Attach Failed - Access Mode Denied - {}".format(res))
+				elif 'reservation version is outdated' in err and retries_left > 0:
+					Utils.logger.debug('Attach returned "reservation version outdated" we will retry with the updated reservation version'.format(nvmesh_volume_name))
+					# TODO: the mgmt should send the updated reservation as a separate int field, but for now we have to parse the string.
+					reservation_version = int(err.split(':')[1].strip())
+					Utils.nvmesh_attach_volume_rest_call(client_id, client_api, nvmesh_volume_name, requested_nvmesh_access_mode, reservation_version, retries_left-1)
 				else:
 					raise DriverError(grpc.StatusCode.INTERNAL, "Attach Failed - {}".format(res))
 		except Exception as ex:
@@ -167,12 +172,10 @@ class Utils(object):
 				return
 			else:
 				err = res["error"].lower()
-				if 'already detached' in err:
+				if 'there is no such client' in err:
 					# Already detached - Idempotent => return true
 					Utils.logger.debug('Volume {} is already detached with the requested access mode. output: {}'.format(nvmesh_volume_name, res))
 					return
-				elif 'access mode denied' in err:
-					raise DriverError(grpc.StatusCode.FAILED_PRECONDITION, "Detach Failed - Access Mode Denied - {}".format(res))
 				else:
 					raise DriverError(grpc.StatusCode.INTERNAL, "Detach Failed - {}".format(res))
 		except Exception as ex:

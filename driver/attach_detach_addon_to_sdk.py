@@ -4,7 +4,7 @@ import consts
 from NVMeshSDK.APIs.ClientAPI import ClientAPI
 
 class NewClientAPI(ClientAPI):
-    def attach(self, clientID, volume, access_mode, preempt=False, postTimeout=None):
+    def attach(self, clientID, volume, access_mode, reservation_version=None, preempt=False, postTimeout=None):
         volumes = [{
             "name": volume,
             "reservation": {
@@ -12,6 +12,9 @@ class NewClientAPI(ClientAPI):
                 "preempt": preempt
             }
         }]
+
+        if reservation_version:
+            volumes[0]["reservation"]["version"] = reservation_version
 
         req = {
             'client': clientID,
@@ -22,7 +25,7 @@ class NewClientAPI(ClientAPI):
     def detach(self, clientID, volume, force, postTimeout=None):
         volumes = [{
             "name": volume,
-            "force": 1 if force else 0
+            "force": force
         }]
 
         req = {
