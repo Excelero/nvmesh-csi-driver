@@ -11,7 +11,7 @@ from grpc._channel import _Rendezvous
 import driver.consts as Consts
 from driver import consts
 
-from driver.csi.csi_pb2 import NodeServiceCapability, Topology, VolumeCapability, NodePublishVolumeRequest
+from driver.csi.csi_pb2 import NodeGetVolumeStatsResponse, NodeServiceCapability, Topology, VolumeCapability, NodePublishVolumeRequest
 from test.sanity.helpers.config_loader_mock import ConfigLoaderMock
 from test.sanity.helpers.container_server_manager import NVMeshAttachScriptMockBuilder, NVMeshDetachScriptMockBuilder
 from test.sanity.helpers.setup_and_teardown import start_server, start_containerized_server
@@ -124,9 +124,60 @@ class TestNodeService(TestCaseWithServerRunning):
 	@CatchRequestErrors
 	def test_get_capabilities(self):
 		res = self._client.NodeGetCapabilities()
-		expected = [NodeServiceCapability.RPC.STAGE_UNSTAGE_VOLUME, NodeServiceCapability.RPC.EXPAND_VOLUME]
+		expected = [NodeServiceCapability.RPC.GET_VOLUME_STATS, NodeServiceCapability.RPC.STAGE_UNSTAGE_VOLUME, NodeServiceCapability.RPC.EXPAND_VOLUME]
 		self.assertListEqual(expected, [item.rpc.type for item in list(res.capabilities)])
 
+	@CatchRequestErrors
+	def test_get_volume_stats_inexistant_path(self):
+		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
+		target_parent_dir = TARGET_PATH_PARENT_DIR_TEMPLATE.format(volume_id=VOL_ID, pod_id=DEFAULT_POD_ID)
+		target_path = target_parent_dir + '/test-mount'
+		
+		def do_request():
+			return self._client.NodeGetVolumeStats(volume_id=VOL_ID, volume_path=target_path, staging_target_path=staging_target_path)
+
+		self.assertReturnsGrpcError(do_request, StatusCode.INVALID_ARGUMENT, "Volume path does not exist")
+	
+	@CatchRequestErrors
+	def test_get_volume_stats_unmounted(self):
+		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
+		target_parent_dir = TARGET_PATH_PARENT_DIR_TEMPLATE.format(volume_id=VOL_ID, pod_id=DEFAULT_POD_ID)
+		target_path = target_parent_dir + '/test-mount'
+
+		TestNodeService.driver_server.make_dir_in_env_dir(target_path)
+
+		def do_request():
+			return self._client.NodeGetVolumeStats(volume_id=VOL_ID, volume_path=target_path, staging_target_path=staging_target_path)
+
+		self.assertReturnsGrpcError(do_request, StatusCode.NOT_FOUND, "Volume path is not mounted")
+	
+	@CatchRequestErrors
+	def test_get_volume_stats_mounted(self):
+		nvmesh_attach_script_content = NVMeshAttachScriptMockBuilder().getDefaultSuccessBehavior()
+		TestNodeService.driver_server.set_nvmesh_attach_volumes_content(nvmesh_attach_script_content)
+		try:
+			TestNodeService.driver_server.remove_nvmesh_device(VOL_ID)
+		except:
+			pass
+
+		staging_target_path = STAGING_PATH_TEMPLATE.format(volume_id=VOL_ID)
+		target_parent_dir = TARGET_PATH_PARENT_DIR_TEMPLATE.format(volume_id=VOL_ID, pod_id=DEFAULT_POD_ID)
+		target_path = target_parent_dir + '/test-mount'
+
+		TestNodeService.driver_server.make_dir_in_env_dir(staging_target_path)
+		TestNodeService.driver_server.make_dir_in_env_dir(target_path)
+		self._client.NodeStageVolume(volume_id=VOL_ID)
+		self._client.NodePublishVolume(
+			volume_id=VOL_ID,
+			target_path=target_path,
+			access_type=Consts.VolumeAccessType.MOUNT,
+			access_mode=VolumeCapability.AccessMode.SINGLE_NODE_WRITER)
+		self.addCleanup(lambda: self._client.NodeUnpublishVolume(VOL_ID, target_path))
+		
+		_r = self._client.NodeGetVolumeStats(volume_id=VOL_ID, volume_path=target_path, staging_target_path=staging_target_path)
+
+		self.assertIsInstance(_r, NodeGetVolumeStatsResponse)
+	
 	@CatchRequestErrors
 	def test_node_stage_volume_successful(self):
 		nvmesh_attach_script_content = NVMeshAttachScriptMockBuilder().getDefaultSuccessBehavior()
@@ -285,7 +336,6 @@ print('{{ "status": "success", "volumes": {{ "%s": {status_and_error} }} }}' % v
 			expected_code=StatusCode.FAILED_PRECONDITION,
 			expected_string_in_details='Access Mode Denied'
 		)
-
 
 	@CatchRequestErrors
 	def test_stage_volume_failed_reservation_mode_denied(self):
@@ -455,6 +505,7 @@ print('{{ "status": "success", "volumes": {{ "%s": {status_and_error} }} }}' % v
 		permissions_found = TestNodeService.driver_server.run_command_in_container(['stat', '--format', '%a', target_path])
 		self.assertEquals(permissions_found.strip(), expected_permission_mask)
 
+
 class TestNodeServiceGracefulShutdown(TestCaseWithServerRunning):
 	def test_node_graceful_shutdown(self):
 		topology = {
@@ -482,8 +533,6 @@ class TestNodeServiceGracefulShutdown(TestCaseWithServerRunning):
 		thread.join()
 
 		self.assertEquals(len(results), 1)
-
-
 
 
 if __name__ == '__main__':
