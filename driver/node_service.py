@@ -267,7 +267,7 @@ class NVMeshNodeService(NodeServicer):
 		Utils.validate_params_exists(request, ['volume_id', 'volume_path'])
 
 		reqJson = MessageToJson(request)
-		self.logger.info('NodeGetVolumeStats called with request: {}'.format(reqJson))
+		self.logger.debug('NodeGetVolumeStats called with request: {}'.format(reqJson))
 
 		volume_path = request.volume_path
 
