@@ -22,7 +22,7 @@ class TestStaticProvisioning(unittest.TestCase):
 		err, out = NVMeshUtils.getVolumeAPI().save([volume])
 		self.assertIsNone(err, 'Error Creating NVMesh Volume. %s' % err)
 		create_res = out[0]
-		self.assertTrue(create_res['success'], 'Error Creating NVMesh Volume. %s' % create_res['error'])
+		self.assertTrue(create_res['success'], 'Error Creating NVMesh Volume. %s' % create_res.get('error'))
 
 		self.addCleanup(lambda: NVMeshUtils.getVolumeAPI().delete([volume]))
 

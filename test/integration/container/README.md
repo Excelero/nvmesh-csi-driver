@@ -4,11 +4,11 @@
 
 ```
 docker run --net=host \
-	-e TEST_NAME=test_block_volume \
 	-e KUBECONFIG=/home/root/.kube/config \
-	-v /home/gil/.kube/config:/home/root/.kube/config \
+	-v ~/.kube/config:/home/root/.kube/config \
 	-v /etc/resolv.conf:/etc/resolv.conf \
-	excelero/nvmesh-csi-test-tool:0.0.1
+	-v ~/projects/k8s-csi-driver/test/config.yaml:/config/config.yaml.read-only \
+	nvme115:30500/nvmesh-csi-test-tool:dev
 ```
 
 
