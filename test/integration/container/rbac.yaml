@@ -38,6 +38,9 @@ rules:
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get", "watch", "list", "create", "delete", "update"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "watch", "list", "create", "delete", "update"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -48,7 +51,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: nvmesh-csi-tester
-    namespace: default
+    namespace: nvmesh-csi-testing
 roleRef:
   kind: ClusterRole
   name: nvmesh-csi-tester

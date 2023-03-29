@@ -101,10 +101,13 @@ def parse_args():
 	args = parser.parse_args()
 	return args
 
-def parse_env_variables(args):
-	config = {}
+def parse_env_variables(args, config):
 	test_files_path = os.environ.get('TEST_FILES_PATH', '/test/integration/tests')
 	config['test_files_path'] = test_files_path
+
+	if args.list:
+		return
+	
 	if args.all:
 		config['tests'] = 'all'
 	else:
@@ -112,20 +115,21 @@ def parse_env_variables(args):
 			raise ValueError('No tests to run. Either --all or  --tests <test1> <test2> must be supllied')
 		config['tests'] = args.tests
 
-	return config
+	return
 
 if __name__ == "__main__":
 	register_signals()
-	log.info('Started')
 	args = parse_args()
 	collect_info()
 	edit_config_file()
-	config = parse_env_variables(args)
+	config = {}
+	parse_env_variables(args, config)
 
 	if args.list:
 		print_available_tests(config)
 		exit(0)
 
+	log.info('Started')
 	if args.clean_up_before_start:
 		clear_environment()
 

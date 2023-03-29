@@ -1,10 +1,17 @@
 cd ../../../
 
-docker build -f test/integration/container/Dockerfile . --tag registry.excelero.com/dev/nvmesh-csi-test-tool:0.0.8
+registry=`cat deploy/kubernetes/helm/nvmesh-csi-driver/values-dev.yaml | yq '.dev.registry'`
+
+if [ -z $registry ]; then
+  registry=local:5000
+fi
+
+image_name="$registry/nvmesh-csi-test-tool:dev"
+
+docker build -f test/integration/container/Dockerfile . --tag $image_name
 
 
 # Create ConfigMap from test/config.yaml
-
 
 config_map_file=test/integration/container/configmap.yaml
 config_file_path=test/config.yaml
