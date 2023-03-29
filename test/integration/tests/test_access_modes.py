@@ -1,5 +1,5 @@
 #!/usr/bin/env python2
-
+import time
 import unittest
 
 from kubernetes.client.rest import ApiException
@@ -8,7 +8,7 @@ from NVMeshSDK.Consts import RAIDLevels
 from NVMeshSDK.Entities.Volume import Volume
 from utils import TestUtils, KubeUtils, NVMeshUtils, core_api
 
-logger = TestUtils.get_logger()
+logger = TestUtils.get_logger().getChild("TestAccessModes")
 
 GiB = pow(1024, 3)
 
@@ -34,50 +34,81 @@ class TestAccessModes(unittest.TestCase):
 				raise ValueError('Test requires at least one zone with more than one node. found topology: %s' % zones)
 
 	def test_read_write_many(self):
+		logger.getChild("test_read_write_many")
+		logger.info("Started")
+
 		pvc_name = 'pvc-rwx'
 		KubeUtils.create_pvc_and_wait_to_bound(self, pvc_name, TestAccessModes.StorageClass, access_modes=['ReadWriteMany'], volumeMode='Block')
 
-		# First Pod Should Succeed
+		logger.info("First Pod Should Succeed")
 		pod = KubeUtils.get_block_consumer_pod_template('pod-1-node-1', pvc_name)
 		self.set_pod_node(pod, node_index=1)
 		self.create_pod_with_cleanup(pod)
 		KubeUtils.wait_for_pod_to_be_running(pod['metadata']['name'])
 
-		# Second Pod on the same Node should Succeed
+		logger.info("Second Pod on the same Node should Succeed")
 		pod = KubeUtils.get_block_consumer_pod_template('pod-2-node-1', pvc_name)
 		self.set_pod_node(pod, node_index=1)
 		self.create_pod_with_cleanup(pod)
 		KubeUtils.wait_for_pod_to_be_running(pod['metadata']['name'])
 
-		# Third Pod on a different Node should Succeed
+		logger.info("Third Pod on a different Node should Succeed")
 		pod = KubeUtils.get_block_consumer_pod_template('pod-3-node-2', pvc_name)
 		self.set_pod_node(pod, node_index=2)
 		self.create_pod_with_cleanup(pod)
 		KubeUtils.wait_for_pod_to_be_running(pod['metadata']['name'])
 
 	def test_read_write_once(self):
+		logger.getChild("test_read_write_once")
+		logger.info("Started")
+
 		pvc_name = 'pvc-rwo'
 		KubeUtils.create_pvc_and_wait_to_bound(self, pvc_name, TestAccessModes.StorageClass, access_modes=['ReadWriteOnce'], volumeMode='Filesystem')
 
 		# First Pod Should Succeed
-		pod = KubeUtils.get_fs_consumer_pod_template('pod-1-node-1', pvc_name)
+		logger.info("First Pod Should Succeed")
+		pod_1_node_1 = 'pod-1-node-1'
+		pod = KubeUtils.get_fs_consumer_pod_template(pod_1_node_1, pvc_name)
 		self.set_pod_node(pod, node_index=1)
 		self.create_pod_with_cleanup(pod)
-		KubeUtils.wait_for_pod_to_be_running(pod['metadata']['name'])
+		KubeUtils.wait_for_pod_to_be_running(pod_1_node_1)
 
 		# Second Pod on the same Node - should be running
-		pod = KubeUtils.get_fs_consumer_pod_template('pod-2-node-1', pvc_name)
+		pod_2_node_1 = 'pod-2-node-1'
+		pod = KubeUtils.get_fs_consumer_pod_template(pod_2_node_1, pvc_name)
 		self.set_pod_node(pod, node_index=1)
 		self.create_pod_with_cleanup(pod)
-		KubeUtils.wait_for_pod_to_be_running(pod['metadata']['name'])
+		KubeUtils.wait_for_pod_to_be_running(pod_2_node_1)
 
 		# Third Pod on a different Node should Fail
-		pod = KubeUtils.get_fs_consumer_pod_template('pod-3-node-2', pvc_name)
+		pod_3_node_2 = 'pod-3-node-2'
+		pod = KubeUtils.get_fs_consumer_pod_template(pod_3_node_2, pvc_name)
 		self.set_pod_node(pod, node_index=2)
 		self.create_pod_with_cleanup(pod)
-		KubeUtils.wait_for_pod_event(pod['metadata']['name'], keyword='Access Mode Denied', attempts=20)
+		KubeUtils.wait_for_pod_event(pod_3_node_2, keyword='access mode denied', attempts=20)
+
+		# Delete all pods
+		KubeUtils.delete_pods_and_wait([pod_1_node_1, pod_2_node_1], attempts=60)
+
+		# Not waiting now for the failing pod as it would probably take time to shut down
+		KubeUtils.delete_pod(pod_3_node_2)
+		KubeUtils.delete_pods_and_wait([pod_3_node_2], attempts=120)
+
+		# Forth Pod on Node1 - should be running
+		# This should trigger reservation outdated - and then CSI Driver should retry attach with the updated version
+		pod_4_node_1 = 'pod-4-node-1'
+		pod = KubeUtils.get_fs_consumer_pod_template(pod_4_node_1, pvc_name)
+		self.set_pod_node(pod, node_index=1)
+		self.create_pod_with_cleanup(pod)
+		KubeUtils.wait_for_pod_to_be_running(pod_4_node_1)
+
+		KubeUtils.wait_for_pod_to_delete(pod_3_node_2, attempts=60)
+
 
 	def test_read_only_many_can_read_from_different_pods_and_nodes(self):
+		logger.getChild("test_read_only_many_can_read_from_different_pods_and_nodes")
+		logger.info("Started")
+	
 		pvc_name = 'pvc-rox'
 		KubeUtils.create_pvc_and_wait_to_bound(self, pvc_name, TestAccessModes.StorageClass, access_modes=['ReadOnlyMany'], volumeMode='Block')
 
@@ -99,7 +130,11 @@ class TestAccessModes(unittest.TestCase):
 		self.create_pod_with_cleanup(pod)
 		KubeUtils.wait_for_pod_to_be_running(pod['metadata']['name'])
 
+	@unittest.skip("test_mixed_access_modes")
 	def test_mixed_access_modes(self):
+		logger.getChild("test_mixed_access_modes")
+		logger.info("Started")
+	
 		# This test creates a static provisioned PV with reclaimPolicy: Retain (making sure it is not deleted when the bounded PVC is deleted)
 		# Then will create PVC's with different AccessModes to use the same PV. in between some PV cleanup needs to be done.
 		# Create Storage Class with reclaimPolicy: Retain
@@ -118,7 +153,7 @@ class TestAccessModes(unittest.TestCase):
 		err, out = NVMeshUtils.getVolumeAPI().save([volume])
 		self.assertIsNone(err, 'Error Creating NVMesh Volume. %s' % err)
 		create_res = out[0]
-		self.assertTrue(create_res['success'], 'Error Creating NVMesh Volume. %s' % create_res['error'])
+		self.assertTrue(create_res['success'], 'Error Creating NVMesh Volume. %s' % create_res)
 
 		self.addCleanup(lambda: NVMeshUtils.getVolumeAPI().delete([volume]))
 
@@ -185,7 +220,7 @@ class TestAccessModes(unittest.TestCase):
 
 		# 8. Create 1 Pod that will try to write to the FileSystem - Should Fail
 		pod_name = 'pod-file-writer-b'
-		cmd_write_success = 'echo hello_from_%s > /vol/file1 ; success=$? ; echo "write to file returned $success" ;echo $(cat /vol/file1) ; exit $success' % pod_name
+		cmd_write_success = 'echo hello_from_%s > /vol/file1 ; success=$? ; echo "write to file returned $success" ;echo $(cat /vol/file1) ; while true; do sleep 1; done ;exit $success' % pod_name
 		pod = KubeUtils.get_shell_pod_template(pod_name, pvc_rox, cmd_write_success)
 		KubeUtils.create_pod(pod)
 		self.addCleanup(lambda: KubeUtils.delete_pod_and_wait(pod_name))

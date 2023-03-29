@@ -1,0 +1,122 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: csi-integration-test
+  namespace: nvmesh-csi-testing
+  labels:
+    nvmesh-csi-testing: ""
+    app: nvmesh-csi-integration-test
+spec:
+  template:
+    metadata:
+      labels:
+        app: nvmesh-csi-integration-test
+    spec:
+      serviceAccountName: nvmesh-csi-tester
+      initContainers:
+      - name: test-init
+        image: nvme115:30500/nvmesh-csi-test-tool:dev
+        imagePullPolicy: Always
+        args:
+          #- --clean-up-before-start
+          - --log-level
+          - DEBUG
+          - --tests
+          - clear_test_environment
+        volumeMounts:
+          - name: config-volume
+            mountPath: /config/config.yaml.read-only
+            subPath: config.yaml
+      containers:
+      - name: test1
+        image: nvme115:30500/nvmesh-csi-test-tool:dev
+        imagePullPolicy: Always
+        args:
+          #- --clean-up-before-start
+          - --log-level
+          - DEBUG
+          #- --all
+          - --tests
+          - test_block_volume
+          # - clear_test_environment
+          #- test_migration.TestMigration.test_migration
+
+          #- test_file_system_volume
+          #- test_default_storage_classes.TestAllRAIDTypes
+          #- test_default_storage_classes.TestAllRAIDTypes.test_concatenated
+          #- test_default_storage_classes.TestAllRAIDTypes.test_raid0
+        volumeMounts:
+          - name: config-volume
+            mountPath: /config/config.yaml.read-only
+            subPath: config.yaml
+      - name: test2
+        image: nvme115:30500/nvmesh-csi-test-tool:dev
+        imagePullPolicy: Always
+        args:
+          - --log-level
+          - DEBUG
+          - --tests
+          - test_encrypted_volumes
+        volumeMounts:
+          - name: config-volume
+            mountPath: /config/config.yaml.read-only
+            subPath: config.yaml
+      - name: test3
+        image: nvme115:30500/nvmesh-csi-test-tool:dev
+        imagePullPolicy: Always
+        args:
+          - --log-level
+          - DEBUG
+          - --tests
+          - test_default_storage_classes
+        volumeMounts:
+          - name: config-volume
+            mountPath: /config/config.yaml.read-only
+            subPath: config.yaml
+      - name: test4
+        image: nvme115:30500/nvmesh-csi-test-tool:dev
+        imagePullPolicy: Always
+        args:
+          - --log-level
+          - DEBUG
+          - --tests
+          - test_access_modes
+        volumeMounts:
+          - name: config-volume
+            mountPath: /config/config.yaml.read-only
+            subPath: config.yaml
+      - name: test5
+        image: nvme115:30500/nvmesh-csi-test-tool:dev
+        imagePullPolicy: Always
+        args:
+          - --log-level
+          - DEBUG
+          - --tests
+          - test_attach_detach
+        volumeMounts:
+          - name: config-volume
+            mountPath: /config/config.yaml.read-only
+            subPath: config.yaml
+      - name: test6
+        image: nvme115:30500/nvmesh-csi-test-tool:dev
+        imagePullPolicy: Always
+        args:
+          - --log-level
+          - DEBUG
+          - --tests
+          - test_storage_class_params
+          - test_static_provisioning
+        volumeMounts:
+          - name: config-volume
+            mountPath: /config/config.yaml.read-only
+            subPath: config.yaml
+      restartPolicy: Never
+      volumes:
+      - name: config-volume
+        configMap:
+          name: integration-test-config
+          items:
+            - key: config.yaml
+              path: config.yaml
+    
+  backoffLimit: 0
