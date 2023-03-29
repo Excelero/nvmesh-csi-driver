@@ -64,7 +64,7 @@ push:
 manifests:
 	cd deploy/kubernetes/scripts && ./build_deployment_file.sh
 
-dep_file := deployment_k8s_1.22.yaml
+dep_file := deployment_k8s_1.25.yaml
 
 deploy: manifests
 	echo "Deploying YAML file: " $(dep_file)
