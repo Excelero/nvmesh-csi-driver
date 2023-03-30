@@ -2,6 +2,7 @@ version := `./get_version_info.sh | grep ^VERSION | cut -d '=' -f2`
 image_name := `cat deploy/kubernetes/helm/nvmesh-csi-driver/values.yaml | yq '.image.repository'`
 version_w_release := `./get_version_info.sh | grep ^DRIVER_VERSION | cut -d '=' -f2`
 image_name_dev := `cat deploy/kubernetes/helm/nvmesh-csi-driver/values-dev.yaml | yq '.image.repository'`
+dev_registry := `cat deploy/kubernetes/helm/nvmesh-csi-driver/values-dev.yaml | yq '.dev.registry'`
 
 # ----------------
 # Build
@@ -48,9 +49,15 @@ test-sanity-locally:
 test-sanity:
 	test/sanity/run.sh --config $(PWD)/test/config.yaml
 
-# This will create a kubernetes Job resource using local kubectl tool
 test-integration:
-	kubectl delete -n nvmesh-csi-testing -f test/integration/container/test_job.yaml ; kubectl apply -n nvmesh-csi-testing -f test/integration/container/
+	echo "Clearing Environment"
+	cd test && ./run_integration_tests.sh --clear-env
+	echo "Running All Integration Tests"
+	cd test && ./run_integration_tests.sh
+
+# This will create a kubernetes Job resource using local kubectl tool
+test-integration-containerized:
+	kubectl delete -n nvmesh-csi-testing -f test/integration/container/ ; kubectl apply -n nvmesh-csi-testing -f test/integration/container/
 	kubectl wait -n nvmesh-csi-testing --for=condition=ready pod --selector=job-name=csi-integration-test
 	kubectl logs -n nvmesh-csi-testing --selector=job-name=csi-integration-test --follow
 
@@ -63,9 +70,11 @@ push:
 	docker push $(image_name):$(version)
 
 push-dev:
-	echo "Pushing version $(version_w_release) as $(image_name_dev)"
-	docker tag excelero/nvmesh-csi-driver:$(version_w_release) $(image_name_dev):$(version_w_release)
-	docker push $(image_name_dev):$(version_w_release)
+	echo "Pushing version $(version)-dev as $(image_name_dev)"
+	echo "RUNNING: docker tag excelero/nvmesh-csi-driver:$(version_w_release) $(image_name_dev):$(version)-dev"
+	docker tag excelero/nvmesh-csi-driver:$(version_w_release) $(image_name_dev):$(version)-dev
+	echo "RUNNING: docker push $(image_name_dev):$(version)-dev"
+	docker push $(image_name_dev):$(version)-dev
 
 # ----------------
 # Deploy
