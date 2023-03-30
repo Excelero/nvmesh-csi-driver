@@ -16,6 +16,9 @@ build_tools/*.tgz
 # test configmap
 test/integration/container/configmap.yaml
 
+# deploymet yaml for development
+deployment_dev.yaml
+
 # collected logs
 logs/
 

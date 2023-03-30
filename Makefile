@@ -1,5 +1,7 @@
 version := `./get_version_info.sh | grep ^VERSION | cut -d '=' -f2`
 image_name := `cat deploy/kubernetes/helm/nvmesh-csi-driver/values.yaml | yq '.image.repository'`
+version_w_release := `./get_version_info.sh | grep ^DRIVER_VERSION | cut -d '=' -f2`
+image_name_dev := `cat deploy/kubernetes/helm/nvmesh-csi-driver/values-dev.yaml | yq '.image.repository'`
 
 # ----------------
 # Build
@@ -48,24 +50,41 @@ test-sanity:
 
 # This will create a kubernetes Job resource using local kubectl tool
 test-integration:
-	kubectl delete -f test/integration/container/test_job.yaml ; kubectl apply -f test/integration/container/
-	kubectl wait --for=condition=ready pod --selector=job-name=csi-integration-test
-	kubectl logs --selector=job-name=csi-integration-test --follow
+	kubectl delete -n nvmesh-csi-testing -f test/integration/container/test_job.yaml ; kubectl apply -n nvmesh-csi-testing -f test/integration/container/
+	kubectl wait -n nvmesh-csi-testing --for=condition=ready pod --selector=job-name=csi-integration-test
+	kubectl logs -n nvmesh-csi-testing --selector=job-name=csi-integration-test --follow
+
+# ----------------
+# Push to registry
+# ----------------
+push:
+	echo "Pushing version $(version) as $(image_name)"
+	docker tag excelero/nvmesh-csi-driver:$(version) $(image_name):$(version)
+	docker push $(image_name):$(version)
+
+push-dev:
+	echo "Pushing version $(version_w_release) as $(image_name_dev)"
+	docker tag excelero/nvmesh-csi-driver:$(version_w_release) $(image_name_dev):$(version_w_release)
+	docker push $(image_name_dev):$(version_w_release)
 
 # ----------------
 # Deploy
 # ----------------
 
-push:
-	echo "Pushing version $(version) as $(image_name)"
-	docker tag excelero/nvmesh-csi-driver:$(version) $(image_name):$(version)
-	docker push $(image_name):$(version) && make deploy
-
 manifests:
 	cd deploy/kubernetes/scripts && ./build_deployment_file.sh
 
-dep_file := deployment_k8s_1.22.yaml
+dep_file := deployment.yaml
 
 deploy: manifests
 	echo "Deploying YAML file: " $(dep_file)
 	kubectl delete -f deploy/kubernetes/$(dep_file) ; kubectl create -f deploy/kubernetes/$(dep_file)
+
+
+dep_dev_file := deployment_dev.yaml
+
+deploy-dev: manifests
+	echo "Deploying Dev YAML file: " $(dep_dev_file)
+	kubectl delete -f deploy/kubernetes/$(dep_dev_file) ; kubectl create -f deploy/kubernetes/$(dep_dev_file)
+
+dev-cycle: build manifests push-dev deploy-dev
