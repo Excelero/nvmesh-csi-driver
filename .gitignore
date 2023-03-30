@@ -20,7 +20,8 @@ build_tools/*.tgz
 test/integration/container/configmap.yaml
 
 # deploymet yaml for development
-deployment_dev.yaml
+deployment_dev*.yaml
+deploy/kubernetes/helm/nvmesh-csi-driver/values-dev.yaml
 
 # collected logs
 logs/
