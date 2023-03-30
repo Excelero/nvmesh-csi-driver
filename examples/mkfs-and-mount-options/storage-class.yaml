@@ -1,0 +1,15 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-ext4-options
+  labels:
+    nvmesh-csi-testing: ""
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+mountOptions:
+ - block_validity
+parameters:
+  vpg: DEFAULT_RAID_10_VPG
+  csi.storage.k8s.io/fstype: ext4
+  mkfsOptions: -b 4096
