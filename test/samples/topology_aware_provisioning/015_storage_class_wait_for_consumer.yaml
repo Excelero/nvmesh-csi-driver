@@ -1,9 +1,0 @@
-kind: StorageClass
-apiVersion: storage.k8s.io/v1
-metadata:
-  name: nvmesh-wait-for-consumer
-provisioner: nvmesh-csi.excelero.com
-allowVolumeExpansion: true
-volumeBindingMode: WaitForFirstConsumer
-parameters:
-  vpg: DEFAULT_CONCATENATED_VPG

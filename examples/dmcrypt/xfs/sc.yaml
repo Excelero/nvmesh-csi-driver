@@ -1,0 +1,18 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: encrypted-nvmesh-xfs
+  labels:
+    nvmesh-csi-testing: ""
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_CONCATENATED_VPG
+  csi.storage.k8s.io/fstype: xfs
+  encryption: dmcrypt
+  csi.storage.k8s.io/node-stage-secret-name: dmcrypt-example-key
+  csi.storage.k8s.io/node-stage-secret-namespace: nvmesh-csi
+# uncomment this to control the LUKS header type or the cipher
+#  dmcrypt/type: "luks2"
+#  dmcrypt/cipher: "aes-xts-plain64"

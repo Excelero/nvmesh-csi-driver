@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: block-volume-consumer-pod
+  labels:
+    app: block-volume-consumer-test
+spec:
+  containers:
+    - name: block-volume-consumer
+      image: excelero/qguide_block_volume_consumer
+      args: ["/dev/my_block_dev"]
+      volumeDevices:
+        - name: block-volume
+          devicePath: /dev/my_block_dev
+  volumes:
+    - name: block-volume
+      persistentVolumeClaim:
+        claimName: block-pvc
