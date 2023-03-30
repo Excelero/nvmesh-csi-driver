@@ -1,0 +1,12 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-wait-for-consumer
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+
+# Setting volumeBindingMode to WaitForFirstConsumer will allow the scheduler to schedule the Pod according to the pods affinity
+# Only later the Volume will be created in the zone where the Pod ended up
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  vpg: DEFAULT_CONCATENATED_VPG

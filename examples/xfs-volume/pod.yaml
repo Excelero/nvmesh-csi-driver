@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nvmesh-with-xfs
+spec:
+  containers:
+    - name: cento7
+      image: centos:7
+      command:
+        - /bin/bash
+        - '-c'
+        - '--'
+      args:
+        - "while true; do sleep 3; done;"
+      volumeMounts:
+      - name: vol1
+        mountPath: /mnt/vol1
+  volumes:
+    - name: vol1
+      persistentVolumeClaim:
+        claimName: vol-xfs

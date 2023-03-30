@@ -1,0 +1,10 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: my-custom-vpg-storage-class
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: my-nvmesh-vpg-name     # The name of the NVMesh VPG as appears in the NVMesh software
+  csi.storage.k8s.io/fstype: xfs

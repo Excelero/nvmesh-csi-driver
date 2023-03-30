@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ext4-options-test
+  labels:
+    nvmesh-csi-testing: ""
+spec:
+  restartPolicy: Never
+  containers:
+    - name: alpine
+      image: alpine
+      imagePullPolicy: Always
+      volumeMounts:
+        - name: ext4-volume
+          mountPath: /mnt/vol1
+  volumes:
+  - name: ext4-volume
+    persistentVolumeClaim:
+      claimName: pvc-ext4-options
