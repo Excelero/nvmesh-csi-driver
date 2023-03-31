@@ -35,11 +35,19 @@ class FileSystemManager(object):
 
 	@staticmethod
 	def mount(source, target, flags=None, mount_options=None):
-		flags_str = ' '.join(flags) if flags else ''
-		mount_opts_str = '-o ' + ','.join(mount_options) if mount_options else ''
-		cmd = 'mount {flags_str} {options} {source} {target}'.format(flags_str=flags_str, options=mount_opts_str, source=source, target=target)
+		cmd = ['mount']
 
-		exit_code, stdout, stderr = Utils.run_command(cmd)
+		if flags:
+			cmd = cmd + flags
+
+		if mount_options:
+			cmd.append('-o')
+			cmd.append(','.join(mount_options))
+		
+		cmd.append(source)
+		cmd.append(target)
+
+		exit_code, stdout, stderr = Utils.run_safe_command(cmd)
 
 		if exit_code != 0:
 			raise Exception("mount failed {} {} {}".format(exit_code, stdout, stderr))
@@ -77,16 +85,21 @@ class FileSystemManager(object):
 		if not fs_type:
 			raise ArgumentError("fs_type argument Cannot be None or an empty string")
 
+		cmd = ["mkfs.%s" % fs_type]
+
 		if not flags:
 			flags = []
 
 		if fs_type == FSType.XFS:
 			# support older host kernels which don't support this feature
-			flags.append('-m reflink=0')
+			flags += ['-m', 'reflink=0']
+		
+		cmd += flags
 
-		cmd = "mkfs.{fs_type} {flags} {target_path}".format(fs_type=fs_type, flags=' '.join(flags), target_path=target_path)
+		cmd.append(target_path)
 
-		exit_code, stdout, stderr = Utils.run_command(cmd)
+		logger.debug("mkfs cmd=%s  flags=%s" %(cmd, flags))
+		exit_code, stdout, stderr = Utils.run_safe_command(cmd)
 
 		if exit_code != 0:
 			raise OSError("mkfs failed {} {} {}".format(exit_code, stdout, stderr))
@@ -116,7 +129,7 @@ class FileSystemManager(object):
 		return shutil.rmtree(dir_path)
 
 	@staticmethod
-	def format_block_device(block_device_path, fs_type, mkfs_options):
+	def format_block_device(block_device_path, fs_type, mkfs_options_str):
 		# check if already formatted, and if format meets request
 		current_fs_type = FileSystemManager.get_fs_type(block_device_path)
 		logger.debug('current_fs_type={}'.format(current_fs_type))
@@ -127,7 +140,8 @@ class FileSystemManager(object):
 		if current_fs_type != '':
 			raise DriverError(StatusCode.INVALID_ARGUMENT, '{} is formatted to {} but requested {}'.format(block_device_path, current_fs_type, fs_type))
 
-		FileSystemManager.mkfs(fs_type=fs_type, target_path=block_device_path, flags=[mkfs_options])
+		flags = mkfs_options_str.split(' ') if mkfs_options_str else None
+		FileSystemManager.mkfs(fs_type=fs_type, target_path=block_device_path, flags=flags)
 
 	@staticmethod
 	def expand_file_system(block_device_path, fs_type):
