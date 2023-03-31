@@ -40,7 +40,7 @@ systemdHost: false
 defaultStorageClasses: true
 
 annotations:
-  kubectl.kubernetes.io/default-logs-container: nvmesh-csi-driver
+  kubectl.kubernetes.io/default-container: nvmesh-csi-driver
 
 controller:
   replicaCount: 1
