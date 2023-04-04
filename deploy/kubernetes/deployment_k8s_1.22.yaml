@@ -7,8 +7,8 @@ metadata:
     app.kubernetes.io/instance: nvmesh-csi-driver
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/version: v1.3.0-6
-    helm.sh/chart: nvmesh-csi-driver-1.3.0
+    app.kubernetes.io/version: v1.4.0
+    helm.sh/chart: nvmesh-csi-driver-1.4.0
   name: nvmesh-csi
 spec:
   allowPrivilegeEscalation: true
@@ -45,8 +45,8 @@ metadata:
     app.kubernetes.io/instance: nvmesh-csi-driver
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/version: v1.3.0-6
-    helm.sh/chart: nvmesh-csi-driver-1.3.0
+    app.kubernetes.io/version: v1.4.0
+    helm.sh/chart: nvmesh-csi-driver-1.4.0
   name: nvmesh-csi
   namespace: nvmesh-csi
 ---
@@ -60,8 +60,8 @@ metadata:
     app.kubernetes.io/instance: nvmesh-csi-driver
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/version: v1.3.0-6
-    helm.sh/chart: nvmesh-csi-driver-1.3.0
+    app.kubernetes.io/version: v1.4.0
+    helm.sh/chart: nvmesh-csi-driver-1.4.0
   name: nvmesh-csi-credentials
   namespace: nvmesh-csi
 ---
@@ -83,8 +83,8 @@ metadata:
     app.kubernetes.io/instance: nvmesh-csi-driver
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/version: v1.3.0-6
-    helm.sh/chart: nvmesh-csi-driver-1.3.0
+    app.kubernetes.io/version: v1.4.0
+    helm.sh/chart: nvmesh-csi-driver-1.4.0
   name: nvmesh-csi-config
   namespace: nvmesh-csi
 ---
@@ -97,9 +97,26 @@ metadata:
     app.kubernetes.io/instance: nvmesh-csi-driver
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/version: v1.3.0-6
-    helm.sh/chart: nvmesh-csi-driver-1.3.0
+    app.kubernetes.io/version: v1.4.0
+    helm.sh/chart: nvmesh-csi-driver-1.4.0
   name: nvmesh-csi-topology
+  namespace: nvmesh-csi
+---
+apiVersion: v1
+data:
+  comp_matrix: "{\n    \">=1.3.0\": {\n        \"kubernetes\": \">=1.17.0 <1.25.0\"\
+    ,\n        \"nvmesh\": \">=2.6.0 <2.8.0\"\n    },\n    \">=1.2.0 <1.3.0\": {\n\
+    \        \"kubernetes\": \">=1.17.0 <1.25.0\",\n        \"nvmesh\": \">=2.5.0\
+    \ <2.6.0\"\n    }\n}"
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/instance: nvmesh-csi-driver
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: nvmesh-csi-driver
+    app.kubernetes.io/version: v1.4.0
+    helm.sh/chart: nvmesh-csi-driver-1.4.0
+  name: nvmesh-csi-compatibility
   namespace: nvmesh-csi
 ---
 allowVolumeExpansion: true
@@ -464,8 +481,8 @@ metadata:
     app.kubernetes.io/instance: nvmesh-csi-driver
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/version: v1.3.0-6
-    helm.sh/chart: nvmesh-csi-driver-1.3.0
+    app.kubernetes.io/version: v1.4.0
+    helm.sh/chart: nvmesh-csi-driver-1.4.0
   name: nvmesh-csi
   namespace: nvmesh-csi
 spec:
@@ -491,14 +508,14 @@ spec:
   template:
     metadata:
       annotations:
-        kubectl.kubernetes.io/default-logs-container: nvmesh-csi-driver
+        kubectl.kubernetes.io/default-container: nvmesh-csi-driver
       labels:
         app.kubernetes.io/component: node-driver
         app.kubernetes.io/instance: nvmesh-csi-driver
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: nvmesh-csi-driver
-        app.kubernetes.io/version: v1.3.0-6
-        helm.sh/chart: nvmesh-csi-driver-1.3.0
+        app.kubernetes.io/version: v1.4.0
+        helm.sh/chart: nvmesh-csi-driver-1.4.0
     spec:
       containers:
       - env:
@@ -528,7 +545,7 @@ spec:
             secretKeyRef:
               key: password
               name: nvmesh-csi-credentials
-        image: excelero/nvmesh-csi-driver:v1.3.0-6
+        image: excelero/nvmesh-csi-driver:v1.4.0
         imagePullPolicy: IfNotPresent
         name: nvmesh-csi-driver
         securityContext:
@@ -627,14 +644,14 @@ spec:
   template:
     metadata:
       annotations:
-        kubectl.kubernetes.io/default-logs-container: nvmesh-csi-driver
+        kubectl.kubernetes.io/default-container: nvmesh-csi-driver
       labels:
         app.kubernetes.io/component: controller
         app.kubernetes.io/instance: nvmesh-csi-driver
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: nvmesh-csi-driver
-        app.kubernetes.io/version: v1.3.0-6
-        helm.sh/chart: nvmesh-csi-driver-1.3.0
+        app.kubernetes.io/version: v1.4.0
+        helm.sh/chart: nvmesh-csi-driver-1.4.0
     spec:
       containers:
       - env:
@@ -654,7 +671,7 @@ spec:
             secretKeyRef:
               key: password
               name: nvmesh-csi-credentials
-        image: excelero/nvmesh-csi-driver:v1.3.0-6
+        image: excelero/nvmesh-csi-driver:v1.4.0
         imagePullPolicy: IfNotPresent
         name: nvmesh-csi-driver
         volumeMounts:
@@ -709,8 +726,8 @@ metadata:
     app.kubernetes.io/instance: nvmesh-csi-driver
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: nvmesh-csi-driver
-    app.kubernetes.io/version: v1.3.0-6
-    helm.sh/chart: nvmesh-csi-driver-1.3.0
+    app.kubernetes.io/version: v1.4.0
+    helm.sh/chart: nvmesh-csi-driver-1.4.0
   name: nvmesh-csi.excelero.com
   namespace: nvmesh-csi
 spec:
