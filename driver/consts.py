@@ -124,3 +124,5 @@ class AccessMode(object):
 
 
 
+class MgmtMessageCodes(object):
+	VOLUME_ALREADY_EXISTS = 1523
