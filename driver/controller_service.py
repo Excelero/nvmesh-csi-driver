@@ -184,7 +184,10 @@ class NVMeshControllerService(ControllerServicer):
 			self.topology_service.topology.make_sure_zone_enabled(zone)
 
 			if not type(data) == list or not data[0].get('success'):
-				volume_already_exists = 'Name already Exists' in data[0].get('error') or 'duplicate key error' in json.dumps(data[0].get('error'))
+				volume_already_exists = ('id' in data[0].get('error') and data[0]['error']['id'] == Consts.MgmtMessageCodes.VOLUME_ALREADY_EXISTS) \
+										or 'name already exists' in data[0].get('err').lower() \
+										or 'name already exists' in data[0].get('error').lower() \
+										or 'duplicate key error' in json.dumps(err)
 				if volume_already_exists:
 					existing_capacity = self._get_nvmesh_volume_capacity(volume.name, log, zone)
 					if volume.capacity == existing_capacity:
