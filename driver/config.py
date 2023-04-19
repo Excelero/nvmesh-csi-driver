@@ -31,6 +31,9 @@ class Config(object):
 	TOPOLOGY_CONFIG_MAP_NAME = None
 	CSI_CONFIG_MAP_NAME = None
 	USE_PREEMPT = None
+	SDK_HTTP_REQUEST_TIMEOUT = None
+	GRPC_MAX_WORKERS = None
+
 
 class Parsers(object):
 	@staticmethod
@@ -111,6 +114,8 @@ class ConfigLoader(object):
 		Config.TOPOLOGY_CONFIG_MAP_NAME = _get_config_map_param('topologyConfigMapName', 'nvmesh-csi-topology')
 		Config.CSI_CONFIG_MAP_NAME = _get_config_map_param('csiConfigMapName', 'nvmesh-csi-config')
 		Config.USE_PREEMPT = _get_boolean_config_map_param('usePreempt')
+		Config.SDK_HTTP_REQUEST_TIMEOUT = _get_config_map_param('sdkHttpRequestTimeout', 30)
+		Config.GRPC_MAX_WORKERS = _get_config_map_param('grpcMaxWorkers', 50)
 
 		if not Config.TOPOLOGY:
 			Config.MANAGEMENT_SERVERS = _get_config_map_param('management.servers') or _get_env_var('MANAGEMENT_SERVERS')
