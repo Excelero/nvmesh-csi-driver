@@ -56,7 +56,7 @@ class NVMeshCSIDriverServer(object):
 		self.logger.info("Config Topology Type {}".format(Config.TOPOLOGY_TYPE))
 
 		logging_interceptor = ServerLoggingInterceptor(self.logger)
-		self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10), interceptors=(logging_interceptor,))
+		self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=Config.GRPC_MAX_WORKERS), interceptors=(logging_interceptor,))
 		csi_pb2_grpc.add_IdentityServicer_to_server(self.identity_service, self.server)
 
 		if self.driver_type == Consts.DriverType.Controller:

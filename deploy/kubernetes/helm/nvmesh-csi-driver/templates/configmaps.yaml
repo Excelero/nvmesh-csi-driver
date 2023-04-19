@@ -24,6 +24,12 @@ data:
 {{- if .Values.config.kubeClientLogLevel }}
   kubeClientLogLevel: {{ .Values.config.kubeClientLogLevel }}
 {{- end }}
+{{- if .Values.config.grpcMaxWorkers }}
+  grpcMaxWorkers: "{{ .Values.config.grpcMaxWorkers }}"
+{{- end }}
+{{- if .Values.config.sdkHttpRequestTimeout }}
+  sdkHttpRequestTimeout: "{{ .Values.config.sdkHttpRequestTimeout }}"
+{{- end }}
   csiConfigMapName: {{ template "nvmesh-csi-driver.fullname" . }}-config
   topologyConfigMapName: {{ template "nvmesh-csi-driver.fullname" . }}-topology
 {{- if or .Values.config.topology .Values.config.topologyJsonFilePath }}
