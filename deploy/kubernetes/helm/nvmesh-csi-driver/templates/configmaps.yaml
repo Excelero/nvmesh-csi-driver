@@ -11,6 +11,8 @@ data:
   management.servers: {{ .Values.config.servers }}
 {{- end }}
   attachIOEnabledTimeout: "{{ .Values.config.attachIOEnabledTimeout }}"
+  detachTimeout: "{{ .Values.config.detachTimeout }}"
+  forceDetach: "{{ .Values.config.forceDetach }}"
   printStackTraces: "{{ .Values.config.printStackTraces }}"
   usePreempt: "{{ .Values.config.usePreempt }}"
 {{- if .Values.config.logLevel }}
@@ -21,6 +23,12 @@ data:
 {{- end }}
 {{- if .Values.config.kubeClientLogLevel }}
   kubeClientLogLevel: {{ .Values.config.kubeClientLogLevel }}
+{{- end }}
+{{- if .Values.config.grpcMaxWorkers }}
+  grpcMaxWorkers: "{{ .Values.config.grpcMaxWorkers }}"
+{{- end }}
+{{- if .Values.config.sdkHttpRequestTimeout }}
+  sdkHttpRequestTimeout: "{{ .Values.config.sdkHttpRequestTimeout }}"
 {{- end }}
   csiConfigMapName: {{ template "nvmesh-csi-driver.fullname" . }}-config
   topologyConfigMapName: {{ template "nvmesh-csi-driver.fullname" . }}-topology
@@ -42,3 +50,14 @@ metadata:
     {{- include "nvmesh-csi-driver.labels" . | nindent 4 }}
 data:
   zones: "{}"
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ template "nvmesh-csi-driver.fullname" . }}-compatibility
+  namespace: {{ template "nvmesh-csi-driver.namespace" . }}
+  labels:
+    {{- include "nvmesh-csi-driver.labels" . | nindent 4 }}
+data:
+  comp_matrix: |-
+{{ printf .Values.config.versionMatrixJsonFilePath | .Files.Get | indent 4 }}

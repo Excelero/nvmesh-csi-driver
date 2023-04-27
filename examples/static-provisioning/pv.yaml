@@ -1,0 +1,22 @@
+# Before applying the YAMLs you should:
+# create a volume in the NVMesh Management software with the following attributes: 
+#     name: vol-1
+#     capacity: 5Gi
+#     Raid Type: RAID10
+# see https://www.excelero.com/nvmesh-csi-driver-guide/ for more info
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: name-in-k8s
+spec:
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  capacity:
+    storage: 5Gi
+  volumeMode: Block
+  storageClassName: nvmesh-raid10
+  csi:
+    driver: nvmesh-csi.excelero.com
+    volumeHandle: vol-1       # This expects a volume named vol-1 to exist in the NVMesh backend

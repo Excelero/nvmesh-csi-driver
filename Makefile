@@ -1,3 +1,9 @@
+version := `./get_version_info.sh | grep ^VERSION | cut -d '=' -f2`
+image_name := `cat deploy/kubernetes/helm/nvmesh-csi-driver/values.yaml | yq '.image.repository'`
+version_w_release := `./get_version_info.sh | grep ^DRIVER_VERSION | cut -d '=' -f2`
+image_name_dev := `cat deploy/kubernetes/helm/nvmesh-csi-driver/values-dev.yaml | yq '.image.repository'`
+dev_registry := `cat deploy/kubernetes/helm/nvmesh-csi-driver/values-dev.yaml | yq '.dev.registry'`
+
 # ----------------
 # Build
 # ----------------
@@ -41,20 +47,53 @@ test-sanity-locally:
 # test sanity inside a conatiner (which will spawn other containers on the host)
 # requires to run make build-sanity-tests
 test-sanity:
-	cd test/sanity/container && ./run.sh
+	test/sanity/run.sh --config $(PWD)/test/config.yaml
+
+test-integration:
+	echo "Clearing Environment"
+	cd test && ./run_integration_tests.sh --clear-env
+	echo "Running All Integration Tests"
+	cd test && ./run_integration_tests.sh
 
 # This will create a kubernetes Job resource using local kubectl tool
-test-integration:
-	kubectl delete -f test/integration/container/test_job.yaml ; kubectl apply -f test/integration/container/
-	kubectl wait --for=condition=ready pod --selector=job-name=csi-integration-test
-	kubectl logs --selector=job-name=csi-integration-test --follow
+test-integration-containerized:
+	kubectl delete -n nvmesh-csi-testing -f test/integration/container/ ; kubectl apply -n nvmesh-csi-testing -f test/integration/container/
+	kubectl wait -n nvmesh-csi-testing --for=condition=ready pod --selector=job-name=csi-integration-test
+	kubectl logs -n nvmesh-csi-testing --selector=job-name=csi-integration-test --follow
+
+# ----------------
+# Push to registry
+# ----------------
+push:
+	echo "Pushing version $(version) as $(image_name)"
+	docker tag excelero/nvmesh-csi-driver:$(version) $(image_name):$(version)
+	docker push $(image_name):$(version)
+
+push-dev:
+	echo "Pushing version $(version)-dev as $(image_name_dev)"
+	echo "RUNNING: docker tag excelero/nvmesh-csi-driver:$(version_w_release) $(image_name_dev):$(version)-dev"
+	docker tag excelero/nvmesh-csi-driver:$(version_w_release) $(image_name_dev):$(version)-dev
+	echo "RUNNING: docker push $(image_name_dev):$(version)-dev"
+	docker push $(image_name_dev):$(version)-dev
 
 # ----------------
 # Deploy
 # ----------------
+
 manifests:
 	cd deploy/kubernetes/scripts && ./build_deployment_file.sh
 
+dep_file := deployment.yaml
+
 deploy: manifests
-	echo "Deploying YAML files.."
-	kubectl delete -f deploy/kubernetes/deployment.yaml ; kubectl create -f deploy/kubernetes/deployment.yaml
+	echo "Deploying YAML file: " $(dep_file)
+	kubectl delete -f deploy/kubernetes/$(dep_file) ; kubectl create -f deploy/kubernetes/$(dep_file)
+
+
+dep_dev_file := deployment_dev.yaml
+
+deploy-dev: manifests
+	echo "Deploying Dev YAML file: " $(dep_dev_file)
+	kubectl delete -f deploy/kubernetes/$(dep_dev_file) ; kubectl create -f deploy/kubernetes/$(dep_dev_file)
+
+dev-cycle: build manifests push-dev deploy-dev

@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-using-encrypted-volume
+spec:
+  nodeName: nvme115
+  containers:
+    - name: cento7
+      image: centos:7
+      command:
+        - /bin/bash
+        - '-c'
+        - '--'
+      args:
+        - "while true; do sleep 1 & wait $!; done;"
+      volumeDevices:
+      - name: vol1
+        devicePath: /mnt/vol1
+  volumes:
+    - name: vol1
+      persistentVolumeClaim:
+        claimName: pvc-encrypted-block

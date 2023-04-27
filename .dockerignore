@@ -4,3 +4,6 @@ protos/
 docs/
 developer_tools/
 build_tools/
+
+test/integration/container/*.yaml
+test/config.yaml

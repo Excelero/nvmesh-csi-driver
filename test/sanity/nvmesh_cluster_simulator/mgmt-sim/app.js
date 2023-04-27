@@ -2,6 +2,7 @@ const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const WebSocketServer = require('websocket').server;
+const { EventEmitter2 } = require('eventemitter2');
 
 const privateKey  = fs.readFileSync('./cert/server.key', 'utf8');
 const certificate = fs.readFileSync('./cert/server.cert', 'utf8');
@@ -37,6 +38,7 @@ process.on('SIGINT', () => {
 app = express();
 
 app.set('cliArguments', cliArguments);
+app.set('eventEmitter', new EventEmitter2());
 
 app.use(bodyParser.json())
 app.use(function(error, req, res, next) {
@@ -46,7 +48,22 @@ app.use(function(error, req, res, next) {
 // Routers
 const httpRouter = require('./modules/apiRouter.js');
 const simControlRouter = require('./modules/simControlRouter.js');
+const { schemaValidatorMiddleware } = require('./modules/schemaValidator.js');
 
+let loggerMiddleWare = (req, res, next) => {
+	let method = req.method;
+	let url = req.url;
+	let status = res.statusCode;
+	let message = `${method}:${url} ${status}`;
+	log(message);
+	next();
+  };
+
+  // Middlewares
+app.use('/', loggerMiddleWare);
+app.use('/', schemaValidatorMiddleware);
+
+// Routers
 app.use('/', httpRouter);
 app.use('/simControl', simControlRouter);
 
@@ -65,7 +82,7 @@ function startHTTPServer(port) {
 	console.log(`HTTP(s) Server Listening on ${port}`)
 }
 
-function statWebSocketServer(ws_port) {
+function startWebSocketServer(ws_port) {
 	const httpsServerForWS = https.createServer(credentials);
 
 	httpsServerForWS.listen(ws_port);
@@ -93,6 +110,4 @@ const port = app.get('cliArguments').httpPort;
 const ws_port = app.get('cliArguments').wsPort;
 
 startHTTPServer(port);
-statWebSocketServer(ws_port);
-
-
+startWebSocketServer(ws_port);

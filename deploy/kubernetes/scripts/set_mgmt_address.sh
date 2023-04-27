@@ -60,6 +60,10 @@ fi
 
 echo "Updating ConfigMap nvmesh-csi-config in nvmesh-csi namespace"
 kubectl patch configmap -n nvmesh-csi nvmesh-csi-config -p "{\"data\": {\"management.protocol\": \"$protocol\", \"management.servers\": \"$address\"}}"
+changed=$(date "+%F-%H_%M_%S")
+
+echo "Restarting node drivers"
+kubectl patch daemonset -n nvmesh-csi nvmesh-csi-node-driver -p "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"csi.driver/config-changed\": \"${changed}\"}}}}}"
 
 echo "Restarting nvmesh-csi-controller"
-kubectl delete pod -n nvmesh-csi nvmesh-csi-controller-0
+kubectl patch statefulset -n nvmesh-csi nvmesh-csi-controller -p "{\"spec\": {\"template\": {\"metadata\": {\"labels\": {\"csi.driver/config-changed\": \"${changed}\"}}}}}"

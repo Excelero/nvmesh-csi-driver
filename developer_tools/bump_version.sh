@@ -5,7 +5,6 @@ new_numeric_version=$(echo $new_version | cut -d v -f2)
 print_warning_message() {
     echo "Bumping version to $new_version"
     echo "This will:"
-    echo -e "\t * update the version file"
     echo -e "\t * update the Chart.yaml file"
     echo -e "\t * re-generate relevant YAML files"
     echo -e "\t * create a new git commit with the changes"
@@ -30,9 +29,6 @@ update_helm_chart() {
 }
 
 bump_version() {
-    echo "Updating version file"
-    echo "$new_version" > ../version
-
     echo "Re-Generating deployment YAML files"
     cd ../deploy/kubernetes/scripts/
     ./build_deployment_file.sh
@@ -54,7 +50,7 @@ bump_version() {
 }
 
 if [ -z "$new_version" ]; then
-    echo "Usage: ./bump_version v1.0.2"
+    echo "Usage: ./bump_version v1.2.0"
     exit 1
 fi
 

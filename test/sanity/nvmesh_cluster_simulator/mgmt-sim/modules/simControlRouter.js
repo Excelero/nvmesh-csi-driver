@@ -20,8 +20,9 @@ const simData = {
     options: {
         availableStorageGB: 1 * TB,
         volumeCreationDelayMS: 50,
-        customResponse: null
-    },
+        customResponse: null,
+        schemas: {}
+    }
 };
 
 function initialize() {
@@ -83,5 +84,17 @@ router.post('/set-storage-gb', function(req,res) {
     res.json(simData);
 });
 
+router.post('/set-clients', function(req,res) {
+    var newClients = req.body;
+    console.log(`Setting clients to ${JSON.stringify(newClients)}`);
+    simData.clients = newClients;
 
+    // Send events on each new client
+    const emitter = app.get('eventEmitter');
+    for (var clientID in newClients) {
+        emitter.emit('newClientEvent', clientID);
+    }
+
+    res.json(simData);
+});
 module.exports = router;

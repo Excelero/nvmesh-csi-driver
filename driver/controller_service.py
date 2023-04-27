@@ -1,4 +1,5 @@
 import datetime
+import time
 import json
 import logging
 import uuid
@@ -7,6 +8,7 @@ from threading import Thread
 from google.protobuf.json_format import MessageToJson, MessageToDict
 from grpc import StatusCode
 
+from NVMeshSDK import ConnectionManager
 from NVMeshSDK.ConnectionManager import ManagementTimeout
 from NVMeshSDK.Entities.Volume import Volume as NVMeshVolume
 from NVMeshSDK.Consts import RAIDLevels, EcSeparationTypes
@@ -20,7 +22,7 @@ from topology_service import TopologyService
 from persistency import VolumesCache
 from sdk_helper import NVMeshSDKHelper
 from topology_utils import TopologyUtils, VolumeAPIPool, ZoneSelectionManager
-
+from version_compatibility import CompatibilityValidator, VersionMatrix, VersionFetcher
 
 class NVMeshControllerService(ControllerServicer):
 	def __init__(self, logger, stop_event):
@@ -29,16 +31,28 @@ class NVMeshControllerService(ControllerServicer):
 		self.stop_event = stop_event
 
 		self.logger.info('Config: {}'.format(get_config_json()))
+
+		ConnectionManager.defaultConfig['HTTP_REQUEST_TIMEOUT'] = Config.SDK_HTTP_REQUEST_TIMEOUT
+
 		self.volume_to_zone_mapping = VolumesCache()
 		self.topology_service = TopologyService()
 		self.topology_service_thread = None
 
+	def init(self):
 		if Config.TOPOLOGY_TYPE == Consts.TopologyType.SINGLE_ZONE_CLUSTER:
-			api = NVMeshSDKHelper.init_session_with_single_management(self.logger)
+			api = NVMeshSDKHelper.init_session_with_single_management(self.stop_event)
 			management_version_info = NVMeshSDKHelper.get_management_version(api)
+			self.validate_mgmt_version(management_version_info.get('version'))
 			self._log_mgmt_version_info(management_version_info)
 		else:
 			self.start_topology_service_thread()
+
+	def validate_mgmt_version(self, mgmt_version):
+		# fetch compatibility matrix from configmap
+		ver_mat = VersionMatrix()
+		ver_mat.load_from_config_map()
+		validator = CompatibilityValidator(ver_mat)
+		validator.validate_nvmesh_mgmt(mgmt_version)
 
 	@CatchServerErrors
 	def CreateVolume(self, request, context):
@@ -47,6 +61,8 @@ class NVMeshControllerService(ControllerServicer):
 		request_name = request.name
 		nvmesh_vol_name = Utils.volume_id_to_nvmesh_name(request_name)
 		log = self.logger.getChild("CreateVolume:%s(request:%s)" % (request_name, request_uuid))
+
+		time_start = time.time()
 
 		volume_cache = self.volume_to_zone_mapping.get_or_create_new(nvmesh_vol_name)
 
@@ -59,11 +75,20 @@ class NVMeshControllerService(ControllerServicer):
 				if volume_cache.csi_volume.capacity_bytes != self._parse_required_capacity(request.capacity_range):
 					raise DriverError(StatusCode.FAILED_PRECONDITION, 'Volume already exists with different capacity')
 
-				log.info('Returning volume from cache')
+				log.info('Returning volume {} from cache'.format(nvmesh_vol_name))
 				return CreateVolumeResponse(volume=volume_cache.csi_volume)
 
-			csiVolume = self.do_create_volume(log, nvmesh_vol_name, request, request_uuid)
+			csiVolume, nvmeshVolume, zone = self.do_create_volume(log, nvmesh_vol_name, request, request_uuid)
+
+			time_duration = int((time.time() - time_start) * 100) / 100.0
+
 			volume_cache.csi_volume = csiVolume
+
+			csi_md = nvmeshVolume.csi_metadata
+			pvc_ns_name = csi_md.get("csi-storage-k8s-io/pvc/namespace") + "/" + csi_md.get("csi-storage-k8s-io/pvc/name")
+			log.info('Volume {} created successfully for pvc {} on zone {}  (took {} seconds)'.format(nvmesh_vol_name, pvc_ns_name, zone, time_duration))
+			log.debug('NVMesh Volume: {}'.format(nvmeshVolume))
+
 			return CreateVolumeResponse(volume=csiVolume)
 
 	def do_create_volume(self, log, nvmesh_vol_name, request, request_uuid):
@@ -106,7 +131,7 @@ class NVMeshControllerService(ControllerServicer):
 		# Add all fields from the StorageClass parameters
 		volume_context.update(reqDict['parameters'])
 		csiVolume = Volume(volume_id=volume_id_for_co, capacity_bytes=capacity, accessible_topology=[volume_topology], volume_context=volume_context)
-		return csiVolume
+		return csiVolume, volume, zone
 
 	def create_volume_on_a_valid_zone(self, volume, zones, log):
 		zones_left = set(zones)
@@ -140,7 +165,6 @@ class NVMeshControllerService(ControllerServicer):
 		csi_metadata['zone'] = zone
 		log.info('Creating volume {} in zone {}'.format(volume.name, zone))
 		log.debug('Creating volume: {}'.format(str(volume)))
-		time1 = datetime.datetime.now()
 
 		data = None
 		try:
@@ -153,7 +177,7 @@ class NVMeshControllerService(ControllerServicer):
 			api_params = TopologyUtils.get_api_params(zone)
 			mgmt_server = api_params['managementServers']
 
-		time2 = datetime.datetime.now()
+		log.debug('Create volume got response - err: {} data: {}'.format(err, data))
 		self._handle_create_volume_errors(err, data, volume, zone, mgmt_server, log)
 
 	def _handle_create_volume_errors(self, err, data, volume, zone, mgmt_server, log):
@@ -167,7 +191,7 @@ class NVMeshControllerService(ControllerServicer):
 			if hasattr(err,'get') and err.get('code') in [SCHEMA_ERROR]:
 				raise DriverError(StatusCode.INVALID_ARGUMENT, failed_to_create_msg + '. Response: {} Volume Requested: {}'.format(err, str(volume)))
 			else:
-				# Failed to Connect to Management or other HTTP Error
+				# Failed to Connect to Management, HTTP Request Timed-out or other HTTP Error
 				self.topology_service.topology.disable_zone(zone)
 				raise DriverError(StatusCode.RESOURCE_EXHAUSTED, '{} Error: {}'.format(failed_to_create_msg, err))
 		else:
@@ -175,7 +199,10 @@ class NVMeshControllerService(ControllerServicer):
 			self.topology_service.topology.make_sure_zone_enabled(zone)
 
 			if not type(data) == list or not data[0].get('success'):
-				volume_already_exists = 'Name already Exists' in data[0].get('error') or 'duplicate key error' in json.dumps(data[0].get('error'))
+				volume_already_exists = ('id' in data[0].get('error') and data[0]['error']['id'] == Consts.MgmtMessageCodes.VOLUME_ALREADY_EXISTS) \
+										or 'name already exists' in data[0].get('err').lower() \
+										or 'name already exists' in data[0].get('error').lower() \
+										or 'duplicate key error' in json.dumps(err)
 				if volume_already_exists:
 					existing_capacity = self._get_nvmesh_volume_capacity(volume.name, log, zone)
 					if volume.capacity == existing_capacity:
@@ -300,7 +327,7 @@ class NVMeshControllerService(ControllerServicer):
 			else:
 				raise DriverError(StatusCode.FAILED_PRECONDITION, err)
 		else:
-			log.debug("Volume deleted successfully from zone %s" % zone)
+			log.debug("Volume %s deleted successfully from zone %s" % (nvmesh_vol_name, zone))
 
 		self.volume_to_zone_mapping.remove(nvmesh_vol_name)
 		return DeleteVolumeResponse()
@@ -405,16 +432,19 @@ class NVMeshControllerService(ControllerServicer):
 
 		# Call Node Expansion Method to Expand a FileSystem
 		# For a Block Device there is no need to do anything on the node
-		node_expansion_required = True if 'fsType' in volume.csi_metadata else False
+		node_expansion_required = True if 'fsType' or 'encryption' in volume.csi_metadata else False
 
 		# Extend Volume
 		volume.capacity = capacity_in_bytes
 
 		self.logger.debug("ControllerExpandVolume volume={}".format(str(volume)))
-		err, out = volume_api.update([volume])
+		err, out = volume_api.makePost(routes=['/extend'], objects=[volume])
 
 		if err:
 			raise DriverError(StatusCode.NOT_FOUND, err)
+
+		if not out[0]['success']:
+			raise DriverError(StatusCode.RESOURCE_EXHAUSTED, err)
 
 		self.logger.debug("ControllerExpandVolumeResponse: capacity_in_bytes={}, node_expansion_required={}".format(capacity_in_bytes, node_expansion_required))
 		return ControllerExpandVolumeResponse(capacity_bytes=capacity_in_bytes, node_expansion_required=node_expansion_required)
@@ -505,3 +535,5 @@ class NVMeshControllerService(ControllerServicer):
 		self.logger.info('Waiting for Topology Service to terminate..')
 		if self.topology_service_thread:
 			self.topology_service_thread.join()
+
+		self.logger.info('Topology Service terminated.')

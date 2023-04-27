@@ -1,0 +1,10 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: nvmesh-xfs
+provisioner: nvmesh-csi.excelero.com
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+parameters:
+  vpg: DEFAULT_CONCATENATED_VPG
+  csi.storage.k8s.io/fstype: xfs  # xfs or ext4 (if ommited ext4 is used)

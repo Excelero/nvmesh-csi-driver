@@ -23,6 +23,7 @@ class TopologyUtils(object):
 		zone_info = Config.TOPOLOGY['zones'].get(zone)
 
 		if not zone_info:
+			logger.debug('Zone {} missing from Config.topology topology: {}'.format(zone, Config.TOPOLOGY))
 			raise ValueError('Zone %s missing from Config.topology' % zone)
 
 		return zone_info
@@ -195,7 +196,7 @@ class VolumeAPIPool(object):
 	def _create_new_volume_api(api_params):
 		sdk_logger = logging.getLogger('NVMeshSDK')
 		try:
-			volume_api = VolumeAPI(logger=sdk_logger, **api_params)
+			volume_api = VolumeAPI(**api_params)
 			return volume_api
 		except Exception as ex:
 			sdk_logger.error('Failed to create VolumeAPI with params: {}. \nError {}'.format(api_params, ex))

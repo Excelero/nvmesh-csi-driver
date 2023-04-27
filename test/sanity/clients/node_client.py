@@ -11,6 +11,7 @@ TARGET_PATH_TEMPLATE = '/var/lib/kubelet/pods/{pod_id}/volumes/kubernetes.io~csi
 class NodeClient(BaseClient):
 
 	def __init__(self):
+		# type: () -> NodeClient
 		BaseClient.__init__(self)
 		self.client = NodeStub(self.intercepted_channel)
 

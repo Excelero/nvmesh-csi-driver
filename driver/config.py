@@ -19,6 +19,8 @@ class Config(object):
 	SOCKET_PATH = None
 	DRIVER_NAME = None
 	ATTACH_IO_ENABLED_TIMEOUT = None
+	DETACH_TIMEOUT = None
+	FORCE_DETACH = None
 	PRINT_STACK_TRACES = None
 	DRIVER_VERSION = None
 	NVMESH_VERSION_INFO = None
@@ -31,6 +33,9 @@ class Config(object):
 	TOPOLOGY_CONFIG_MAP_NAME = None
 	CSI_CONFIG_MAP_NAME = None
 	USE_PREEMPT = None
+	SDK_HTTP_REQUEST_TIMEOUT = None
+	GRPC_MAX_WORKERS = None
+
 
 class Parsers(object):
 	@staticmethod
@@ -102,6 +107,8 @@ class ConfigLoader(object):
 		Config.NVMESH_VERSION_INFO = _read_bash_file(NVMESH_VERSION_FILE_PATH)
 
 		Config.ATTACH_IO_ENABLED_TIMEOUT = int(_get_config_map_param('attachIOEnabledTimeout', default=30))
+		Config.DETACH_TIMEOUT = int(_get_config_map_param('detachTimeout', default=60))
+		Config.FORCE_DETACH = int(_get_boolean_config_map_param('forceDetach'))
 		Config.PRINT_STACK_TRACES = _get_boolean_config_map_param('printStackTraces')
 		Config.TOPOLOGY = _get_config_map_param('topology', default=None)
 		Config.LOG_LEVEL = _get_config_map_param('logLevel', default='DEBUG')
@@ -111,6 +118,8 @@ class ConfigLoader(object):
 		Config.TOPOLOGY_CONFIG_MAP_NAME = _get_config_map_param('topologyConfigMapName', 'nvmesh-csi-topology')
 		Config.CSI_CONFIG_MAP_NAME = _get_config_map_param('csiConfigMapName', 'nvmesh-csi-config')
 		Config.USE_PREEMPT = _get_boolean_config_map_param('usePreempt')
+		Config.SDK_HTTP_REQUEST_TIMEOUT = _get_config_map_param('sdkHttpRequestTimeout', 30)
+		Config.GRPC_MAX_WORKERS = _get_config_map_param('grpcMaxWorkers', 50)
 
 		if not Config.TOPOLOGY:
 			Config.MANAGEMENT_SERVERS = _get_config_map_param('management.servers') or _get_env_var('MANAGEMENT_SERVERS')
@@ -172,10 +181,10 @@ class ConfigValidator(object):
 
 		for zone_id, zone_config in zones.items():
 			if "management" not in zone_config:
-				raise ConfigError('Missing "management" key in ConfigMap.topology in zone %s' % type(zone_id))
+				raise ConfigError('Missing "management" key in ConfigMap.topology in zone %s' % zone_id)
 
 			if "servers" not in zone_config["management"]:
-				raise ConfigError('Missing "management.servers" key in ConfigMap.topology in zone %s' % type(zone_id))
+				raise ConfigError('Missing "management.servers" key in ConfigMap.topology in zone %s' % zone_id)
 
 
 config_loader = ConfigLoader()

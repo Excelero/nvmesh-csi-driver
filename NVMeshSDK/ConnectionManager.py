@@ -13,6 +13,11 @@ from NVMeshSDK.Utils import Utils
 
 urllib3.disable_warnings()
 
+defaultConfig = {
+    'HTTP_REQUEST_TIMEOUT': 30,
+    'MAX_MANAGEMENT_ROTATIONS': 1,
+    'CONNECTION_MANAGER_DEBUG': 'No'
+}
 
 class RandomSleepTime:
     def __init__(self, start, stop, precision=2):
@@ -58,13 +63,13 @@ class ConnectionManager:
     @staticmethod
     def getInstance(dbUUID, managementServers, user=DEFAULT_USERNAME, password=DEFAULT_PASSWORD, configFile=DEFAULT_NVMESH_CONFIG_FILE, logger=None):
         if not dbUUID:
-            connection = Connection(managementServers=managementServers, user=user, password=password, configFile=configFile, logger=logger)
+            connection = Connection(managementServers=managementServers, user=user, password=password, configFile=configFile, configObject=defaultConfig, logger=logger)
         elif dbUUID in ConnectionManager.__instances:
             connection = ConnectionManager.__instances[dbUUID]
             conn_mgr_logger.debug('multi-threading::got connection for dbUUID %s with servers %s and requested managementServers=%s' % (dbUUID, connection.managementServers, managementServers))
         else:
             conn_mgr_logger.debug('multi-threading::dbUUID=%s NOT in __instances' % dbUUID)
-            connection = Connection(managementServers=managementServers, user=user, password=password, configFile=configFile, logger=logger)
+            connection = Connection(managementServers=managementServers, user=user, password=password, configFile=configFile, configObject=defaultConfig, logger=logger)
             ConnectionManager.__instances[dbUUID] = connection
             conn_mgr_logger.debug('multi-threading::got connection for dbUUID %s with servers %s and requested managementServers=%s' % (dbUUID, connection.managementServers, managementServers))
         return connection
@@ -84,7 +89,7 @@ class ConnectionManager:
 
 
 class Connection(object):
-    def __init__(self, user, password, configFile, managementServers, logger=None):
+    def __init__(self, user, password, configFile, configObject, managementServers, logger=None):
         self.logLevel = INFO
         self.managementServer = None
         self.managementServers = None
@@ -94,6 +99,7 @@ class Connection(object):
         self.maxHttpRequestRetries = 3
         self.maxManagementsRotations = 1
         self.configFile = configFile
+        self.configObject = configObject
 
         self.setManagementServers(managementServers)
         self.managementSetConfigs()
@@ -129,17 +135,15 @@ class Connection(object):
         configs = Utils.readConfFile(self.configFile)
 
         if not configs:
-            pass
-            # print 'Failed to open the configuration file: {}, all configuration are set to the default.'.format(self.configFile)
-        else:
-            if 'HTTP_REQUEST_TIMEOUT' in configs:
-                self.httpRequestTimeout = configs['HTTP_REQUEST_TIMEOUT']
+            configs = self.configObject
 
-            if 'MAX_MANAGEMENT_ROTATIONS' in configs:
-                self.maxManagementsRotations = configs['MAX_MANAGEMENT_ROTATIONS']
+        if 'HTTP_REQUEST_TIMEOUT' in configs:
+            self.httpRequestTimeout = float(configs['HTTP_REQUEST_TIMEOUT'])
+        if 'MAX_MANAGEMENT_ROTATIONS' in configs:
+            self.maxManagementsRotations = configs['MAX_MANAGEMENT_ROTATIONS']
 
-            if 'CONNECTION_MANAGER_DEBUG' in configs and configs['CONNECTION_MANAGER_DEBUG'] == 'Yes':
-                self.logLevel = 'DEBUG'
+        if 'CONNECTION_MANAGER_DEBUG' in configs and configs['CONNECTION_MANAGER_DEBUG'] == 'Yes':
+            self.logLevel = 'DEBUG'
 
     def logAndThrow(self, msg):
         self.logger.error(msg)
@@ -255,9 +259,16 @@ class Connection(object):
                 return self.request(method, route, payload, postTimeout, numberOfRetries)
             else:
                 self.logger.debug("Request to {0}, failed {1} times. Trying to change management server.".format(route, self.maxHttpRequestRetries))
+                # check if we are still on the same management - isAlive could succeed while other calls fail because of overload (e.g ReadTimeout)
+                # if isAlive succeeded and we are still using the same management we should fail since we already exceeded the maxRetries
+                # If the problem is HTTP Timeout (ReadTimeout Exception) - This logic will not try to rotate to other managements in the same cluster
+                # but rather will fail and cause zone to be disabled - in the case of overloaded DB this is what we want,
+                # Since trying another management in the same mgmt HA Cluster will likely result in the same output
+                mgmtIndexWithTooManyRetries = self.currentMgmtIndex
                 isAlive = self.isAlive()
-                if not isAlive:
-                    raise ManagementTimeout(url, ex.message)
+                if not isAlive or self.currentMgmtIndex == mgmtIndexWithTooManyRetries:
+                    if isAlive:
+                        raise ManagementTimeout(url, ex.message)
                 else:
                     return self.request(method, route, payload, postTimeout, numberOfRetries=0)
 

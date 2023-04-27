@@ -10,7 +10,7 @@ import os
 import urllib
 
 from Consts import ScriptPaths
-
+from NVMeshSDK.MongoObj import MongoObj
 
 class Utils:
 
@@ -167,7 +167,7 @@ class Utils:
             if logger:
                 logger.error(err)
             else:
-                print err
+                print(err)
         else:
             cmd = ['sudo'] if sudo else []
             cmd.append(scriptPath)
@@ -201,3 +201,11 @@ class Utils:
     def createRouteString(routes, endPointRoute):
         return re.sub(r'/*/', '/', '/{0}/{1}'.format(endPointRoute, '/'.join(routes)))
 
+    @staticmethod
+    def addExistenceCheckToFilter(filter, field):
+        existsFilter = MongoObj(field=field, value={'$exists': 1})
+        if filter is None:
+            filter = [existsFilter]
+        else:
+            filter.append(existsFilter)
+        return filter

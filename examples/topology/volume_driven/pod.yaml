@@ -1,0 +1,17 @@
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: topology-volume-driven
+spec:
+  spec:
+  containers:
+    - name: alpine
+      image: alpine
+      volumeMounts:
+      - name: vol
+        mountPath: /vol
+  volumes:
+    - name: vol
+      persistentVolumeClaim:
+        claimName: vol-on-zone1

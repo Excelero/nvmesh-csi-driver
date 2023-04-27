@@ -4,14 +4,14 @@ import logging
 from websocket import WebSocketConnectionClosedException
 
 from NVMeshSDK.APIs.ClientAPI import ClientAPI
+from NVMeshSDK.MongoObj import MongoObj
 from common import BackoffDelayWithStopEvent
 from config import Config
 from mgmt_websocket_client import ManagementWebSocketClient, EmptyResponseFromServer, FailedToConnect, LoginFailed
-
+from version_compatibility import VersionMatrix, CompatibilityValidator
 logger = logging.getLogger('topology-service')
 
 sdk_logger = logging.getLogger('NVMeshSDK')
-sdk_logger.setLevel(logging.DEBUG)
 
 class ZoneTopologyFetcherThread(threading.Thread):
 	'''
@@ -30,6 +30,13 @@ class ZoneTopologyFetcherThread(threading.Thread):
 		self.logger = logger.getChild('ZoneListeningThread(%s)' % self.zone_id)
 		threading.Thread.__init__(self)
 		self.name = 'zone-topology-fetcher-thread'
+		self.version_validator = self.get_version_validator()
+
+	def get_version_validator(self):
+		ver_mat = VersionMatrix()
+		ver_mat.load_from_config_map()
+		validator = CompatibilityValidator(ver_mat)
+		return validator
 
 	def run(self):
 		self.fetch_and_listen_for_changes_on_zone(self.zone_id, self.zone_config)
@@ -120,9 +127,18 @@ class ZoneTopologyFetcherThread(threading.Thread):
 		api_params = self.get_api_params(management_info)
 
 		self.logger.debug('Creating API from servers %s ' % api_params['managementServers'])
-		api = ClientAPI(logger=sdk_logger, **api_params)
+		api = ClientAPI(**api_params)
+
+		# Verify Management version Compatible
+		self.version_validator.fetch_and_validate_nvmesh_mgmt_version(api)
+
 		self.logger.debug('Fetching nodes from servers %s ' % api_params['managementServers'])
-		err, results = api.get()
+		projection = [
+			MongoObj(field='client_id', value=1), 
+			MongoObj(field='client_status', value=1)
+		]
+
+		err, results = api.get(projection=projection)
 		if err:
 			raise Exception(str(err))
 

@@ -8,6 +8,9 @@ __pycache__/
 # all hiden directories and files in the project root
 /.*/
 
+# all hidden files and folders in test
+test/**/.*/
+
 # helm charts packages
 build_tools/*.tgz
 
@@ -16,5 +19,13 @@ build_tools/*.tgz
 # test configmap
 test/integration/container/configmap.yaml
 
+# deploymet yaml for development
+deployment_dev*.yaml
+deploy/kubernetes/helm/nvmesh-csi-driver/values-dev.yaml
+
+# collected logs
+logs/
+
 # include this file
 !/.gitignore
+

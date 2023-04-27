@@ -1,3 +1,4 @@
+const { registerToEvents } = require('./simLogic.js');
 
 
 simLogic = require('./simLogic.js');
@@ -25,7 +26,9 @@ exports.WebSocketMessageHandler = class WebSocketMessageHandler {
 				this.handleLogin();
 				break;
 			case '/registerToEvents':
-				this.doNothing();
+				registerToEvents(this.message.payload, data => {
+					this.sendResponse(data);
+				});
 				break;
 			case '/registerStatsEvents':
 				this.doNothing();
