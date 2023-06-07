@@ -103,9 +103,10 @@ class NVMeshNodeService(NodeServicer):
 				FileSystemManager.format_block_device(mapped_device, fs_type, mkfs_options)
 
 				if FileSystemManager.is_mounted(staging_target_path):
-					self.logger.warning('path {} is already mounted'.format(staging_target_path))
+					self.logger.warning('staging_target_path {} is already mounted'.format(staging_target_path))
+				else:
+					FileSystemManager.mount(source=mapped_device, target=staging_target_path, mount_options=mount_options)
 
-				FileSystemManager.mount(source=mapped_device, target=staging_target_path, mount_options=mount_options)
 				FileSystemManager.chmod(mount_permissions or Consts.DEFAULT_MOUNT_PERMISSIONS, staging_target_path)
 			elif access_type == Consts.VolumeAccessType.BLOCK:
 				self.logger.info('Requested Block Volume')
@@ -208,16 +209,22 @@ class NVMeshNodeService(NodeServicer):
 				pass
 
 			# bind directly from block device to publish_path
-			self.logger.debug('NodePublishVolume trying to bind mount as block device {} to {}'.format(block_device_path, publish_path))
-			FileSystemManager.bind_mount(source=block_device_path, target=publish_path, mount_options=mount_options)
+			if not FileSystemManager.is_mounted(publish_path):
+				self.logger.debug('NodePublishVolume adding a bind mount as block device {} to {}'.format(block_device_path, publish_path))
+				FileSystemManager.bind_mount(source=block_device_path, target=publish_path, mount_options=mount_options)
+			else:
+				self.logger.debug("NodePublishVolume {} already mounted".format(publish_path))
 		else:
-			self.logger.debug('NodePublishVolume creating directory for bind mount at {}'.format(publish_path))
 			# create an empty dir for bind mount of a file system
 			if not os.path.isdir(publish_path):
+				self.logger.debug('NodePublishVolume creating directory for bind mount at {}'.format(publish_path))
 				os.makedirs(publish_path)
 
-			self.logger.debug('NodePublishVolume trying to bind mount {} to {}'.format(staging_target_path, publish_path))
-			FileSystemManager.bind_mount(source=staging_target_path, target=publish_path, mount_options=mount_options)
+			if not FileSystemManager.is_mounted(publish_path):
+				self.logger.debug('NodePublishVolume adding a bind mount {} to {}'.format(staging_target_path, publish_path))
+				FileSystemManager.bind_mount(source=staging_target_path, target=publish_path, mount_options=mount_options)
+			else:
+				self.logger.debug("NodePublishVolume {} already mounted".format(publish_path))
 
 		if not is_readonly:
 			FileSystemManager.chmod(requested_mount_permissions or Consts.DEFAULT_MOUNT_PERMISSIONS, publish_path)
