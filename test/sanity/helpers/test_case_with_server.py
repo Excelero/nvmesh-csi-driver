@@ -17,6 +17,22 @@ class TestCaseWithGrpcErrorHandling(unittest.TestCase):
 			if message_part:
 				self.assertTrue(message_part in details, 'expected to find "{}" in error details but recevied: {}'.format(message_part, details))
 
+def get_comp_config_map():
+	import subprocess
+	dep_file_path = 'deploy/kubernetes/deployment_k8s_1.25.yaml'
+	with open(dep_file_path) as fp:
+		import yaml
+		dep = yaml.load_all(fp)
+
+		for obj in dep:
+			if obj['metadata']['name'] == 'nvmesh-csi-compatibility':
+				comp_config_map = obj
+		
+	if not comp_config_map:
+		raise ValueError('Could not find nvmesh-csi-compatibility ConfigMap in deployment file %s' % dep_file_path)
+		
+	return comp_config_map
+
 class TestCaseWithServerRunning(TestCaseWithGrpcErrorHandling):
 	@classmethod
 	def setUpClass(cls):
@@ -25,3 +41,7 @@ class TestCaseWithServerRunning(TestCaseWithGrpcErrorHandling):
 
 		# This will mock the k8s core api object
 		config_map_api_mock.init_mocked_api()
+		# Add nvmesh-csi-compatibility
+		
+		comp_config_map = get_comp_config_map()
+		config_map_api_mock.config_map_api.core_api.create_namespaced_config_map('nvmesh-csi', comp_config_map)

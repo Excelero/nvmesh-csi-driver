@@ -8,7 +8,7 @@ import logging
 log = logging.getLogger('SanityTests')
 
 
-#We save this to the disk so that the unittest can check the satate of the config-map (since the memory object is not accesible from there)
+#We save this to the disk so that the unittest can check the state of the config-map (since the memory object is not accesible from there)
 ON_DISK_CACHE_DIR = '/tmp/config_map_mocks/'
 
 class ConfigMapMockedItem(object):
@@ -86,5 +86,6 @@ class K8sConfigMapMockAPI(object):
 
 def init_mocked_api():
 	config_map_api.namespace = 'nvmesh-csi'
-	os.mkdir(ON_DISK_CACHE_DIR)
+	if not os.path.exists(ON_DISK_CACHE_DIR):
+		os.mkdir(ON_DISK_CACHE_DIR)
 	config_map_api.core_api = K8sConfigMapMockAPI()

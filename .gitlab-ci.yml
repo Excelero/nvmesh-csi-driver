@@ -1,0 +1,81 @@
+default:
+  image: alpine/k8s:1.25.10
+  tags: 
+    - nvmesh-csi-driver
+  
+variables:
+  IMAGE_NAME: "$CI_REGISTRY_IMAGE:v1.4.1-$CI_COMMIT_SHORT_SHA"
+
+stages:
+  - build
+  #- sanity
+  - build integration
+  - integarion
+
+build:
+  stage: build
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  script:
+    - docker build -f build_tools/nvmesh-csi-driver.dockerfile . --tag $IMAGE_NAME --build-arg VERSION=v1.4.1 --build-arg RELEASE=$CI_COMMIT_SHORT_SHA
+    - echo $CI_REGISTRY_PASSWORD | docker login --password-stdin $CI_REGISTRY -u $CI_REGISTRY_USER
+    - docker push $IMAGE_NAME
+
+# sanity:
+#   stage: sanity
+#   image: docker:20.10.16
+#   resource_group: sanity_test
+#   # services:
+#   #   - docker:20.10.16-dind
+#   script:
+#     - apk add --update make bash
+#     - echo "Building Sanity Test Container for Commit ${CI_COMMIT_SHORT_SHA}"
+#     - make build-sanity-tests
+#     - if docker network ls | grep csi_test; then echo ""; else echo "creating docker network csi_test"; docker network create csi_test ; fi
+#     - echo "Preparing test Config"
+#     - mkdir -p /tmp/dind-shared/config
+#     - cat ${TEST_CONFIG_PATH} > /tmp/dind-shared/config/config.yaml
+#     - cat /tmp/dind-shared/config/config.yaml
+#     - docker run --name csi-sanity-test --net csi_test -e CSI_DRIVER_IMAGE=${IMAGE_NAME}-sanity -e TEST_CONFIG_PATH=/config/config.yaml -v /tmp/dind-shared/config:/config -v /var/run/docker.sock:/var/run/docker.sock -v /tmp/csi_sanity:/tmp/csi_sanity --privileged --rm nvmesh-csi-driver/sanity-tests:dev test.sanity.test_identity
+
+build integration:
+  stage: build integration
+  resource_group: integration_test
+  image: docker:20.10.16
+  script:
+    - apk add --update make bash
+    - make build-integration-tests
+    - IMAGE_NAME=$CI_REGISTRY_IMAGE/nvmesh-csi-test-tool:dev
+    - docker build -f test/integration/container/Dockerfile . --tag $IMAGE_NAME
+    - echo $CI_REGISTRY_PASSWORD | docker login --password-stdin $CI_REGISTRY -u $CI_REGISTRY_USER
+    - docker push $IMAGE_NAME
+
+integarion:
+  stage: integarion
+  resource_group: integration_test
+  image: 
+    name: $CI_REGISTRY_IMAGE/nvmesh-csi-test-tool:dev
+    entrypoint: [""]
+  script:
+    - mkdir -p ~/.kube
+    - cp $KUBE_CONFIG_PATH ~/.kube/config
+    - cat ~/.kube/config
+    - mkdir -p ~/config
+    - cp $TEST_CONFIG_PATH ~/config/config.yaml
+    - cat ~/config/config.yaml
+    - echo "Deploy driver to kubernetes cluster"
+    - IMAGE_NAME=$CI_REGISTRY_IMAGE:v1.4.1-$CI_COMMIT_SHORT_SHA
+    - python test/integration/container/edit_yaml.py -u ".appVersion=v1.4.1-$CI_COMMIT_SHORT_SHA" -f  deploy/kubernetes/helm/nvmesh-csi-driver/Chart.yaml
+    - python test/integration/container/edit_yaml.py -u ".image.repository=$CI_REGISTRY_IMAGE" -f  deploy/kubernetes/helm/nvmesh-csi-driver/values.yaml
+    - make manifests
+    - dep_file=deployment_k8s_1.25.yaml
+    - kubectl delete -f deploy/kubernetes/$dep_file
+    - kubectl create -f deploy/kubernetes/$dep_file
+    - deploy/kubernetes/scripts/set_mgmt_address.sh --address $MGMT_ADDR --protocol https
+    - >-
+      kubectl patch serviceaccount nvmesh-csi -p '{"imagePullSecrets": [{"name": "gitlab-container-registy-creds"}]}' -n nvmesh-csi
+    - echo "Clear Integration Environment"
+    - python -m unittest test.integration.tests.clear_test_environment
+    - echo "Run Integration Tests"
+    - python -m unittest discover test/integration

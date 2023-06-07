@@ -40,7 +40,7 @@ mkdir -p /tmp/$tmpDir/$projectDir
 whoami=`whoami`
 
 echo $whoami
-sudo chown -R $whoami:$whoami /tmp/$tmpDir/
+chown -R $whoami:$whoami /tmp/$tmpDir/
 
 cd ../$projectDir
 
@@ -55,7 +55,7 @@ echo "" > $projectDir.py
 if [ $whoami = 'root' ];then
     $python27 ./setup.py install
 else
-    sudo -E bash -c "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib; $python27 ./setup.py install"
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib; $python27 ./setup.py install
 fi
 
-sudo rm -rf /tmp/$tmpDir
+rm -rf /tmp/$tmpDir

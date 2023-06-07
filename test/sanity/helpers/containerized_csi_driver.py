@@ -51,7 +51,8 @@ class ContainerizedCSIDriver(object):
 		self.logger.info('Starting ContainerizedCSIDriver {}'.format(self.container_name))
 		self._remove_last_container()
 
-		self.image_name_with_tag = 'excelero/nvmesh-csi-driver:{}'.format(self.version_info['DRIVER_VERSION'])
+		self.image_name_with_tag = 'excelero/nvmesh-csi-driver:{}-sanity'.format(self.version_info['DRIVER_VERSION'])
+		self.image_name_with_tag = os.environ.get('CSI_DRIVER_IMAGE', self.image_name_with_tag)
 
 		cmd = [
 			'docker', 'run', '-d', '--privileged',
@@ -73,11 +74,14 @@ class ContainerizedCSIDriver(object):
 			'-e', 'SOCKET_PATH={}'.format('unix:///csi/csi.sock'),
 			'-e', 'MANAGEMENT_SERVERS=a.b:4000',
 			'-e', 'SIMULATED_PROC=True',
+			'-e', 'TEST_SANITY=True',
 			'-p', '5050',
 			self.image_name_with_tag
 		]
 
 		csi_driver_logger = self.logger.getChild("CSI")
+		csi_driver_logger.debug("Running %s" % ' '.join(cmd))
+
 		p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 		csi_driver_logger.info("Started")
 		self.logs_thread = self.stream_output_in_a_thread(p)
@@ -105,7 +109,7 @@ class ContainerizedCSIDriver(object):
 					logger.error('Cluster ended with an error (exit code %d). exiting..' % p.returncode)
 
 			logger.info('Cluster stopped')
-			self.stopped = True
+			self._stopped = True
 
 		t = Thread(name='{}_stream_logs'.format(self.container_name), target=stream_logs, args=(p.stdout, self.logger))
 		t.start()

@@ -20,6 +20,9 @@ def load_test_config_file():
 	print(working_dir)
 	test_config_path = environ.get('TEST_CONFIG_PATH') or '../config.yaml'
 	try:
+		print('Loading config from %s' % test_config_path)
+		import subprocess
+		print(subprocess.check_output(['ls','-lsa','/config']))
 		with open(test_config_path) as fp:
 			test_config = yaml.safe_load(fp)
 	except Exception as ex:

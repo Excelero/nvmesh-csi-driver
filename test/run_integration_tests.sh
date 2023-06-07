@@ -19,13 +19,13 @@ print_usage() {
 }
 
 if [ $# -eq 0 ]; then
-    python2 -m unittest discover test/integration 
+    python -m unittest discover test/integration 
 elif [ $1 == "--help" ] || [ $1 == "-h" ]; then
     print_usage
 elif [ $1 == "--clear-env" ]; then
-    python2 -m unittest test.integration.tests.clear_test_environment
+    python -m unittest test.integration.tests.clear_test_environment
 else
-    python2 -m unittest $@
+    python -m unittest $@
 fi
 
 exit $?

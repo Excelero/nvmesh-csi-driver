@@ -8,10 +8,15 @@ from test.sanity.helpers.sanity_test_config import load_test_config_file
 load_test_config_file()
 
 def get_version_info():
+	version_info = get_version_from_env_var()
+	if 'DRIVER_VERSION' in version_info:
+		# found version info in environment variables
+		return version_info
+	
 	project_root = os.environ.get('PROJECT_ROOT', '../../')
 	get_version_info_path = os.path.join(project_root, 'get_version_info.sh')
 	version_info_output = subprocess.check_output(['/bin/bash', '-c', get_version_info_path])
-	version_info = {}
+	
 	for line in version_info_output.split('\n'):
 		if not line:
 			continue
@@ -20,6 +25,21 @@ def get_version_info():
 
 	return version_info
 
+def get_version_from_env_var():
+	keys = [
+		"DRIVER_VERSION",
+		"DESCRIBE",
+		"VERSION",
+		"BUILD",
+		"COMMIT"
+	]
+
+	ver_info = {}
+	for k in keys:
+		if k in os.environ:
+			ver_info[k] = os.environ[k]
+
+	return ver_info
 
 version_info = get_version_info()
 
@@ -41,7 +61,8 @@ DEFAULT_MOCK_CONFIG = {
 	'KUBE_CLIENT_LOG_LEVEL': 'DEBUG',
 	'ZONE_DISABLED_TIME_IN_SECONDS': 15,
 	'TOPOLOGY_CONFIG_MAP_NAME': 'nvmesh-csi-topology',
-	'CSI_CONFIG_MAP_NAME': 'nvmesh-csi-config'
+	'CSI_CONFIG_MAP_NAME': 'nvmesh-csi-config',
+	'SDK_HTTP_REQUEST_TIMEOUT': 30
 }
 
 class ConfigLoaderMock:
