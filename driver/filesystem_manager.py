@@ -1,5 +1,5 @@
 import logging
-import shutil
+import os
 
 from grpc import StatusCode
 
@@ -126,7 +126,7 @@ class FileSystemManager(object):
 
 	@staticmethod
 	def remove_dir(dir_path):
-		return shutil.rmtree(dir_path)
+		return os.rmdir(dir_path)
 
 	@staticmethod
 	def format_block_device(block_device_path, fs_type, mkfs_options_str):
