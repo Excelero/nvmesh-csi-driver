@@ -194,9 +194,6 @@ class NVMeshNodeService(NodeServicer):
 		reqJson = MessageToJson(request)
 		self.logger.debug('NodeUnpublishVolume called with request: {}'.format(reqJson))
 
-		if not os.path.exists(target_path):
-			raise DriverError(StatusCode.NOT_FOUND, 'mount path {} not found'.format(target_path))
-
 		if not FileSystemManager.is_mounted(mount_path=target_path):
 			self.logger.debug('NodeUnpublishVolume: {} is already not mounted'.format(target_path))
 		else:
