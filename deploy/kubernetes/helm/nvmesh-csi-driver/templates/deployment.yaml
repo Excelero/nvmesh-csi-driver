@@ -25,6 +25,9 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
+      {{- with .Values.controller.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
       {{- with .Values.controller.nodeSelector }}
       nodeSelector:
         {{ toYaml . | nindent 8 }}
@@ -137,6 +140,9 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
+      {{- with .Values.nodeDriver.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
       serviceAccount: {{ template "nvmesh-csi-driver.serviceAccountName" . }}
       {{- with .Values.nodeDriver.nodeSelector }}
       nodeSelector:
