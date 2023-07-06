@@ -200,9 +200,15 @@ class Connection(object):
 
         res = None
         if not isAliveRoute:
+            payload_for_log = payload
+            if route == '/login':
+                # hide password from logs
+                payload_for_log = {}
+                payload_for_log.update(payload)
+                payload_for_log['password'] = '****'
             self.logger.debug(
                 'In doRequest method={0} route={1} payload={2} postTimeout={3}, numberOfRetries={4}'.
-                    format(method, route, payload, postTimeout, numberOfRetries))
+                    format(method, route, payload_for_log, postTimeout, numberOfRetries))
         url = ''
         try:
             url = urlparse.urljoin(self.managementServer, route)
