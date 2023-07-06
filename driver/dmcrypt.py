@@ -21,6 +21,7 @@ class ShellCommandError(Exception):
         Exception.__init__(self, message)
 
 class DMCrypt(object):
+    SUCCESS = 0
     WRONG_KEY = 2
     DEVICE_NOT_ENCRYPTED = 1
     ACCESS_DENIED_OR_NOT_EXIST = 4
@@ -81,10 +82,10 @@ class DMCrypt(object):
         cmd = ['cryptsetup', 'open', dev_path, new_dev_name]
         logger.debug('running cmd: {}'.format(' '.join(cmd)))
         exit_code, stdout, stderr = Utils.run_safe_command(cmd, input=key, debug=True)
-        if exit_code != 0:
-            return ShellCommandError('Error opening encrypted device', cmd, exit_code, stderr, stdout)
+        if exit_code in [DMCrypt.SUCCESS, DMCrypt.ALREADY_EXISTS]:
+            return exit_code, None
         else:
-            return None
+            return exit_code, ShellCommandError('Error opening encrypted device', cmd, exit_code, stderr, stdout)
     
     @staticmethod
     def close(encrypted_dev_name):

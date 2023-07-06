@@ -484,9 +484,12 @@ class NVMeshNodeService(NodeServicer):
 		self.logger.debug('dmCrypt: DEBUG device {} is_open={}'.format(nvmesh_volume_name, DMCrypt.is_open(nvmesh_volume_name)))
 
 		self.logger.debug('dmCrypt: Opening encrypted device ' + nvmesh_dev_path + ' as /dev/mapper/' + nvmesh_volume_name)
-		err = DMCrypt.open(nvmesh_dev_path, nvmesh_volume_name, key)
+		exit_code, err = DMCrypt.open(nvmesh_dev_path, nvmesh_volume_name, key)
 		if err:
 			raise DriverError(StatusCode.INTERNAL, err)
+		
+		if exit_code == DMCrypt.ALREADY_EXISTS:
+			self.logger.debug('dmCrypt: encrypted device ' + nvmesh_dev_path + ' already open')
 
 	def close_dmcrypt_device(self, nvmesh_volume_name):
 		print('dmCrypt: closing device ' + nvmesh_volume_name)
