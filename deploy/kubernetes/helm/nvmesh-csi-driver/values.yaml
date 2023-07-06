@@ -42,6 +42,7 @@ controller:
   hostNetwork: false
   nodeSelector: {}
   affinity: {}
+  priorityClassName:
 nodeDriver:
   tolerations:
     - key: node-role.kubernetes.io/master
@@ -49,6 +50,7 @@ nodeDriver:
       operator: Exists
   nodeSelector: {}
   affinity: {}
+  priorityClassName:
 
 image:
   repository: excelero/nvmesh-csi-driver
