@@ -59,7 +59,8 @@ def CatchServerErrors(func):
 			return func(self, request, context)
 		except DriverError as drvErr:
 			self.logger.warning("Driver Error caught in gRPC call {} - Code: {} Message:{}".format(func.__name__, str(drvErr.code), str(drvErr.message)))
-			self.logger.exception("Driver Error with stack trace")
+			if Config.PRINT_STACK_TRACES:
+				self.logger.exception("Driver Error with stack trace")
 			context.abort(drvErr.code, str(drvErr.message))
 
 		except Exception as ex:
