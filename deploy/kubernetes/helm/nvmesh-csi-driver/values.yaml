@@ -111,3 +111,7 @@ service:
 # we should use this only for templating (running `helm template ..`)
 # usage `helm template ./nvmesh-csi-driver --set overrideKubeVersion=1.15
 overrideKubeVersion: false
+
+# The CSIDriver resource APIVersion.
+# storage.k8s.io/v1beta1 CSIDriver is deprecated in v1.19+, unavailable in v1.22+; use storage.k8s.io/v1
+csiDriverAPIVersion: storage.k8s.io/v1
