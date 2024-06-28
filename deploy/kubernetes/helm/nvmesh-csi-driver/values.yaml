@@ -67,21 +67,25 @@ csiDriverRegistrar:
   repository: quay.io/k8scsi/csi-node-driver-registrar
   tag: v2.1.0
   pullPolicy: IfNotPresent
+  logLevel: 2
 
 csiExternalProvisioner:
   repository: quay.io/k8scsi/csi-provisioner
   tag: v2.1.0
   pullPolicy: IfNotPresent
+  logLevel: 5
 
 csiExternalAttacher:
   repository: quay.io/k8scsi/csi-attacher
   tag: v3.1.0
   pullPolicy: IfNotPresent
+  logLevel: 5
 
 csiExternalResizer:
   repository: quay.io/k8scsi/csi-resizer
   tag: v1.1.0
   pullPolicy: IfNotPresent
+  logLevel: 5
 
 serviceAccount:
   # Specifies whether a service account should be created

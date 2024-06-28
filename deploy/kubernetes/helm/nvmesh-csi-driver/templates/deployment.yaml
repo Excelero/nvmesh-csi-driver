@@ -84,7 +84,7 @@ spec:
             - "--extra-create-metadata"
             - "--csi-address=/csi/ctrl-csi.sock"
             - "--timeout=300s"
-            - "--v=5"
+            - "--v={{ .Values.csiExternalProvisioner.logLevel }}"
           imagePullPolicy: "{{ .Values.csiExternalProvisioner.pullPolicy }}"
           volumeMounts:
             - name: plugin-socket-dir
@@ -93,7 +93,7 @@ spec:
         - name: csi-resizer
           image: "{{ .Values.csiExternalResizer.repository }}:{{ .Values.csiExternalResizer.tag }}"
           args:
-            - "--v=5"
+            - "--v={{ .Values.csiExternalResizer.logLevel }}"
             - "--csi-address=/csi/ctrl-csi.sock"
             - "--leader-election"
           imagePullPolicy: "{{ .Values.csiExternalResizer.pullPolicy }}"
@@ -226,6 +226,7 @@ spec:
           args:
             - "--csi-address=/csi/csi.sock"
             - "--kubelet-registration-path=/var/lib/kubelet/plugins/{{ .Values.driverName }}/csi.sock"
+            - "--v={{ .Values.csiDriverRegistrar.logLevel }}"
           lifecycle:
             preStop:
               exec:
