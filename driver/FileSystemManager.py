@@ -129,8 +129,21 @@ class FileSystemManager(object):
 
 		FileSystemManager.mkfs(fs_type=fs_type, target_path=block_device_path, flags=[mkfs_options])
 
+
+	@staticmethod
+	def update_bdev_cached_size(block_device_path):
+		'''
+		This re-reads the block device partition data which updates the block device size that the fs will see when it wants to resize
+		'''
+
+		exit_code, stdout, stderr = Utils.run_command('blockdev --rereadpt {}'.format(block_device_path))
+		if exit_code != 0:
+			raise DriverError(StatusCode.INTERNAL, 'Error re-reading block device partition size on block device {}'.format(block_device_path))
+
 	@staticmethod
 	def expand_file_system(block_device_path, fs_type):
+		FileSystemManager.update_bdev_cached_size(block_device_path)
+
 		fs_type = fs_type.strip()
 
 		if fs_type == '':
@@ -143,7 +156,7 @@ class FileSystemManager(object):
 			raise DriverError(StatusCode.INVALID_ARGUMENT, 'unknown fs_type {}'.format(fs_type))
 
 		exit_code, stdout, stderr = Utils.run_command(cmd)
-		logger.debug("resize file-system finished {} {} {}".format(exit_code, stdout, stderr))
+		logger.debug("resize file-system finished exit_code: {}  stdout: {}  stderr: {}".format(exit_code, stdout, stderr))
 
 		if exit_code != 0:
 			raise DriverError(StatusCode.INTERNAL, 'Error expanding File System {} on block device {}'.format(fs_type, block_device_path))
